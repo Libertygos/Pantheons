@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": ["node"],
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
+  },
+  "references": [{ "path": "../packages/engine" }],
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "dist", ".test-dist"]
+}
