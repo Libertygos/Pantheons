@@ -14,6 +14,7 @@
 import type {
   Board,
   GameState,
+  GodId,
   PlacedCard,
   Phase,
   RoomStatus,
@@ -38,7 +39,7 @@ export interface SelfView {
   displayName: string;
   connected: boolean;
   alive: boolean;
-  god: string; // GodId — the viewer's own, allowed
+  god: GodId; // the viewer's own, allowed
   hand: { attributs: string[]; actions: string[] };
   powers: string[];
 }
