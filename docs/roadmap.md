@@ -39,7 +39,7 @@ spectateur/rejoin, résilience aux déconnexions multiples. Dépend de : `⟨INP
 ## Phase 4 — Finition & lancement (nommée, non ticketée)
 
 Polish UI/chrome FR, animations de révélation « Panthéons », `released_at` fixé,
-`card_art` LFS référencé par le catalogue, télémétrie/observabilité (mirroir homelab
+`card_art` référencé par le catalogue, télémétrie/observabilité (mirroir homelab
 ServiceMonitor `release: monitoring`).
 
 ## Réservé (Décision — deferred)

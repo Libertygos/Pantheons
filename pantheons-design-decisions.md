@@ -78,7 +78,7 @@ with strict hidden-information enforcement.
 | 3 | **"Design everything upfront" scope** | **Full spec docs + a complete, ordered Phase-1 ticket set.** Phases 2+ scoped and sequenced but **not** ticketed yet. | The costly WoG mistakes were **spec gaps** (decisions found mid-build), not ticket count. Full specs close that gap. Ticketing later phases now is waste: Phase-1 execution will refine the state model and force re-ticketing. Pantheons' design is frozen (~1 yr stable), so churn risk is low — but state-model churn, not rules churn, is what re-ticketing guards against, and that only reveals itself once Phase 1 is built. |
 | 4 | **Tenant compatibility** — handoff verify, user_id keying, deletion endpoint | **Reuse all three contracts as-is.** No contract surface changes. | Confirmed against project knowledge (`handoff-token.md`, `deletion-endpoint.md`). Game-side handoff verifier per §6: alg allowlist pinned to exactly `["HS256"]`, `iss==="gosgames"`, **`aud==="pantheons"`** (only per-tenant delta), `exp`/`iat` ≤5s skew, `access===true` exact; read token from URL fragment, clear immediately, exchange for the game's own session S-JWT (handoff token is never the session token). All player data keyed by platform `user_id`, local row lazily created on first entry. `DELETE /internal/users/:id` — cluster-internal only, `Bearer <INTERNAL_SERVICE_TOKEN>` constant-time compared, idempotent (unknown/already-deleted → `200 "deleted"`, never `404`). Durable per-user store is small (state is in-memory Colyseus room state), so the cascade is a single `DELETE … WHERE user_id=$1`, same shape as WoG TICKET-058. |
 | 5 | **Art pipeline** — immutable PNG, overlay-only | **Confirmed — immutable PNGs, overlay-only.** | Pantheons-specific refinement: there is **no card-face compositing** — every face is a finished PNG the engine only *displays*. Immutability holds (assets are immutable; build-time format re-encoding OK, pixel edits never). The "overlay" surface is **interactive UI chrome over static images**: board slot state + rendering a placed question card (existing PNG) into a slot, the **pense-bête** (per-player deduction grid — **client-side UI state, never server state, never in the projection**), and réponse/meneur/phase indicators. Net: Pantheons has *less* rendering complexity than WoG, not more. |
-| 6 | **Slug + catalog metadata** | Ratified — see catalog row below. Platform-owned; feeds the **gosgames** catalog doc, not the Pantheons repo. | `slug: pantheons`. `card_art` is the **first asset Jules pushes to the repo via Git LFS**, ahead of build. `released_at` currently **unknown → "as soon as possible"**, set at launch (drives the catalog latest-release slot). |
+| 6 | **Slug + catalog metadata** | Ratified — see catalog row below. Platform-owned; feeds the **gosgames** catalog doc, not the Pantheons repo. | `slug: pantheons`. `card_art` is the **first asset Jules pushes to the repo** (plain git file — LFS was dropped 2026-07-07), ahead of build. `released_at` currently **unknown → "as soon as possible"**, set at launch (drives the catalog latest-release slot). |
 | 7 | **i18n** | **French only, authored directly in French. No English source, no AI-translation, no runtime toggle.** **Deliberate, reasoned exception** to the tenant i18n standard. | The platform standard (author EN → AI-translate → render FR) exists to make future locales cheap; Pantheons **cannot** benefit — the full game vocabulary is baked into immutable PNGs that won't be regenerated, and the audience is **100% French**. Translatable strings are **chrome only** (lobby, phase labels, buttons, the "Panthéons!" declaration flow, disconnect/error messages, pense-bête labels), authored in FR. God/attribute/pantheon spellings are taken **verbatim from the pense-bête image** — assets are truth, same discipline as WoG's enum-keys rule. **Build chat must not "correct" this back to EN-authored.** |
 | 8 | **Lobby / matchmaking** | **Own lobby, same functioning as the WoG room.** Do **not** wait for platform matchmaking (deferred at platform level). | Platform responsibility ends at authenticated handoff (`specs.md` §4.4). Lobby enforces **min 4 / max 7 to start** — a real gameplay gate (can't begin under-filled). Must implement the **same reconnect mechanisms as WoG**; these can be **copied later from Claude Code across repos** rather than authored fresh. Start-gate UX (fill-to-start vs host-starts vs ready-check) and reconnect specifics defer to the WoG room model (input pending). |
 
@@ -90,7 +90,7 @@ with strict hidden-information enforcement.
 | `name` | Panthéons |
 | `tagline` (FR, rendered) | *Un jeu de déduction : découvrez quel dieu se cache derrière chaque joueur.* |
 | `min_players` / `max_players` | 4 / 7 |
-| `card_art` | First asset pushed to the repo via **Git LFS** (Jules, pre-build). |
+| `card_art` | First asset pushed to the repo as a plain git file (Jules, pre-build). |
 | `released_at` | Unknown → **"as soon as possible"**; set at launch. |
 
 ---
@@ -132,7 +132,7 @@ scoped so resolving it later is non-breaking.
    asset: each god's Personnage + miniature, each Pouvoir (12) with its effect, each
    Attribut question card, each Action card (Non / Multiple / Spéciale) with its effect,
    plus board and pense-bête images. Card faces are immutable; the *mapping* must be
-   authored. `card_art` (catalog thumbnail) lands first via Git LFS.
+   authored. `card_art` (catalog thumbnail) lands first as a plain git file.
 4. **Powers + action-card effect text** — the 12 powers and the individual action-card
    effects, read from the assets, transcribed into machine-usable rules for the engine.
 5. **Eye-colour value set** — the closed enum of possible eye colours (the deduction
@@ -192,5 +192,5 @@ hidden-information discipline throughout.
      commit. Do NOT push — I review the diff before merge."*
 
 **Catalog side-effect (separate, gosgames repo):** the Item 6 catalog row feeds the
-**gosgames catalog decision doc**, not the Pantheons repo. `card_art` becomes an LFS
-dependency the catalog references once pushed.
+**gosgames catalog decision doc**, not the Pantheons repo. `card_art` becomes an asset
+the catalog references once pushed.

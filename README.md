@@ -37,7 +37,6 @@ the 12-god table is fully transcribed from the pense-bête, deck composition and
 card identity are fixed. Remaining inputs:
 
 - **Card-face effect text** (powers, actions Non/Multiple/Spéciale) — the faces in
-  `conversion_cartes/cartes_webp/` are Git LFS objects and the **GitHub LFS budget is
-  exhausted**; marked `⟨BLOQUÉ:LFS⟩` in card-catalog.md until the budget is restored and
-  `git lfs pull` succeeds.
+  `conversion_cartes/cartes_webp/` are plain git files (restored 2026-07-07); the texts
+  are marked `⟨À_TRANSCRIRE⟩` in card-catalog.md until transcribed from the faces.
 - **WoG room model** — landing/room/refresh port per `wog-room.md` (in progress).

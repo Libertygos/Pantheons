@@ -1,6 +1,6 @@
 /**
  * Displays an immutable card face exactly as shipped (Decision 5 — no compositing, no text
- * overlay). While the LFS budget keeps the .webp files as pointer text, <img> fails and we
+ * overlay). If a face is missing or fails to load, <img> errors and we
  * fall back to a typographic tile in the pense-bête's own language (mono caps on navy,
  * givre type strip, optional legend band). The tile is chrome, never card copy.
  */

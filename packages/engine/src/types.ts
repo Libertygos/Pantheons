@@ -71,14 +71,14 @@ export interface ActionCard {
   gods?: GodId[];
   /** For 'speciale': the phase at whose START the card triggers. */
   triggerPhase?: Phase;
-  /** Effect key resolved against data/actions.ts (effect text ⟨BLOQUÉ:LFS⟩ — card-catalog.md §3). */
+  /** Effect key resolved against data/actions.ts (effect text ⟨À_TRANSCRIRE⟩ — card-catalog.md §3). */
   effectKey: string;
 }
 
 export interface PouvoirCard {
   id: CardId;
   type: 'pouvoir';
-  /** Effect key resolved against data/powers.ts (effect text ⟨BLOQUÉ:LFS⟩ — card-catalog.md §4). */
+  /** Effect key resolved against data/powers.ts (effect text ⟨À_TRANSCRIRE⟩ — card-catalog.md §4). */
   effectKey: string;
 }
 

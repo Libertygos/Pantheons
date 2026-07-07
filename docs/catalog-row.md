@@ -10,8 +10,8 @@ unambiguous when Jules edits the gosgames repo.
 | `name` | Panthéons |
 | `tagline` (FR) | *Un jeu de déduction : découvrez quel dieu se cache derrière chaque joueur.* |
 | `min_players` / `max_players` | 4 / 7 |
-| `card_art` | First asset pushed via **Git LFS** (Jules, pre-build) — catalog references the LFS object. |
+| `card_art` | First asset pushed as a plain git file (Jules, pre-build) — catalog references it. |
 | `released_at` | Unknown → **"as soon as possible"**; set at launch. |
 
 **Action:** add this row in the gosgames repo's catalog doc; ensure `card_art` points at the
-LFS-tracked thumbnail once pushed. No code change in the Pantheons repo.
+thumbnail once pushed. No code change in the Pantheons repo.

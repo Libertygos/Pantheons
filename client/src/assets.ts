@@ -2,10 +2,9 @@
  * Asset manifest — identity → immutable card face (Decision 5: faces are finished images
  * the client only DISPLAYS; there is no compositing, no text overlay, ever).
  *
- * The faces live in conversion_cartes/cartes_webp/cartes_finales/*.webp and are bundled
- * from there via import.meta.glob — NOT copied — so a `git lfs pull` hydrates what the app
- * serves with no code change. While the LFS budget is exhausted the files are pointer text:
- * <img> fails and CardImage falls back to a typographic tile.
+ * The faces live in conversion_cartes/cartes_webp/cartes_finales/*.webp (plain git files)
+ * and are bundled from there via import.meta.glob — NOT copied. If a face is missing or
+ * fails to load, <img> errors and CardImage falls back to a typographic tile.
  *
  * Derived UI art (NOT cards): the 12 god heads cropped from the pense-bête, used as
  * avatars in the frieze / pense-bête header / declaration picker.
@@ -30,7 +29,7 @@ const penseBete = import.meta.glob('../../conversion_cartes/*.webp', {
   import: 'default',
 }) as Record<string, string>;
 
-/** The printed pense-bête sheet (hydrated, non-LFS) — shown in the in-game help. */
+/** The printed pense-bête sheet — shown in the in-game help. */
 export function penseBeteSrc(): string {
   return Object.values(penseBete)[0] ?? '';
 }
@@ -83,7 +82,7 @@ export function cardBackSrc(type: 'personnages' | 'attributs' | 'actions' | 'pou
   return face(`card_${type}_verso`);
 }
 
-/** FR display labels for the fallback tile while faces are LFS pointers (chrome, not card copy). */
+/** FR display labels for the fallback tile when a face fails to load (chrome, not card copy). */
 export const AXE_LABEL: Record<Axe, string> = {
   genre: 'Genre',
   couleurYeux: 'Yeux',

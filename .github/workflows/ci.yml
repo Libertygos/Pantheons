@@ -1,10 +1,5 @@
 name: CI
 
-# LFS note: checkouts deliberately do NOT pull LFS objects — the repo's LFS budget is
-# exhausted and `lfs: true` would fail every job. The card .webp faces stay pointer
-# files and the client ships its typographic fallback tiles. Once the budget is
-# restored, add `lfs: true` to the build/image checkouts to bake the real card art.
-
 on:
   push:
     branches: [main]

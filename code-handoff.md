@@ -53,7 +53,7 @@ open a review branch for those four files. Flagging explicitly so it's a conscio
    `⟨INPUT WoG⟩`: `barrier.ts#onDeadline`, `PantheonsRoom#onLeave` (`allowReconnection`,
    `RECONNECT_GRACE_SECONDS`). Nominal "wait for all live+connected" works today.
 4. **PNG assets + filename manifest.** `client/src/assets.ts` maps identity→path; CardImage
-   falls back to labelled tiles until art lands via Git LFS (`VITE_ASSET_BASE`).
+   falls back to labelled tiles if a face fails to load (`VITE_ASSET_BASE`).
 
 ## Deliberately deferred (not this repo / not this phase)
 

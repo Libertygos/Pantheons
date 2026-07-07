@@ -1,26 +1,23 @@
 # Panthéons — Catalogue des cartes (card-catalog.md)
 
 > **Authority:** source de vérité du catalogue de cartes (versions.md 1.0.0). Dérivé des
-> assets de `conversion_cartes/` — le pense-bête (`Pense_Bête.webp`, hydraté dans le repo)
-> et les 64 faces de cartes (`cartes_webp/cartes_finales/*.webp`, **Git LFS**). Tout nom,
-> valeur d'attribut et texte d'effet est **verbatim des assets, en français** — jamais
-> inventé. Les champs qui ne peuvent être lus que sur une face de carte actuellement
-> indisponible (voir §Blocage LFS) sont marqués **`⟨BLOQUÉ:LFS⟩`**.
+> assets de `conversion_cartes/` — le pense-bête (`Pense_Bête.webp`) et les 64 faces de
+> cartes (`cartes_webp/cartes_finales/*.webp`). Tout nom, valeur d'attribut et texte
+> d'effet est **verbatim des assets, en français** — jamais inventé. Les champs pas encore
+> lus sur les faces (voir §Transcription en attente) sont marqués **`⟨À_TRANSCRIRE⟩`**.
 >
 > Downstream : `packages/engine/src/data/*` implémente ce catalogue ; `docs/glossary.md`
 > reprend les enums ; `docs/rules.md` décrit les catégories.
 
-## Blocage LFS (état au 2026-07-07)
+## Transcription en attente (état au 2026-07-07)
 
-Les 64 faces (`cartes_webp/cartes_finales/*.webp`) sont des pointeurs Git LFS et le budget
-LFS du compte GitHub est épuisé (`This repository exceeded its LFS budget`) — les objets ne
-peuvent pas être téléchargés. **Transcrit malgré tout** : la table des dieux complète (le
-pense-bête, source ratifiée pour les attributs des dieux, est hydraté), l'identité et le
-compte de chaque carte (noms de fichiers + versions.md). **Bloqué** : le texte d'effet
-exact de chaque Action et Pouvoir, les 4 dieux de chaque carte Multiple, la phase de
-déclenchement de chaque Spéciale, et la confirmation visuelle des faces Attribut /
-Personnage. Une fois le budget LFS restauré : `git lfs pull` puis remplacer chaque
-`⟨BLOQUÉ:LFS⟩` ci-dessous.
+Les 64 faces (`cartes_webp/cartes_finales/*.webp`) sont des fichiers git normaux dans le
+repo (restaurées le 2026-07-07). **Transcrit** : la table des dieux complète (le
+pense-bête, source ratifiée pour les attributs des dieux), l'identité et le compte de
+chaque carte (noms de fichiers + versions.md). **Reste à lire sur les faces** : le texte
+d'effet exact de chaque Action et Pouvoir, les 4 dieux de chaque carte Multiple, la phase
+de déclenchement de chaque Spéciale, et la confirmation visuelle des faces Attribut /
+Personnage — remplacer chaque `⟨À_TRANSCRIRE⟩` ci-dessous.
 
 ## 1. Les 12 dieux (Personnages) — table canonique
 
@@ -45,7 +42,7 @@ elle concorde avec l'iris dessiné sur 11 portraits lisibles sur 12.
 
 ¹ Ganesh : bande bleue (turquoise) nette ; l'iris dessiné est maquillé (amande dorée à
 centre rouge) et illisible à la résolution du pense-bête. `bleus` retenu par la légende de
-bande — **à confirmer sur `card_personnages_ganesh.webp`** une fois le LFS restauré.
+bande — **à confirmer sur `card_personnages_ganesh.webp`** (face désormais dans le repo).
 ² Odin : cicatrice rouge sur l'œil (mythologie) ; l'iris est bien bleu/turquoise.
 
 **Invariants vérifiés** : 4 panthéons × 3 dieux ; genre 6 masculin / 6 feminin ; yeux
@@ -94,13 +91,13 @@ Trois sous-types (rules.md §4), 9 cartes par sous-type. Un exemplaire de chaque
 
 | id | Copies | Effet | Fichier |
 |---|---|---|---|
-| `action_non_1` … `action_non_9` | 1 chacune | `⟨BLOQUÉ:LFS⟩` | `card_actions_non_1.webp` … `card_actions_non_9.webp` |
+| `action_non_1` … `action_non_9` | 1 chacune | `⟨À_TRANSCRIRE⟩` | `card_actions_non_1.webp` … `card_actions_non_9.webp` |
 
 ### 3.2 Multiple (9) — question sur un ensemble de 4 dieux
 
 | id | Copies | Les 4 dieux | Effet additionnel éventuel | Fichier |
 |---|---|---|---|---|
-| `action_multiple_1` … `action_multiple_9` | 1 chacune | `⟨BLOQUÉ:LFS⟩` | `⟨BLOQUÉ:LFS⟩` | `card_actions_multiple_1.webp` … `card_actions_multiple_9.webp` |
+| `action_multiple_1` … `action_multiple_9` | 1 chacune | `⟨À_TRANSCRIRE⟩` | `⟨À_TRANSCRIRE⟩` | `card_actions_multiple_1.webp` … `card_actions_multiple_9.webp` |
 
 **Logique** : « oui » ssi le dieu de la cible appartient à l'ensemble des 4.
 
@@ -108,28 +105,28 @@ Trois sous-types (rules.md §4), 9 cartes par sous-type. Un exemplaire de chaque
 
 | id | Copies | Phase de déclenchement | Effet | Fichier |
 |---|---|---|---|---|
-| `action_special_1` … `action_special_9` | 1 chacune | `⟨BLOQUÉ:LFS⟩` | `⟨BLOQUÉ:LFS⟩` | `card_actions_special_1.webp` … `card_actions_special_9.webp` |
+| `action_special_1` … `action_special_9` | 1 chacune | `⟨À_TRANSCRIRE⟩` | `⟨À_TRANSCRIRE⟩` | `card_actions_special_1.webp` … `card_actions_special_9.webp` |
 
 ## 4. Pouvoirs — 12 cartes distinctes, 1 exemplaire chacune
 
 Un joueur détient exactement 1 pouvoir en régime établi (rules.md §5 Pioche). Verso
 commun : `card_pouvoirs_verso.webp`. Libellés ci-dessous reconstitués des noms de
-fichiers ; **la graphie exacte de la face fait foi** (`⟨BLOQUÉ:LFS⟩` pour confirmation).
+fichiers ; **la graphie exacte de la face fait foi** (`⟨À_TRANSCRIRE⟩` pour confirmation).
 
 | id (effectKey) | Libellé probable | Copies | Effet | Fichier |
 |---|---|---|---|---|
-| `sabotage` | Sabotage | 1 | `⟨BLOQUÉ:LFS⟩` | `card_pouvoirs_sabotage.webp` |
-| `clonage` | Clonage | 1 | `⟨BLOQUÉ:LFS⟩` | `card_pouvoirs_clonage.webp` |
-| `etude` | Étude | 1 | `⟨BLOQUÉ:LFS⟩` | `card_pouvoirs_etude.webp` |
-| `concentration` | Concentration | 1 | `⟨BLOQUÉ:LFS⟩` | `card_pouvoirs_concentration.webp` |
-| `refus_royal` | Refus royal | 1 | `⟨BLOQUÉ:LFS⟩` | `card_pouvoirs_refus_royal.webp` |
-| `connaissance` | Connaissance | 1 | `⟨BLOQUÉ:LFS⟩` | `card_pouvoirs_connaissance.webp` |
-| `execution` | Exécution | 1 | `⟨BLOQUÉ:LFS⟩` | `card_pouvoirs_execution.webp` |
-| `ames_soeurs_1` | Âmes sœurs (1) | 1 | `⟨BLOQUÉ:LFS⟩` | `card_pouvoirs_ames_soeurs_1.webp` |
-| `ames_soeurs_2` | Âmes sœurs (2) | 1 | `⟨BLOQUÉ:LFS⟩` | `card_pouvoirs_ames_soeurs_2.webp` |
-| `deduction` | Déduction | 1 | `⟨BLOQUÉ:LFS⟩` | `card_pouvoirs_deduction.webp` |
-| `optimisse` | Optimisse ⁴ | 1 | `⟨BLOQUÉ:LFS⟩` | `card_pouvoirs_optimisse.webp` |
-| `espionnage` | Espionnage | 1 | `⟨BLOQUÉ:LFS⟩` | `card_pouvoirs_espionnage.webp` |
+| `sabotage` | Sabotage | 1 | `⟨À_TRANSCRIRE⟩` | `card_pouvoirs_sabotage.webp` |
+| `clonage` | Clonage | 1 | `⟨À_TRANSCRIRE⟩` | `card_pouvoirs_clonage.webp` |
+| `etude` | Étude | 1 | `⟨À_TRANSCRIRE⟩` | `card_pouvoirs_etude.webp` |
+| `concentration` | Concentration | 1 | `⟨À_TRANSCRIRE⟩` | `card_pouvoirs_concentration.webp` |
+| `refus_royal` | Refus royal | 1 | `⟨À_TRANSCRIRE⟩` | `card_pouvoirs_refus_royal.webp` |
+| `connaissance` | Connaissance | 1 | `⟨À_TRANSCRIRE⟩` | `card_pouvoirs_connaissance.webp` |
+| `execution` | Exécution | 1 | `⟨À_TRANSCRIRE⟩` | `card_pouvoirs_execution.webp` |
+| `ames_soeurs_1` | Âmes sœurs (1) | 1 | `⟨À_TRANSCRIRE⟩` | `card_pouvoirs_ames_soeurs_1.webp` |
+| `ames_soeurs_2` | Âmes sœurs (2) | 1 | `⟨À_TRANSCRIRE⟩` | `card_pouvoirs_ames_soeurs_2.webp` |
+| `deduction` | Déduction | 1 | `⟨À_TRANSCRIRE⟩` | `card_pouvoirs_deduction.webp` |
+| `optimisse` | Optimisse ⁴ | 1 | `⟨À_TRANSCRIRE⟩` | `card_pouvoirs_optimisse.webp` |
+| `espionnage` | Espionnage | 1 | `⟨À_TRANSCRIRE⟩` | `card_pouvoirs_espionnage.webp` |
 
 ⁴ `optimisse` tel quel dans le nom de fichier (graphie inhabituelle — « Optimiste » ?) ; la
 face fait foi, clé figée sur le fichier.

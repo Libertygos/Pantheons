@@ -61,7 +61,7 @@
 ## Catalogue (repo gosgames séparé — hors ce repo)
 
 - **T-18 `[SONNET]`** ⬜ — ligne catalogue (`slug: pantheons`, min/max 4/7, tagline FR,
-  `card_art` LFS). **Effet de bord côté repo gosgames**, pas ici. Documenté dans
+  `card_art`). **Effet de bord côté repo gosgames**, pas ici. Documenté dans
   `docs/catalog-row.md`.
 
 ## Inputs bloquants (résumé)

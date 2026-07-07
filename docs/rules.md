@@ -4,8 +4,8 @@
 > the uploaded rulebook / pense-bête assets. This is the canonical ruleset in Pantheons'
 > own terms. Vocabulary (god / attribute / pantheon / card names) is **fixed by the image
 > assets, in French** — never invented or translated here. The card catalog and god table
-> are transcribed in `docs/card-catalog.md`; values only readable on card faces that are
-> currently unavailable (Git LFS budget) are marked **`⟨BLOQUÉ:LFS⟩`**.
+> are transcribed in `docs/card-catalog.md`; values only readable on card faces not yet
+> transcribed are marked **`⟨À_TRANSCRIRE⟩`**.
 
 ## 1. But du jeu
 
@@ -52,7 +52,7 @@ déduction — toute question se résout contre eux :
 | Type | Nb | Rôle |
 |---|---|---|
 | **Personnage** | 12 | Le dieu secret d'un joueur (1 par joueur en jeu). |
-| **Pouvoir** | 12 | Effet persistant/activable. Un joueur en détient **exactement 1** en régime établi. Identités dans `card-catalog.md` §4 ; effets `⟨BLOQUÉ:LFS⟩`. |
+| **Pouvoir** | 12 | Effet persistant/activable. Un joueur en détient **exactement 1** en régime établi. Identités dans `card-catalog.md` §4 ; effets `⟨À_TRANSCRIRE⟩`. |
 | **Attribut** | 36 | Carte-question portant une valeur d'attribut (genre, couleur d'yeux, ou panthéon) — 9 faces distinctes × 4 exemplaires. |
 | **Action** | 27 | Cartes jouées comme questions, sauf **Spéciale**. 9 par sous-type, 1 exemplaire chacune. |
 
@@ -66,8 +66,8 @@ déduction — toute question se résout contre eux :
 
 > Le texte d'effet exact de chaque Pouvoir / Non / Multiple / Spéciale est **défini par la
 > face de la carte** ; il est transcrit dans `docs/card-catalog.md` puis dans les fichiers
-> de données de l'engine, jamais inventé ici. Les faces sont actuellement `⟨BLOQUÉ:LFS⟩`
-> (budget Git LFS épuisé) — voir card-catalog.md §Blocage. Les règles décrivent les
+> de données de l'engine, jamais inventé ici. Les textes non encore transcrits sont marqués
+> `⟨À_TRANSCRIRE⟩` — voir card-catalog.md §Transcription en attente. Les règles décrivent les
 > **catégories**, pas chaque carte.
 
 ## 5. Structure d'un tour — trois phases simultanées

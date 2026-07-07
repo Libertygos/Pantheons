@@ -51,7 +51,8 @@ newest version on top, each with `### Claude code tasks` then `### Claude code d
 
 ### Claude code done
 
-_2026-07-07 — catalog authored; card-face effect text blocked on Git LFS._
+_2026-07-07 — catalog authored; card faces restored as plain git files (ex-LFS); effect
+text transcription pending._
 
 1. **WoG reference read** ✓ — `wog-room.md` (the authoritative extraction) + the local
    `../war-of-guilds` checkout. The landing/room/refresh model was ported into Pantheons in
@@ -67,11 +68,12 @@ _2026-07-07 — catalog authored; card-face effect text blocked on Git LFS._
    transcribed: the 12-god table (genre / couleur des yeux / panthéon) is complete in
    `docs/card-catalog.md` §1 and `packages/engine/src/data/gods.ts` (`TRANSCRIBED = true`;
    one caveat: Ganesh's iris is stylised — `bleus` from his band, re-confirm on his card
-   face). The **64 card faces are un-hydrated Git LFS pointers** and GitHub refuses the
-   objects (**"This repository exceeded its LFS budget"**), so per-card effect text,
-   Multiple god-sets, and Spéciale trigger phases are recorded as `⟨BLOQUÉ:LFS⟩`.
-   **Action for Jules:** restore the LFS budget (or push the WebPs by another channel),
-   then `git lfs pull` and fill the `⟨BLOQUÉ:LFS⟩` slots of `docs/card-catalog.md`.
+   face). The 64 card faces were un-hydrated Git LFS pointers behind an exhausted LFS
+   budget; **restored 2026-07-07**: the real WebPs were recovered from GitHub's
+   `media.githubusercontent.com` endpoint (sha256-verified against the pointers),
+   recommitted as plain git files, and LFS tracking removed. Per-card effect text,
+   Multiple god-sets, and Spéciale trigger phases remain recorded as `⟨À_TRANSCRIRE⟩`
+   until transcribed from the faces into `docs/card-catalog.md`.
 
 3. **Card catalog & copy counts** ✓ — `docs/card-catalog.md` (source of truth): 12
    Personnages ×1, **9 distinct Attributs ×4 = 36** (the deduction space is closed at
@@ -89,8 +91,8 @@ _2026-07-07 — catalog authored; card-face effect text blocked on Git LFS._
    idempotent drizzle migrations at boot; `Dockerfile`/`.dockerignore` (versions.md kept
    in context — vite stamps the version from it); `.github/workflows/ci.yml` (typecheck →
    tests → build → GHCR image `ghcr.io/libertygos/pantheons` → homelab newTag retarget).
-   CI checks out WITHOUT LFS while the budget is exhausted (card faces render fallback
-   tiles; flip `lfs: true` once restored). Deployed at **pantheons.gosgames.com** via
+   Card faces are plain git files since 2026-07-07, so a normal checkout bakes the real
+   card art (no `lfs: true` needed). Deployed at **pantheons.gosgames.com** via
    `homelab/infra/pantheons` (ArgoCD app, Traefik IngressRoute, cert, CNPG `pantheons`
    DB). **Actions for Jules:** add the `HOMELAB_DEPLOY_TOKEN` secret to this repo (same
    PAT as WoG) for future auto-deploys, and seed the platform catalog so Pantheons shows

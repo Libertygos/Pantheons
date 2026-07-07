@@ -2,10 +2,10 @@
  * Pouvoirs catalogue (T-07). The 12 powers, keyed on the asset filenames
  * (card_pouvoirs_<key>.webp) — see docs/card-catalog.md §4.
  *
- * ⟨BLOQUÉ:LFS⟩ — each power's effect text is DEFINED BY ITS card face; the faces are Git
- * LFS objects the repo currently cannot fetch (LFS budget exceeded). Identities and labels
- * below come from the filenames; `apply` handlers stay stubs until the faces are readable
- * (labels marked with ⟨face fait foi⟩ must be re-checked against the art then).
+ * ⟨À_TRANSCRIRE⟩ — each power's effect text is DEFINED BY ITS card face
+ * (conversion_cartes/cartes_webp/). Identities and labels below come from the filenames;
+ * `apply` handlers stay stubs until the faces are transcribed (labels marked with
+ * ⟨face fait foi⟩ must be re-checked against the art then).
  *
  * Keeping this as a keyed registry means adding a real effect later is a local edit — no
  * change to the rules engine surface.

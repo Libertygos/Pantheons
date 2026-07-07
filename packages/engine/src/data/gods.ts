@@ -6,7 +6,7 @@
  * (matches the drawn iris on 11/12 legible portraits). One residual caveat: Ganesh's drawn
  * iris is stylised (gold/red make-up) and illegible at pense-bête resolution; `bleus` is
  * taken from his turquoise band and must be re-confirmed against
- * card_personnages_ganesh.webp once the LFS budget is restored.
+ * card_personnages_ganesh.webp (now in the repo).
  */
 import type { God, GodId } from '../types.js';
 

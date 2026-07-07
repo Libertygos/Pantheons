@@ -1,6 +1,5 @@
 # NOTE: conversion_cartes/ must stay IN the context — the client build globs the card
-# .webp faces from it (import.meta.glob). While the LFS budget is exhausted they are
-# pointer files and the client renders its typographic fallback tiles.
+# .webp faces from it (import.meta.glob).
 docs/
 **/*.test.ts
 **/*.spec.ts

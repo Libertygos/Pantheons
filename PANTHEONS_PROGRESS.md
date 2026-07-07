@@ -6,8 +6,8 @@
 
 ## 1. Ligne artistique extraite (définitive — ne pas re-débattre)
 
-Source : `conversion_cartes/Pense_Bête.webp` (2481×1749, **seul asset hydraté** — les 64
-faces de cartes sont des pointeurs Git LFS, budget épuisé, cf. §6). Le pense-bête est un
+Source : `conversion_cartes/Pense_Bête.webp` (2481×1749 — au moment de l'extraction, seul
+asset lisible ; les 64 faces de cartes ont depuis été restaurées, cf. §6). Le pense-bête est un
 document designer complet : titre, frise des 12 dieux, grille, légende — il suffit à fixer
 la DA.
 
@@ -70,14 +70,15 @@ des cartes — les cartes restent des images finales affichées telles quelles.
 
 ## 3. Décisions et arbitrages tranchés (avec pourquoi)
 
-1. **DA extraite du seul pense-bête** : les faces cartes sont indisponibles (LFS). Le
-   pense-bête étant l'artefact designer le plus complet (typo+palette+illustration+grille),
-   il fait autorité. À la restauration LFS, vérifier la cohérence — pas de refonte attendue.
+1. **DA extraite du seul pense-bête** : les faces cartes étaient indisponibles au moment
+   de l'extraction. Le pense-bête étant l'artefact designer le plus complet
+   (typo+palette+illustration+grille), il fait autorité. Les faces sont désormais dans le
+   repo : vérifier la cohérence — pas de refonte attendue.
 2. **PT Mono partout, Cinzel supprimé** : fidélité à l'asset > cliché « jeu antique ».
 3. **Cartes = `<img>` statiques** via `import.meta.glob` sur
-   `conversion_cartes/cartes_webp/cartes_finales/*.webp` (pas de copie : les fichiers
-   seront hydratés en place par `git lfs pull` ; une copie figerait les pointeurs).
-   Fallback : tuile typographiée (CardImage) tant que les webp sont des pointeurs.
+   `conversion_cartes/cartes_webp/cartes_finales/*.webp` (pas de copie — les fichiers du
+   repo font foi). Fallback : tuile typographiée (CardImage) si une face manque ou ne
+   charge pas.
 4. **Projection enrichie** (`self` uniquement) : la main arrive en `CardId` opaques, le
    client ne peut ni afficher les faces ni construire une QuestionIntent. Ajout
    `self.handCards`/`self.powerCards`/`self.specialesInHand` résolus via le CardIndex,
@@ -115,20 +116,21 @@ des cartes — les cartes restent des images finales affichées telles quelles.
 
 ## 6. Points bloquants rencontrés et résolution
 
-- **LFS épuisé** (`git lfs pull` → "exceeded its LFS budget", retesté 2026-07-07) : les 64
-  faces restent des pointeurs. Résolution : DA depuis le pense-bête ; cartes branchées sur
-  les vrais chemins .webp avec fallback typographié propre (elles apparaîtront dès
-  hydratation, sans changement de code). Ne pas copier les pointeurs.
+- **Budget Git LFS épuisé** (`git lfs pull` → "exceeded its LFS budget") : les 64 faces
+  étaient des pointeurs. **Résolu le 2026-07-07** : les vrais .webp récupérés via
+  `media.githubusercontent.com` (sha256 vérifiés contre les pointeurs), recommittés en
+  fichiers git normaux, suivi LFS supprimé. Entre-temps la DA avait été extraite du
+  pense-bête, avec fallback typographié — inchangé, il couvre tout échec de chargement.
 - **Main opaque dans la projection** : résolu par l'enrichissement §3.4.
 - **Playwright impossible dans la sandbox** (pas de libs navigateur) : vérification par
   typecheck + tests + build + rendu SSR-less ; captures à faire en CI/local par Jules.
 
 ## 7. Reste ouvert pour les sessions suivantes
 
-- À l'hydratation LFS : `git lfs pull`, vérifier le rendu réel des cartes (ratio supposé
-  5:7), transcrire les effets dans `docs/card-catalog.md` (hors scope UI).
+- Faces restaurées (2026-07-07) : vérifier le rendu réel des cartes (ratio supposé 5:7),
+  transcrire les effets dans `docs/card-catalog.md` (hors scope UI).
 - Phase Question : l'UI pose des Attributs et Actions-questions ; les Spéciales sont
-  posables (slot dédié) mais leurs effets sont des stubs engine (⟨BLOQUÉ:LFS⟩).
+  posables (slot dédié) mais leurs effets sont des stubs engine (⟨À_TRANSCRIRE⟩).
 - Timeout de barrière (⟨INPUT WoG⟩) : l'UI affiche la progression de barrière, pas de
   compte à rebours tant que `deadline` reste null côté serveur.
 - Le déclarant multiple est résolu serveur ; l'UI montre le résultat via la projection

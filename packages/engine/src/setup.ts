@@ -5,7 +5,7 @@
  *
  * Deck composition follows docs/card-catalog.md (12 Personnages, 9×4 Attributs,
  * 27 Actions, 12 Pouvoirs); the Action deck is partially placeholder while the card
- * faces are ⟨BLOQUÉ:LFS⟩ — see buildActionDeck.
+ * faces are ⟨À_TRANSCRIRE⟩ — see buildActionDeck.
  */
 import { ALL_GODS, GODS } from './data/gods.js';
 import { POWER_KEYS } from './data/powers.js';
@@ -61,7 +61,7 @@ export function buildAttributDeck(): AttributCard[] {
 /**
  * Build the Action deck. The real deck is 27 cards (9 Non / 9 Multiple / 9 Spéciale, one
  * copy each — docs/card-catalog.md §3), but Non/Spéciale effects and each Multiple's 4-god
- * set are ⟨BLOQUÉ:LFS⟩ (unreadable card faces). Until transcribed, the playable deck is the
+ * set are ⟨À_TRANSCRIRE⟩ (unreadable card faces). Until transcribed, the playable deck is the
  * 9 Multiple identities with PLACEHOLDER rotating 4-god windows so the action economy stays
  * alive; Non/Spéciale enter the deck when their effects land.
  */
