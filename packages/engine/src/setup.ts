@@ -3,10 +3,12 @@
  * initial server-authoritative GameState. The room calls this once; the seed makes the
  * whole match reproducible.
  *
- * Deck sizes/copies for Attributs and the Action deck are ⟨TRANSCRIBE⟩-adjacent (the real
- * counts come from the physical card set). Values here are playable defaults for Phase 1.
+ * Deck composition follows docs/card-catalog.md (12 Personnages, 9×4 Attributs,
+ * 27 Actions, 12 Pouvoirs); the Action deck is partially placeholder while the card
+ * faces are ⟨BLOQUÉ:LFS⟩ — see buildActionDeck.
  */
 import { ALL_GODS, GODS } from './data/gods.js';
+import { POWER_KEYS } from './data/powers.js';
 import { makeRng, shuffle } from './rng.js';
 import {
   COULEURS_YEUX,
@@ -33,8 +35,8 @@ export interface SeatInput {
   displayName: string;
 }
 
-/** Placeholder deck-copy counts (⟨TRANSCRIBE⟩ from the physical set). */
-const ATTRIBUT_COPIES = 3;
+/** 4 copies of each of the 9 Attribut faces = 36 cards (docs/card-catalog.md §2). */
+const ATTRIBUT_COPIES = 4;
 
 let cardSeq = 0;
 function cid(prefix: string): string {
@@ -57,26 +59,24 @@ export function buildAttributDeck(): AttributCard[] {
 }
 
 /**
- * Build the Action deck. Real Non/Spéciale effects are ⟨TRANSCRIBE⟩ (empty registry), so we
- * seed structurally-valid Multiple cards (4-god questions) to keep the action economy alive
- * for Phase 1. Phase 2 replaces this with the transcribed catalogue.
+ * Build the Action deck. The real deck is 27 cards (9 Non / 9 Multiple / 9 Spéciale, one
+ * copy each — docs/card-catalog.md §3), but Non/Spéciale effects and each Multiple's 4-god
+ * set are ⟨BLOQUÉ:LFS⟩ (unreadable card faces). Until transcribed, the playable deck is the
+ * 9 Multiple identities with PLACEHOLDER rotating 4-god windows so the action economy stays
+ * alive; Non/Spéciale enter the deck when their effects land.
  */
 export function buildActionDeck(): ActionCard[] {
   const cards: ActionCard[] = [];
-  // A handful of Multiple cards over rotating 4-god windows.
-  for (let i = 0; i < GOD_IDS.length; i++) {
+  for (let i = 0; i < 9; i++) {
     const gods: GodId[] = [0, 1, 2, 3].map((k) => GOD_IDS[(i + k) % GOD_IDS.length]!);
-    cards.push({ id: cid('act'), type: 'action', subtype: 'multiple', gods, effectKey: `multiple_${i}` });
+    cards.push({ id: cid('act'), type: 'action', subtype: 'multiple', gods, effectKey: `action_multiple_${i + 1}` });
   }
   return cards;
 }
 
-/** 12 Pouvoir cards, keyed to the registry. */
+/** The 12 Pouvoir cards, keyed to the registry (docs/card-catalog.md §4). */
 export function buildPouvoirDeck(): PouvoirCard[] {
-  return Array.from({ length: 12 }, (_, i) => {
-    const key = `pouvoir_${String(i + 1).padStart(2, '0')}`;
-    return { id: cid('pow'), type: 'pouvoir', effectKey: key } satisfies PouvoirCard;
-  });
+  return POWER_KEYS.map((key) => ({ id: cid('pow'), type: 'pouvoir', effectKey: key }) satisfies PouvoirCard);
 }
 
 function emptyBoard(): Board {

@@ -111,6 +111,15 @@ export class MatchController {
     this.tryAdvance();
   }
 
+  /**
+   * WoG model: a disconnected seat is auto-passed so play never blocks. The barrier only
+   * counts live+connected players, so a connectivity change can make the current phase
+   * complete — the room calls this after flipping any player's `connected` flag.
+   */
+  onConnectivityChange(): void {
+    this.tryAdvance();
+  }
+
   // ---- transitions ----
 
   private tryAdvance(): void {

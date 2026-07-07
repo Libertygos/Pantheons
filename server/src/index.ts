@@ -2,11 +2,16 @@
  * Pantheons server bootstrap: Express (handoff exchange + deletion) + Colyseus (rooms).
  * Server-authoritative; mirrors the WoG server shape (Decision 2).
  */
+import fs from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { Server } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import { PantheonsRoom } from './rooms/PantheonsRoom.js';
+import { lookupRoom } from './rooms/room-registry.js';
+import { normalizeRoomCode } from './rooms/room-code.js';
 import { verifyHandoffToken } from './auth/handoff.js';
 import { issueSession } from './auth/session.js';
 import { ensureUser } from './db/index.js';
@@ -40,8 +45,27 @@ app.post('/auth/exchange', async (req, res) => {
   }
 });
 
+/**
+ * Room-existence probe (wog-room.md §3.1): lets a reloaded client decide between
+ * reconnect / fresh join / "room not found" without opening a socket to a dead room.
+ */
+app.get('/api/rooms/:code/exists', (req, res) => {
+  const found = lookupRoom(normalizeRoomCode(req.params.code));
+  if (!found) return res.json({ exists: false });
+  return res.json({ exists: true, phase: found.phase, roomId: found.roomId });
+});
+
 // Deletion endpoint (cluster-internal; gateway must not expose externally).
 app.use(createDeletionRouter(INTERNAL_TOKEN));
+
+// Same-origin SPA (wog-room.md §0): the game server serves the built client so the
+// WebSocket and all /api/* calls share the page host. `/room/:code` deep links fall back
+// to index.html (client-side routing).
+const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  app.get(['/', '/room/:code'], (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
+}
 
 const httpServer = http.createServer(app);
 const gameServer = new Server({ transport: new WebSocketTransport({ server: httpServer }) });

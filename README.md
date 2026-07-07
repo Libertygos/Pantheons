@@ -31,12 +31,13 @@ pnpm dev:client
 
 ## Status & missing inputs
 
-Phase 1 structure is complete and tested. Some values are placeholders pending assets Jules
-must supply (see [`docs/phase-1-tickets.md`](./docs/phase-1-tickets.md) and
-[`code-handoff.md`](./code-handoff.md)):
+Phase 1 structure is complete and tested. The card catalog is authored in
+[`docs/card-catalog.md`](./docs/card-catalog.md) (source of truth, versions.md 1.0.0):
+the 12-god table is fully transcribed from the pense-bête, deck composition and every
+card identity are fixed. Remaining inputs:
 
-- **Pense-bête image** → per-god `genre` + `couleurYeux` (marked `⟨TRANSCRIBE⟩` in
-  `packages/engine/src/data/gods.ts`; placeholder values so the engine runs/tests).
-- **Card PNGs** → power / action effect text (`data/powers.ts`, `data/actions.ts`).
-- **WoG room model** → exact barrier-timeout / reconnect policy (`⟨INPUT WoG⟩` hooks).
-- **PNG assets + manifest** → real card art (client renders filenames, art via Git LFS).
+- **Card-face effect text** (powers, actions Non/Multiple/Spéciale) — the faces in
+  `conversion_cartes/cartes_webp/` are Git LFS objects and the **GitHub LFS budget is
+  exhausted**; marked `⟨BLOQUÉ:LFS⟩` in card-catalog.md until the budget is restored and
+  `git lfs pull` succeeds.
+- **WoG room model** — landing/room/refresh port per `wog-room.md` (in progress).

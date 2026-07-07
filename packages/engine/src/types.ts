@@ -2,9 +2,8 @@
  * Panthéons engine — core types (T-05).
  *
  * Vocabulary is FIXED BY THE IMAGE ASSETS (French, immutable). Enum *keys* are ASCII-fold
- * of the verbatim names (see docs/glossary.md). Values that must be transcribed from the
- * pense-bête image and are not yet in the repo are marked ⟨TRANSCRIBE⟩ at their data site
- * (packages/engine/src/data/*), NOT here — this file only fixes the *shape*.
+ * of the verbatim names (see docs/glossary.md). Value sets are transcribed from the
+ * pense-bête + attribute faces — docs/card-catalog.md is the source of truth.
  */
 
 export type UserId = string;
@@ -15,18 +14,18 @@ export const PANTHEONS = ['hindou', 'grec', 'egyptien', 'nordique'] as const;
 export type Pantheon = (typeof PANTHEONS)[number];
 
 /**
- * ⟨TRANSCRIBE⟩ — closed value set to be read off the pense-bête legend. Placeholder values
- * below are the most probable structure; they MUST be confirmed/replaced from the image
- * before launch. Do not treat as final. See docs/glossary.md.
+ * Transcribed — the two genre Attribut faces are `masculin` / `feminin`
+ * (card_attributs_masculin.webp / card_attributs_feminin.webp). See docs/card-catalog.md.
  */
 export const GENRES = ['feminin', 'masculin'] as const;
 export type Genre = (typeof GENRES)[number];
 
 /**
- * ⟨TRANSCRIBE⟩ — closed eye-colour value set from the pense-bête legend. Placeholder set;
- * replace with the exact legend enum before launch.
+ * Transcribed — closed eye-colour set from the pense-bête band legend and the three
+ * colour Attribut faces (bleus / verts / rouges). Keys are verbatim asset plurals.
+ * See docs/card-catalog.md §1–2.
  */
-export const COULEURS_YEUX = ['bleu', 'vert', 'marron', 'noir'] as const;
+export const COULEURS_YEUX = ['bleus', 'verts', 'rouges'] as const;
 export type CouleurYeux = (typeof COULEURS_YEUX)[number];
 
 /** The 12 gods (enum keys; display labels are verbatim in data/gods.ts). */
@@ -72,14 +71,14 @@ export interface ActionCard {
   gods?: GodId[];
   /** For 'speciale': the phase at whose START the card triggers. */
   triggerPhase?: Phase;
-  /** Effect key resolved against data/actions.ts (effect text is ⟨TRANSCRIBE⟩ from PNG). */
+  /** Effect key resolved against data/actions.ts (effect text ⟨BLOQUÉ:LFS⟩ — card-catalog.md §3). */
   effectKey: string;
 }
 
 export interface PouvoirCard {
   id: CardId;
   type: 'pouvoir';
-  /** Effect key resolved against data/powers.ts (effect text is ⟨TRANSCRIBE⟩ from PNG). */
+  /** Effect key resolved against data/powers.ts (effect text ⟨BLOQUÉ:LFS⟩ — card-catalog.md §4). */
   effectKey: string;
 }
 

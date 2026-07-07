@@ -1,8 +1,8 @@
 # Panthéons — Glossaire (glossary.md)
 
 > **Authority:** vocabulaire canonique. Tout est **verbatim des assets** (pense-bête +
-> cartes), en **français**, immuable. Les valeurs qui doivent être **lues sur l'image du
-> pense-bête** et ne sont pas encore dans le repo sont marquées **`⟨TRANSCRIBE⟩`**. Ce
+> cartes), en **français**, immuable. Transcrit du pense-bête + noms de fichiers des
+> cartes le 2026-07-07 — voir `docs/card-catalog.md` (source de vérité du catalogue). Ce
 > fichier est la source de vérité pour les clés d'enum consommées par l'engine — même
 > discipline que la règle « les assets font foi » de War of Guilds.
 
@@ -20,38 +20,42 @@ Le **libellé d'affichage** reste le nom verbatim ci-dessus (accents inclus : «
 ## Axes d'attribut (l'espace de déduction)
 
 ### 1. Genre (`genre`)
-Enum fermé. Valeurs : **`⟨TRANSCRIBE⟩`** depuis la légende du pense-bête. Hypothèse de
-structure la plus probable (à **confirmer sur l'image**) : `feminin | masculin`. Ne pas
-figer avant transcription.
+Enum fermé : **`feminin | masculin`** — les deux faces Attribut genre
+(`card_attributs_feminin.webp`, `card_attributs_masculin.webp`).
 
 ### 2. Couleur des yeux (`couleurYeux`)
-Enum fermé, issu de la **légende du pense-bête**. Valeurs : **`⟨TRANSCRIBE⟩`**. C'est un
-axe de déduction fermé : toute question « couleur d'yeux » se résout contre ce vocabulaire
+Enum fermé : **`bleus | verts | rouges`** — la légende de bandes du pense-bête et les
+trois faces Attribut couleur (`card_attributs_bleus/verts/rouges.webp`). Clés au pluriel,
+verbatim des assets. Toute question « couleur d'yeux » se résout contre ce vocabulaire
 fixe.
 
 ### 3. Panthéon (`pantheon`)
 Enum fermé, connu : **`hindou | grec | egyptien | nordique`**.
-Libellés d'affichage : Hindou, Grec, Égyptien, Nordique.
+Libellés d'affichage : Hindou, Grec, Égyptien, Nordique. (Le pense-bête écrit « PANTHÉON
+EGYPTIEN » en capitale non accentuée ; la face Attribut fichier `indou` — l'enum reste
+`hindou`/`egyptien`, le mapping fichier↔id absorbe l'écart.)
 
 ## Table dieu → attributs (canonique)
 
 | Dieu | Panthéon | Genre | Couleur des yeux |
 |---|---|---|---|
-| Brahma | hindou | `⟨TRANSCRIBE⟩` | `⟨TRANSCRIBE⟩` |
-| Ganesh | hindou | `⟨TRANSCRIBE⟩` | `⟨TRANSCRIBE⟩` |
-| Sarasvati | hindou | `⟨TRANSCRIBE⟩` | `⟨TRANSCRIBE⟩` |
-| Zeus | grec | `⟨TRANSCRIBE⟩` | `⟨TRANSCRIBE⟩` |
-| Athena | grec | `⟨TRANSCRIBE⟩` | `⟨TRANSCRIBE⟩` |
-| Artemis | grec | `⟨TRANSCRIBE⟩` | `⟨TRANSCRIBE⟩` |
-| Rê | egyptien | `⟨TRANSCRIBE⟩` | `⟨TRANSCRIBE⟩` |
-| Bastet | egyptien | `⟨TRANSCRIBE⟩` | `⟨TRANSCRIBE⟩` |
-| Isis | egyptien | `⟨TRANSCRIBE⟩` | `⟨TRANSCRIBE⟩` |
-| Loki | nordique | `⟨TRANSCRIBE⟩` | `⟨TRANSCRIBE⟩` |
-| Odin | nordique | `⟨TRANSCRIBE⟩` | `⟨TRANSCRIBE⟩` |
-| Frigg | nordique | `⟨TRANSCRIBE⟩` | `⟨TRANSCRIBE⟩` |
+| Brahma | hindou | masculin | rouges |
+| Ganesh | hindou | masculin | bleus ¹ |
+| Sarasvati | hindou | feminin | verts |
+| Zeus | grec | masculin | bleus |
+| Athena | grec | feminin | rouges |
+| Artemis | grec | feminin | bleus |
+| Rê | egyptien | masculin | rouges |
+| Bastet | egyptien | feminin | rouges |
+| Isis | egyptien | feminin | verts |
+| Loki | nordique | masculin | verts |
+| Odin | nordique | masculin | bleus |
+| Frigg | nordique | feminin | verts |
 
-> Source unique : `packages/engine/src/data/gods.ts`. Le seul champ **connu sans image**
-> est le panthéon (déduit du regroupement du roster). Genre + couleur d'yeux = image.
+> Source unique : `packages/engine/src/data/gods.ts`, transcrit du pense-bête (légende de
+> bandes = couleur des yeux). Répartition : 6 masculin / 6 feminin ; 4 bleus / 4 verts /
+> 4 rouges. ¹ Ganesh : iris stylisé illisible sur le pense-bête, `bleus` retenu par sa
+> bande turquoise — à confirmer sur `card_personnages_ganesh.webp` (voir card-catalog.md).
 
 ## Types & sous-types de carte
 
