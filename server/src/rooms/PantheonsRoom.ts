@@ -17,6 +17,7 @@ import { Room, ServerError, type Client } from '@colyseus/core';
 import {
   createGame,
   project,
+  ABSOLUTE_MIN_PLAYERS,
   MIN_PLAYERS,
   MAX_PLAYERS,
   type CardIndex,
@@ -61,6 +62,18 @@ export interface SeatInfo {
 export const LOBBY_RECONNECT_GRACE_S = 60;
 export const MATCH_RECONNECT_GRACE_S = 60;
 const DEFAULT_SEATS = MIN_PLAYERS;
+
+/**
+ * Comptes plateforme autorisés à lancer une partie de test à 2 joueurs (ADMIN_USER_IDS,
+ * user_id gosgames séparés par des virgules). Pour tout autre hôte le minimum reste
+ * MIN_PLAYERS (4).
+ */
+const ADMIN_USER_IDS = new Set(
+  (process.env.ADMIN_USER_IDS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
 
 function emptySlot(): SeatSlot {
   return { userId: null, displayName: '', ready: false, conn: 'CONNECTED' };
@@ -358,10 +371,20 @@ export class PantheonsRoom extends Room {
     this.broadcastLobby();
   }
 
+  /**
+   * Minimum de sièges effectif : 2 quand l'hôte est un compte admin (partie de test),
+   * sinon la règle normale MIN_PLAYERS. Recalculé à chaque appel — une migration d'hôte
+   * (départ de l'admin) restaure la règle des 4.
+   */
+  private minSeats(): number {
+    const host = this.slots[this.hostSeat];
+    return host?.userId && ADMIN_USER_IDS.has(host.userId) ? ABSOLUTE_MIN_PLAYERS : MIN_PLAYERS;
+  }
+
   private removeSeat(userId: string): void {
     this.assertLobby();
     this.assertHost(userId);
-    if (this.slots.length <= MIN_PLAYERS) throw new Error(`Minimum ${MIN_PLAYERS} sièges.`);
+    if (this.slots.length <= this.minSeats()) throw new Error(`Minimum ${this.minSeats()} sièges.`);
     if (this.slots[this.slots.length - 1]!.userId !== null) {
       throw new Error('Le dernier siège est occupé.'); // trailing-empty-only, indices stay stable
     }
@@ -377,7 +400,7 @@ export class PantheonsRoom extends Room {
 
   private canStart(): boolean {
     return (
-      this.slots.length >= MIN_PLAYERS &&
+      this.slots.length >= this.minSeats() &&
       this.slots.length <= MAX_PLAYERS &&
       this.slots.every((s) => s.userId !== null && s.ready && s.conn === 'CONNECTED')
     );
@@ -387,7 +410,7 @@ export class PantheonsRoom extends Room {
     this.assertLobby();
     this.assertHost(userId);
     if (!this.canStart()) {
-      throw new Error(`Il faut ${MIN_PLAYERS}–${MAX_PLAYERS} joueurs, tous prêts et connectés.`);
+      throw new Error(`Il faut ${this.minSeats()}–${MAX_PLAYERS} joueurs, tous prêts et connectés.`);
     }
     const seatInputs: SeatInput[] = this.slots.map((s) => ({ userId: s.userId!, displayName: s.displayName }));
     const seed = Math.floor(Math.random() * 0xffffffff);
@@ -437,7 +460,9 @@ export class PantheonsRoom extends Room {
         conn: s.conn,
       })),
       canStart: this.canStart(),
-      minSeats: MIN_PLAYERS,
+      // Le minimum EFFECTIF (2 pour un hôte admin) : le client s'en sert pour borner
+      // « Retirer un siège » et pour le libellé d'attente.
+      minSeats: this.minSeats(),
       maxSeats: MAX_PLAYERS,
     };
   }

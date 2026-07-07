@@ -19,6 +19,16 @@ test('accepts a well-formed handoff token', () => {
   assert.equal(claims.aud, 'pantheons');
 });
 
+test('reads the display name from the platform `username` claim', () => {
+  const claims = verifyHandoffToken(mkToken({ username: 'Jules' }), SECRET, NOW);
+  assert.equal(claims.displayName, 'Jules');
+});
+
+test('display name is absent when the token carries none', () => {
+  const claims = verifyHandoffToken(mkToken(), SECRET, NOW);
+  assert.equal(claims.displayName, undefined);
+});
+
 test('rejects wrong audience (per-tenant delta)', () => {
   assert.throws(
     () => verifyHandoffToken(mkToken({ aud: 'war-of-guilds' }), SECRET, NOW),

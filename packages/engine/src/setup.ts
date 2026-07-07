@@ -13,10 +13,10 @@ import { ALL_GODS, GODS } from './data/gods.js';
 import { POWER_KEYS } from './data/powers.js';
 import { makeRng, shuffle } from './rng.js';
 import {
+  ABSOLUTE_MIN_PLAYERS,
   COULEURS_YEUX,
   GENRES,
   MAX_PLAYERS,
-  MIN_PLAYERS,
   PANTHEONS,
 } from './types.js';
 import type {
@@ -95,8 +95,10 @@ export interface SetupResult {
  * decks, gives each player a starting power, seats clockwise. Throws on bad player count.
  */
 export function createGame(roomId: string, seats: SeatInput[], seed: number): SetupResult {
-  if (seats.length < MIN_PLAYERS || seats.length > MAX_PLAYERS) {
-    throw new Error(`Player count must be ${MIN_PLAYERS}..${MAX_PLAYERS}, got ${seats.length}`);
+  // Borne dure 2..7 : la règle des 4 joueurs minimum est une politique de lobby
+  // (PantheonsRoom), pas une invariante du moteur — un hôte admin teste à 2.
+  if (seats.length < ABSOLUTE_MIN_PLAYERS || seats.length > MAX_PLAYERS) {
+    throw new Error(`Player count must be ${ABSOLUTE_MIN_PLAYERS}..${MAX_PLAYERS}, got ${seats.length}`);
   }
   const rng = makeRng(seed);
 

@@ -16,6 +16,7 @@ import { navigate } from '../router.js';
 import { depositForTeardown, peekActiveRoom } from '../net/active-room.js';
 import { joinGameRoom, onceMessage, reconnectGameRoom, roomExists, type RoomWelcome } from '../net/room.js';
 import { clearResume, loadResume, saveResume } from '../state/resume.js';
+import { TopBar } from '../components/TopBar.js';
 import { RoomLobby } from './RoomLobby.js';
 import { GameView } from './GameView.js';
 import type { Session } from '../auth/handoff.js';
@@ -246,7 +247,12 @@ export function RoomScreen({
     );
   }
   if (view === 'lobby' && roomRef.current) {
-    return <RoomLobby room={roomRef.current} seatId={seatId} onLeave={leaveIntentionally} notice={banner} />;
+    return (
+      <>
+        <TopBar />
+        <RoomLobby room={roomRef.current} seatId={seatId} onLeave={leaveIntentionally} notice={banner} />
+      </>
+    );
   }
   if (view === 'game' && proj) {
     return (

@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import type { Session } from './auth/handoff.js';
 import { bounceToPlatform, resolveEntry } from './net/entry.js';
 import { roomCodeFromPath, usePath } from './router.js';
+import { TopBar } from './components/TopBar.js';
 import { LandingScreen } from './screens/LandingScreen.js';
 import { RoomScreen } from './screens/RoomScreen.js';
 import { fr } from './i18n/fr.js';
@@ -45,6 +46,7 @@ export function App() {
   }
   return (
     <>
+      <TopBar />
       <Toast />
       <LandingScreen session={session} httpUrl={HTTP_URL} wsUrl={WS_URL} />
     </>

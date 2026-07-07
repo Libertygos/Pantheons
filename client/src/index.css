@@ -258,6 +258,93 @@ button {
   padding: 24px;
 }
 
+/* ---- barre de navigation (port du TopBar WoG) --------------------------------- */
+
+.barre-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 56px;
+  padding: 0 20px;
+  background: rgba(28, 37, 80, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--filet);
+}
+
+.barre-nav__gauche,
+.barre-nav__droite {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.barre-nav__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: 1px solid var(--filet);
+  border-radius: 3px;
+  background: var(--nuit-2);
+  transition: border-color var(--dur-vite);
+}
+
+.barre-nav__logo:hover {
+  border-color: var(--turquoise);
+}
+
+.barre-nav__logo img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.barre-nav__filet {
+  width: 1px;
+  height: 20px;
+  flex-shrink: 0;
+  background: var(--filet);
+}
+
+.barre-nav__titre {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--blanc);
+  font-family: var(--fonte);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color var(--dur-vite);
+  white-space: nowrap;
+}
+
+.barre-nav__titre:hover {
+  color: var(--chartreuse);
+}
+
+.barre-nav__compte {
+  color: var(--texte-faible);
+  text-decoration: none;
+  font-size: 13px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--dur-vite);
+}
+
+.barre-nav__compte:hover {
+  color: var(--turquoise);
+}
+
 /* =================================================================== LANDING */
 
 .landing {

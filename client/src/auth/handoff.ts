@@ -8,6 +8,8 @@ const SESSION_KEY = 'pantheons.session';
 export interface Session {
   sessionToken: string;
   userId: string;
+  /** Platform display name (absent on sessions stored before it was returned). */
+  displayName?: string;
 }
 
 /** Extract `#token=...` from the fragment and wipe the fragment. Returns the raw token. */
@@ -37,6 +39,11 @@ export async function exchangeHandoff(serverHttpUrl: string, token: string): Pro
 export function loadSession(): Session | null {
   const raw = sessionStorage.getItem(SESSION_KEY);
   return raw ? (JSON.parse(raw) as Session) : null;
+}
+
+/** Sign-out: drop the stored session (there is no server-side cookie to clear). */
+export function clearSession(): void {
+  sessionStorage.removeItem(SESSION_KEY);
 }
 
 /** Resolve a session: reuse a stored one, else consume + exchange a fresh handoff token. */

@@ -60,7 +60,11 @@ app.post('/auth/exchange', async (req, res) => {
     const claims = verifyHandoffToken(token, HANDOFF_SECRET);
     await ensureUser(claims.sub, claims.displayName); // lazy row on first entry
     const session = issueSession(claims.sub, SESSION_SECRET, claims.displayName);
-    return res.json({ sessionToken: session, userId: claims.sub });
+    return res.json({
+      sessionToken: session,
+      userId: claims.sub,
+      displayName: claims.displayName ?? claims.sub,
+    });
   } catch (err) {
     return res.status(401).json({ error: 'handoff_rejected' });
   }

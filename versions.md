@@ -1,3 +1,25 @@
+# Version 1.1.1
+
+## Retours de mise en prod : pseudo, barre de navigation, partie de test admin
+
+Session 3 (2026-07-07), premiers retours après la mise en ligne.
+
+1. **Pseudo dans le lobby** — la plateforme émet le nom d'affichage dans la claim
+   `username` du handoff token (gosgames `handoffMint.ts`) ; Panthéons lisait
+   `displayName`, toujours absente, et retombait sur l'user_id brut (UUID). Le
+   vérificateur lit désormais `username` (fallback `displayName`), la session S-JWT et
+   la réponse `/auth/exchange` transportent le nom jusqu'au client (landing + lobby).
+2. **Barre de navigation** — port du TopBar WoG dans la DA du pense-bête
+   (`.barre-nav`, sticky) : logo GG → portail gosgames, « Panthéons » → accueil,
+   pseudo → gosgames.com/account, Déconnexion (efface session + resume locaux puis
+   renvoie au portail). Affichée sur l'accueil et le lobby ; la partie garde son
+   propre chrome, comme WoG.
+3. **Partie de test à 2 joueurs (admin)** — `ADMIN_USER_IDS` (env serveur, user_id
+   plateforme séparés par des virgules) : quand l'hôte du salon est admin, le minimum
+   effectif de sièges tombe à 2 (retrait de sièges, `canStart`, libellés) ; le moteur
+   accepte 2..7 (`ABSOLUTE_MIN_PLAYERS`), la règle des 4 reste la politique de lobby
+   pour tout hôte normal.
+
 # Version 1.1.0
 
 ## Vraies faces : transcription intégrale + logique des effets + DA re-vérifiée

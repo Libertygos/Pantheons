@@ -195,6 +195,12 @@ export interface GameState {
 }
 
 export const MIN_PLAYERS = 4;
+/**
+ * Borne dure du moteur : les règles restent jouables dès 2 sièges. Le lobby impose
+ * MIN_PLAYERS (4) aux hôtes normaux ; seul un hôte admin (ADMIN_USER_IDS côté serveur)
+ * peut descendre à 2 — partie de test navigateur.
+ */
+export const ABSOLUTE_MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 7;
 export const QUESTION_SLOTS = 6;
 export const MAX_QUESTIONS_PER_TURN = 2;

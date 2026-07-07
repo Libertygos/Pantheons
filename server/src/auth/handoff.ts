@@ -12,6 +12,7 @@
  *   - exp / iat within ±5s skew
  *   - access === true (exact boolean)
  *   - sub is the platform user_id
+ *   - username is the platform display name at mint time (handoffMint.ts côté plateforme)
  *
  * Client-side discipline (see client/src/auth/handoff.ts): read the token from the URL
  * FRAGMENT, clear it immediately, POST it here once, store only the returned session token.
@@ -31,6 +32,7 @@ export interface HandoffClaims {
   access: true;
   iat: number;
   exp: number;
+  /** Sourced from the platform's `username` claim — gosgames mints the display name there. */
   displayName?: string;
 }
 
@@ -82,6 +84,12 @@ export function verifyHandoffToken(
     access: true,
     iat: claims.iat,
     exp: claims.exp,
-    ...(typeof claims.displayName === 'string' ? { displayName: claims.displayName } : {}),
+    // The platform mints the display name as `username` (gosgames handoffMint.ts);
+    // `displayName` is kept as a fallback spelling.
+    ...(typeof claims.username === 'string' && claims.username.length > 0
+      ? { displayName: claims.username }
+      : typeof claims.displayName === 'string' && claims.displayName.length > 0
+        ? { displayName: claims.displayName }
+        : {}),
   };
 }

@@ -7,6 +7,12 @@ export const fr = {
   appTitle: 'Panthéons',
   appTagline: 'Un jeu de déduction : découvrez quel dieu se cache derrière chaque joueur.',
 
+  nav: {
+    backToPortal: 'Retour à gosgames (nouvel onglet)',
+    account: 'Compte gosgames (nouvel onglet)',
+    signOut: 'Déconnexion',
+  },
+
   connecting: 'Connexion…',
   handoffFailed: 'Authentification refusée. Revenez au portail gosgames.',
   disconnected: 'Connexion perdue. Tentative de reconnexion…',
