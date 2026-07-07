@@ -8,8 +8,21 @@
  *    eliminated declarer's god).
  *  - If no declarer succeeds, play resumes.
  */
+import { AMES_SOEURS_KEYS } from './data/powers.js';
+import { effectivePowerKeys } from './effects.js';
 import { seatOrderFromMeneur } from './rules.js';
 import type { Declaration, GameState, UserId } from './types.js';
+
+/**
+ * Âmes sœurs (card-catalog.md §4) : « Quand vous réalisez votre Panthéon, si un autre
+ * joueur possède le pouvoir de l'âme soeur, vous n'avez pas à deviner sa carte
+ * personnage. » — the declarer must hold one of the two copies (Clonage copying it
+ * counts, texte littéral « possède le pouvoir »); the exempted opponent is any OTHER
+ * live holder. The exemption scores as an automatic match.
+ */
+function holdsAmesSoeurs(state: GameState, uid: UserId): boolean {
+  return effectivePowerKeys(state, uid).some((k) => AMES_SOEURS_KEYS.includes(k));
+}
 
 export interface DeclarationOutcome {
   declarer: UserId;
@@ -48,10 +61,15 @@ export function resolveDeclarations(state: GameState): ResolveResult {
     const opponents = state.seatOrder.filter(
       (o) => o !== uid && state.players[o]?.alive,
     );
+    const declarerSoulmate = holdsAmesSoeurs(state, uid);
 
     const matched: Record<UserId, boolean> = {};
     let allCorrect = true;
     for (const opp of opponents) {
+      if (declarerSoulmate && holdsAmesSoeurs(state, opp)) {
+        matched[opp] = true; // Âmes sœurs : pas à deviner ce joueur
+        continue;
+      }
       const guess = decl.guesses[opp];
       const truth = state.players[opp]!.god;
       const ok = guess === truth;

@@ -20,6 +20,18 @@
   --vermillon: #fb4537;
   --chartreuse: #e5eb2e;
 
+  /* Couleurs d'identité par catégorie de carte — mesurées sur les faces réelles
+     (2026-07-07) : versos/panneaux Attribut sarcelle, Action vermillon-saumon,
+     Pouvoir violet ; fonds Personnage = couleur de panthéon. */
+  --sarcelle: #338381;
+  --pouvoir: #614ba9;
+  --pouvoir-clair: #8a75cd;
+  --saumon: #fbdaca;
+  --panth-hindou: #c58a29;
+  --panth-grec: #d6da7b;
+  --panth-egyptien: #c8bf5c;
+  --panth-nordique: #e5e6e3;
+
   --filet: rgba(255, 255, 255, 0.28);
   --filet-fort: rgba(255, 255, 255, 0.65);
   --encre-sur-clair: #222c5d;
@@ -27,7 +39,9 @@
   --texte-faible: rgba(237, 248, 249, 0.62);
 
   --fonte: 'Fira Mono', 'PT Mono', 'Courier New', monospace;
-  --carte-ratio: 5 / 7;
+  /* Ratio réel des faces mesuré sur les assets : 520×804 (pouvoirs 733×1040, letterboxés
+     par object-fit: contain). L'ancien 5/7 supposé rognait les faces. */
+  --carte-ratio: 520 / 804;
 
   --dur-vite: 140ms;
   --dur: 240ms;
@@ -902,7 +916,62 @@ button {
   display: block;
   border: 1px solid var(--filet);
   background: var(--nuit-3);
-  object-fit: cover;
+  object-fit: contain; /* jamais rogner une face finale (Décision 5) */
+}
+
+/* pile de questions d'un même slot (Concentration / Spéciale 9) */
+.slot__pile {
+  display: grid;
+  gap: 6px;
+}
+
+.slot__choix {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.slot__choix:hover .carte,
+.slot__choix:hover .carte-tuile {
+  outline: 2px solid var(--turquoise);
+  outline-offset: 2px;
+}
+
+/* face cachée : le verso de catégorie, légèrement assombri pour lire « dos de carte » */
+.carte--verso {
+  filter: brightness(0.92);
+}
+
+/* teintes de tuile fallback par catégorie — le langage des versos réels */
+.teinte-attribut.carte-tuile {
+  background: var(--sarcelle);
+}
+
+.teinte-action.carte-tuile {
+  background: linear-gradient(160deg, #f04125 0%, #f37a55 70%, var(--saumon) 100%);
+}
+
+.teinte-pouvoir.carte-tuile {
+  background: linear-gradient(160deg, var(--pouvoir) 0%, var(--pouvoir-clair) 100%);
+}
+
+.teinte-personnage.carte-tuile {
+  background:
+    linear-gradient(115deg, var(--vermillon) 0 26%, var(--turquoise) 26% 58%, var(--vert) 58% 82%, var(--chartreuse) 82%);
+}
+
+/* dock pouvoir : carte + bouton d'activation */
+.mon-pouvoir__carte {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.mon-pouvoir__utiliser {
+  width: 100%;
 }
 
 .carte-tuile {

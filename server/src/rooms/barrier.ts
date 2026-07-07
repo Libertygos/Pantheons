@@ -21,13 +21,17 @@ import {
   placeSpeciale,
   resolveReponsePhase,
   advanceTurn,
+  activatePower,
   resolveDeclarations,
   type AnswerResult,
   type CardIndex,
   type GameState,
   type PiocheIntent,
+  type PowerActivation,
+  type PrivateReveal,
   type QuestionIntent,
   type ResolveResult,
+  type SpecialePayload,
   type UserId,
 } from '@pantheons/engine';
 
@@ -37,11 +41,19 @@ export interface DeclarationDecision {
 }
 
 export interface PhaseEvent {
-  type: 'reponseResolved' | 'declarationResolved' | 'phaseAdvanced' | 'gameOver';
+  type: 'reponseResolved' | 'declarationResolved' | 'phaseAdvanced' | 'gameOver' | 'powerActivated';
   answers?: AnswerResult[];
   declaration?: ResolveResult;
   phase?: GameState['phase'];
   winner?: UserId | null;
+  /** powerActivated: who + which power (public — physical activation is visible). */
+  by?: UserId;
+  effectKey?: string;
+}
+
+/** A Spéciale placement with its choices (target / pile picks — card-catalog.md §3.3). */
+export interface SpecialePlay extends SpecialePayload {
+  cardId: string;
 }
 
 export class MatchController {
@@ -49,6 +61,8 @@ export class MatchController {
     public state: GameState,
     private index: CardIndex,
     private emit: (e: PhaseEvent) => void = () => {},
+    /** Private-information channel (Déduction/Espionnage/Spéciale 1) — unicast only. */
+    private emitPrivate: (userId: UserId, reveal: PrivateReveal) => void = () => {},
   ) {}
 
   private liveConnected(): UserId[] {
@@ -83,16 +97,34 @@ export class MatchController {
     this.tryAdvance();
   }
 
-  submitQuestion(userId: UserId, intent: QuestionIntent, specialeCardIds: string[] = []): void {
+  submitQuestion(userId: UserId, intent: QuestionIntent, specialePlays: SpecialePlay[] = []): void {
     this.assertPhase('question');
     // Place any Spéciales first (they occupy the special slot, not question slots).
-    for (const cid of specialeCardIds) {
-      const card = this.index.actions.get(cid);
-      if (card && card.subtype === 'speciale') placeSpeciale(this.state, userId, card);
+    for (const play of specialePlays) {
+      const card = this.index.actions.get(play.cardId);
+      if (card && card.subtype === 'speciale') {
+        const { cardId: _cid, ...payload } = play;
+        placeSpeciale(this.state, userId, card, payload);
+      }
     }
     applyQuestions(this.state, userId, intent);
     this.markSubmitted(userId);
     this.tryAdvance();
+  }
+
+  /**
+   * Explicit power activation (Sabotage, Refus royal, Clonage, Déduction, Espionnage,
+   * Exécution pre-declare). Allowed while the match runs, outside the declaration pause;
+   * the engine validates conditions + once-per-tour. Private payloads go through
+   * emitPrivate ONLY (never-send).
+   */
+  activatePower(userId: UserId, activation: PowerActivation): void {
+    if (this.state.status !== 'enCours') {
+      throw new Error(`Match not in progress (status=${this.state.status})`);
+    }
+    const result = activatePower(this.state, userId, activation);
+    this.emit({ type: 'powerActivated', by: userId, effectKey: result.effectKey });
+    if (result.reveal) this.emitPrivate(userId, result.reveal);
   }
 
   submitDeclaration(userId: UserId, decision: DeclarationDecision): void {
@@ -136,8 +168,9 @@ export class MatchController {
         // Réponse is server-resolved (Intégrité: truth is computed, not declared).
         this.state.phase = 'reponse';
         fireSpecialesAtPhaseStart(this.state, 'reponse');
-        const answers = resolveReponsePhase(this.state);
+        const { answers, reveals } = resolveReponsePhase(this.state);
         this.emit({ type: 'reponseResolved', answers });
+        for (const reveal of reveals) this.emitPrivate(reveal.to, reveal);
         // Open the declaration window: players now submit declare/pass.
         this.state.barrier = { phase: 'reponse', submitted: [], deadline: null };
         break;

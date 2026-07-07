@@ -82,22 +82,31 @@ Le meneur fixe **l'ordre** de la phase Réponse, il **ne sérialise pas** le jeu
 1. **Régulariser les pouvoirs** : garantir d'avoir **exactement un** pouvoir.
    - 0 pouvoir → en **piocher 1**.
    - 2 pouvoirs → en **défausser 1** pour redescendre à 1.
-2. **Piocher 2 cartes Attribut**.
+2. **Piocher 2 cartes Attribut** (pouvoirs modulants : Étude → 1 Attribut + 1 Action à la
+   place ; Optimisme → 3 Attributs si aucun « oui » au tour précédent).
 
 ### Phase 2 — Question
 
-- Jouer **jusqu'à 2 questions**.
-- **Jamais deux questions au même joueur** dans le même tour.
+- Jouer **jusqu'à 2 questions** (pouvoirs/Spéciales modulent : Connaissance → 3,
+  Spéciale 3 → autant que de joueurs, Refus royal → 0 pour sa cible).
+- **Jamais deux questions au même joueur** dans le même tour (exception : Concentration et
+  Spéciale 9 autorisent **2** au même joueur — l'emplacement s'empile).
 - Une question est une **carte Attribut** ou une **carte Action** (sauf **Spéciale**, qui
-  n'est pas une question).
-- Une carte jouée comme question est posée dans l'emplacement numéroté correspondant au
-  joueur ciblé sur le plateau du questionneur.
+  n'est pas une question). Les cartes **Non portent leur propre question** (une par valeur
+  d'attribut — card-catalog.md §3.1).
+- Une carte jouée comme question est posée **FACE CACHÉE** dans l'emplacement numéroté
+  correspondant au joueur ciblé sur le plateau du questionneur : le contenu n'est visible
+  que du poseur (et de la cible une fois sa réponse résolue) ; le public voit l'occupation,
+  la catégorie (verso) et le résultat oui/non. Établi par les faces Espionnage et
+  Spéciales 1/4 (« vous pouvez la regarder ») — card-catalog.md §3.3.
 
 ### Phase 3 — Réponse
 
 - En commençant par le **meneur** puis dans l'ordre, chaque joueur **répond oui/non** en
   comparant **chaque carte jouée contre lui** aux attributs de **son** dieu.
-- **Toute réponse « oui » fait piocher au joueur interrogé une carte Action.**
+- **Toute réponse « oui » fait piocher au joueur interrogé une carte Action** (Exécution
+  permet à l'interrogé d'y renoncer pour défausser le pouvoir d'un joueur — arbitrage
+  card-catalog.md §7 E5).
 - Les effets **Non** se déclenchent sur les réponses « non ». Les cartes **Spéciale**
   posées se déclenchent **au début de leur phase déclarée**.
 
@@ -136,7 +145,8 @@ partie **en pause**.
 
 - Joueurs : **min 4 pour démarrer, max 7** (plafond physique du plateau).
 - Un joueur en régime établi détient **exactement 1 pouvoir** au sortir de la Pioche.
-- Au plus **2 questions par joueur et par tour**, **≤ 1 par cible**.
+- Au plus **2 questions par joueur et par tour**, **≤ 1 par cible** — sauf modulation par
+  pouvoir/Spéciale (§5 Phase 2) ; jamais plus de **2 par cible** dans tous les cas.
 - L'**emplacement spécial** contient au plus **1 carte Spéciale** à la fois.
 
 ## 9. Déconnexion / barrière (défère à WoG)

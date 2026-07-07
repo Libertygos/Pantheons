@@ -5,8 +5,8 @@
  * Cards are final images displayed as-is; all interaction is chrome around them.
  */
 import { useEffect, useRef, useState } from 'react';
-import type { GodId, PlayerProjection, QuestionPlay } from '@pantheons/engine';
-import { GODS, ALL_GODS } from '@pantheons/engine';
+import type { GodId, PlacedCardView, PlayerProjection, QuestionPlay } from '@pantheons/engine';
+import { GODS, ALL_GODS, data } from '@pantheons/engine';
 import { PhaseIndicator } from '../components/PhaseIndicator.js';
 import { BoardSlots, describeQuestionCard, questionCardBand } from '../components/BoardSlots.js';
 import { PenseBeteGrid } from '../components/PenseBeteGrid.js';
@@ -21,23 +21,42 @@ import {
 } from '../assets.js';
 import { fr } from '../i18n/fr.js';
 
+/** Spéciales dont la face exige une cible (« Choisissez un joueur » / « d'un autre joueur »). */
+const SPECIALES_A_CIBLE = new Set(['action_special_1', 'action_special_5', 'action_special_6']);
+/** Pouvoirs actifs dont le choix est un adversaire. */
+const POUVOIRS_CIBLE_JOUEUR = new Set(['clonage', 'refus_royal', 'execution']);
+/** Pouvoirs actifs dont le choix est une carte posée sur un plateau. */
+const POUVOIRS_CIBLE_CARTE = new Set(['sabotage', 'espionnage']);
+
+interface StagedSpeciale {
+  cardId: string;
+  targetSeat?: number;
+}
+
 export function GameView({
   proj,
   send,
   banner,
+  info,
+  onInfoDismiss,
   over,
   onExit,
 }: {
   proj: PlayerProjection;
   send: (type: string, payload: unknown) => void;
   banner: string | null;
+  /** Révélations privées / activations publiques relayées par RoomScreen. */
+  info?: string | null;
+  onInfoDismiss?: () => void;
   over: boolean;
   onExit: () => void;
 }) {
   const [viewedBoard, setViewedBoard] = useState(proj.self.userId);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [stagedPlays, setStagedPlays] = useState<QuestionPlay[]>([]);
-  const [stagedSpeciales, setStagedSpeciales] = useState<string[]>([]);
+  const [stagedSpeciales, setStagedSpeciales] = useState<StagedSpeciale[]>([]);
+  /** Pouvoir actif en attente de sa cible (adversaire ou carte posée). */
+  const [powerMode, setPowerMode] = useState<string | null>(null);
   const [declaring, setDeclaring] = useState(false);
   const [guesses, setGuesses] = useState<Record<string, GodId>>({});
   const [showHelp, setShowHelp] = useState(false);
@@ -53,6 +72,7 @@ export function GameView({
       setSelectedCardId(null);
       setStagedPlays([]);
       setStagedSpeciales([]);
+      setPowerMode(null);
       setDeclaring(false);
       setGuesses({});
       setDiscardId(null);
@@ -81,31 +101,57 @@ export function GameView({
   const powerCards = me.powerCards ?? [];
   const liveTotal = [me, ...proj.opponents].filter((x) => x.alive && x.connected).length;
 
+  const rules = proj.questionRules;
   const selectedCard =
     [...handCards.attributs, ...handCards.actions].find((c) => c.id === selectedCardId) ?? null;
   const selectedIsSpeciale = selectedCard?.type === 'action' && selectedCard.subtype === 'speciale';
-  const targeting = proj.phase === 'question' && !youSubmitted && alive && !!selectedCard && !selectedIsSpeciale;
+  const selectedSpecialeACible = selectedIsSpeciale && SPECIALES_A_CIBLE.has(selectedCard!.effectKey);
+  const targeting =
+    proj.phase === 'question' &&
+    !youSubmitted &&
+    alive &&
+    !!selectedCard &&
+    (!selectedIsSpeciale || selectedSpecialeACible) &&
+    !(rules.askBlocked && !selectedIsSpeciale);
+  const powerPicksOpponent = powerMode !== null && POUVOIRS_CIBLE_JOUEUR.has(powerMode);
+  const powerPicksPlaced = powerMode !== null && POUVOIRS_CIBLE_CARTE.has(powerMode);
 
   const seatOf = (uid: string) => proj.seatOrder.indexOf(uid);
-  const stagedTargetSeats = new Set(stagedPlays.map((p) => p.targetSeat));
-  const stagedCardIds = new Set([...stagedPlays.map((p) => p.cardId), ...stagedSpeciales]);
+  const stagedCountBySeat = new Map<number, number>();
+  for (const p of stagedPlays) stagedCountBySeat.set(p.targetSeat, (stagedCountBySeat.get(p.targetSeat) ?? 0) + 1);
+  const maxPerTarget = rules.sameTargetOk ? 2 : 1;
+  const stagedCardIds = new Set([...stagedPlays.map((p) => p.cardId), ...stagedSpeciales.map((s) => s.cardId)]);
 
   const stageOn = (oppId: string) => {
-    if (!selectedCard || selectedIsSpeciale) return;
     const targetSeat = seatOf(oppId);
-    if (targetSeat < 0 || stagedTargetSeats.has(targetSeat) || stagedPlays.length >= 2) return;
+    if (targetSeat < 0) return;
+    if (powerPicksOpponent) {
+      send('power', { effectKey: powerMode, target: oppId });
+      setPowerMode(null);
+      return;
+    }
+    if (!selectedCard) return;
+    if (selectedSpecialeACible) {
+      if (stagedSpeciales.length > 0) return;
+      setStagedSpeciales([{ cardId: selectedCard.id, targetSeat }]);
+      setSelectedCardId(null);
+      return;
+    }
+    if (selectedIsSpeciale) return;
+    if ((stagedCountBySeat.get(targetSeat) ?? 0) >= maxPerTarget || stagedPlays.length >= rules.max) return;
     setStagedPlays((s) => [...s, { cardId: selectedCard.id, card: selectedCard, targetSeat }]);
     setSelectedCardId(null);
   };
 
   const unstage = (cardId: string) => {
     setStagedPlays((s) => s.filter((p) => p.cardId !== cardId));
-    setStagedSpeciales((s) => s.filter((id) => id !== cardId));
+    setStagedSpeciales((s) => s.filter((sp) => sp.cardId !== cardId));
   };
 
   const stageSpeciale = () => {
-    if (!selectedCard || !selectedIsSpeciale || stagedSpeciales.length > 0) return;
-    setStagedSpeciales([selectedCard.id]);
+    // Spéciales sans cible : pose directe sur l'emplacement dédié.
+    if (!selectedCard || !selectedIsSpeciale || selectedSpecialeACible || stagedSpeciales.length > 0) return;
+    setStagedSpeciales([{ cardId: selectedCard.id }]);
     setSelectedCardId(null);
   };
 
@@ -115,7 +161,15 @@ export function GameView({
   };
 
   const submitQuestions = () => {
-    send('question', { intent: { plays: stagedPlays }, specialeCardIds: stagedSpeciales });
+    send('question', { intent: { plays: stagedPlays }, specialePlays: stagedSpeciales });
+  };
+
+  /** Sabotage / Espionnage : choisir une carte posée sur le plateau affiché. */
+  const pickPlaced = (placer: string, targetSeat: number, stackIndex: number, placed: PlacedCardView) => {
+    if (!powerPicksPlaced) return;
+    if (powerMode === 'sabotage' && (placed.cardKind !== 'attribut' || placed.answeredOui !== undefined)) return;
+    send('power', { effectKey: powerMode, placer, targetSeat, stackIndex });
+    setPowerMode(null);
   };
 
   const liveOpponents = proj.opponents.filter((o) => o.alive);
@@ -129,7 +183,13 @@ export function GameView({
 
   const targetNameOf = (cardId: string): string | null => {
     const play = stagedPlays.find((p) => p.cardId === cardId);
-    if (!play) return stagedSpeciales.includes(cardId) ? fr.jeu.emplacementSpecial : null;
+    if (!play) {
+      const sp = stagedSpeciales.find((s) => s.cardId === cardId);
+      if (!sp) return null;
+      if (sp.targetSeat === undefined) return fr.jeu.emplacementSpecial;
+      const uid = proj.seatOrder[sp.targetSeat];
+      return fr.jeu.specialeCible(proj.opponents.find((o) => o.userId === uid)?.displayName ?? '');
+    }
     const uid = proj.seatOrder[play.targetSeat];
     return proj.opponents.find((o) => o.userId === uid)?.displayName ?? null;
   };
@@ -148,8 +208,15 @@ export function GameView({
       <div className="table-rang">
         {proj.opponents.map((opp) => {
           const seat = seatOf(opp.userId);
-          const isTargeted = stagedTargetSeats.has(seat);
-          const targetable = targeting && opp.alive && !isTargeted && stagedPlays.length < 2;
+          const isTargeted =
+            (stagedCountBySeat.get(seat) ?? 0) > 0 || stagedSpeciales.some((s) => s.targetSeat === seat);
+          const targetable =
+            (powerPicksOpponent && opp.alive) ||
+            (targeting &&
+              opp.alive &&
+              (selectedSpecialeACible
+                ? stagedSpeciales.length === 0
+                : (stagedCountBySeat.get(seat) ?? 0) < maxPerTarget && stagedPlays.length < rules.max));
           return (
             <button
               key={opp.userId}
@@ -189,7 +256,7 @@ export function GameView({
       </div>
 
       {/* bannières */}
-      {(banner || notice) && (
+      {(banner || notice || info) && (
         <div className="consigne">
           {banner && (
             <div className="notice notice--erreur" role="alert">
@@ -204,6 +271,14 @@ export function GameView({
               </button>
             </div>
           )}
+          {info && (
+            <div className="notice" role="status" style={{ marginTop: banner || notice ? 8 : 0 }}>
+              {info}
+              <button className="btn btn--nu btn--petit" onClick={() => onInfoDismiss?.()}>
+                ✕
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -212,18 +287,33 @@ export function GameView({
         <div className="consigne">
           <div className={`consigne__cadre ${youSubmitted ? 'consigne__cadre--attente' : ''}`}>
             <span className="consigne__texte">
-              {youSubmitted
-                ? fr.jeu.enAttente(proj.barrier.submitted.length, liveTotal)
-                : proj.phase === 'pioche'
-                  ? powerCards.length > 1
-                    ? fr.consignes.piocheDefausse
-                    : fr.consignes.piochePret
-                  : proj.phase === 'question'
-                    ? selectedIsSpeciale
-                      ? fr.consignes.questionSpeciale
-                      : fr.consignes.question
-                    : fr.consignes.reponse}
+              {powerMode
+                ? powerPicksOpponent
+                  ? fr.jeu.choisirCiblePouvoir(data.POWERS[powerMode]?.label ?? powerMode)
+                  : fr.jeu.choisirCartePosee(data.POWERS[powerMode]?.label ?? powerMode)
+                : youSubmitted
+                  ? fr.jeu.enAttente(proj.barrier.submitted.length, liveTotal)
+                  : proj.phase === 'pioche'
+                    ? powerCards.length > 1
+                      ? fr.consignes.piocheDefausse
+                      : fr.consignes.piochePret
+                    : proj.phase === 'question'
+                      ? rules.askBlocked
+                        ? fr.jeu.refusRoyalBloque
+                        : selectedSpecialeACible
+                          ? fr.jeu.choisirCibleSpeciale
+                          : selectedIsSpeciale
+                            ? fr.consignes.questionSpeciale
+                            : fr.consignes.question
+                      : fr.consignes.reponse}
             </span>
+            {powerMode && (
+              <span className="consigne__actions">
+                <button className="btn btn--nu btn--petit" onClick={() => setPowerMode(null)}>
+                  {fr.jeu.annulerPouvoir}
+                </button>
+              </span>
+            )}
             {!youSubmitted && (
               <span className="consigne__actions">
                 {proj.phase === 'pioche' && (
@@ -237,7 +327,7 @@ export function GameView({
                 )}
                 {proj.phase === 'question' && (
                   <>
-                    {selectedIsSpeciale && (
+                    {selectedIsSpeciale && !selectedSpecialeACible && (
                       <button
                         className="btn btn--petit"
                         onClick={stageSpeciale}
@@ -279,7 +369,12 @@ export function GameView({
             )}
           </div>
           {proj.boardBySeat[viewedOwner] && (
-            <BoardSlots board={proj.boardBySeat[viewedOwner]!} ownerId={viewedOwner} proj={proj} />
+            <BoardSlots
+              board={proj.boardBySeat[viewedOwner]!}
+              ownerId={viewedOwner}
+              proj={proj}
+              onPickPlaced={powerPicksPlaced ? pickPlaced : undefined}
+            />
           )}
         </section>
 
@@ -332,6 +427,7 @@ export function GameView({
                       typeLabel={card.type === 'attribut' ? 'Attribut' : 'Action'}
                       bodyLabel={describeQuestionCard(card)}
                       bandColor={questionCardBand(card)}
+                      className={card.type === 'attribut' ? 'teinte-attribut' : 'teinte-action'}
                     />
                     <span className="carte-main__note">
                       {staged && target ? `→ ${target} · ${fr.consignes.retirer}` : ''}
@@ -344,15 +440,33 @@ export function GameView({
 
           <div className="mon-pouvoir">
             <span className="libelle main-dock__section-titre">{fr.jeu.pouvoir}</span>
-            {powerCards.map((pow) => (
-              <CardImage
-                key={pow.id}
-                src={pouvoirCardSrc(pow.effectKey)}
-                alt={fr.jeu.pouvoir}
-                typeLabel={fr.jeu.pouvoir}
-                bodyLabel={pow.effectKey.replace(/_/g, ' ')}
-              />
-            ))}
+            {powerCards.map((pow) => {
+              const def = data.POWERS[pow.effectKey];
+              const activable =
+                def?.kind === 'active' && alive && !over && proj.status === 'enCours';
+              return (
+                <div key={pow.id} className="mon-pouvoir__carte">
+                  <CardImage
+                    src={pouvoirCardSrc(pow.effectKey)}
+                    alt={def?.label ?? fr.jeu.pouvoir}
+                    typeLabel={fr.jeu.pouvoir}
+                    bodyLabel={def?.label ?? pow.effectKey.replace(/_/g, ' ')}
+                    className="teinte-pouvoir"
+                  />
+                  {activable && (
+                    <button
+                      className="btn btn--petit mon-pouvoir__utiliser"
+                      onClick={() => {
+                        if (pow.effectKey === 'deduction') send('power', { effectKey: 'deduction' });
+                        else setPowerMode(pow.effectKey);
+                      }}
+                    >
+                      {powerMode === pow.effectKey ? fr.jeu.annulerPouvoir : fr.jeu.utiliser}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -371,9 +485,10 @@ export function GameView({
                 >
                   <CardImage
                     src={pouvoirCardSrc(pow.effectKey)}
-                    alt={pow.effectKey}
+                    alt={data.POWERS[pow.effectKey]?.label ?? pow.effectKey}
                     typeLabel={fr.jeu.pouvoir}
-                    bodyLabel={pow.effectKey.replace(/_/g, ' ')}
+                    bodyLabel={data.POWERS[pow.effectKey]?.label ?? pow.effectKey.replace(/_/g, ' ')}
+                    className="teinte-pouvoir"
                   />
                   <span className="choix-carte__note">
                     {discardId === pow.id ? 'défausser celui-ci' : ''}
@@ -509,6 +624,7 @@ function MyGodCard({ god }: { god: GodId }) {
             alt=""
             typeLabel="Personnage"
             bodyLabel="? ? ?"
+            className="teinte-personnage"
           />
         </span>
         <span className="mon-dieu__face">
@@ -517,6 +633,7 @@ function MyGodCard({ god }: { god: GodId }) {
             alt={GODS[god].label}
             typeLabel="Personnage"
             bodyLabel={GODS[god].label}
+            className="teinte-personnage"
           />
         </span>
       </button>

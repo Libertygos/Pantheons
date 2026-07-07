@@ -14,16 +14,17 @@
 import type {
   AttributCard,
   ActionCard,
-  Board,
   GameState,
   GodId,
   PlacedCard,
   Phase,
   PouvoirCard,
+  QuestionCard,
   RoomStatus,
   UserId,
 } from './types.js';
 import type { CardIndex } from './setup.js';
+import { isAskBlocked, questionCap, sameTargetAllowed } from './rules.js';
 
 /** Public view of another player — no secret fields. */
 export interface OpponentView {
@@ -56,6 +57,28 @@ export interface SelfView {
   powerCards?: PouvoirCard[];
 }
 
+/**
+ * A placed card as seen by ONE viewer. Placed questions are FACE DOWN (card-catalog.md
+ * §3.3 note — Espionnage and Spéciales 1/4 only make sense if posed questions are hidden):
+ * the card's CONTENT is visible to its placer always, and to its target once the réponse
+ * is resolved; everyone else sees only the occupied slot, the card KIND (the physical
+ * versos differ per category) and the public oui/non result.
+ */
+export interface PlacedCardView {
+  /** null = face down for this viewer. */
+  card: QuestionCard | null;
+  /** Public: which deck the card came from (the verso identifies it physically). */
+  cardKind: 'attribut' | 'action';
+  targetSeat: number;
+  answeredOui?: boolean;
+}
+
+export interface BoardView {
+  questionSlots: PlacedCardView[][];
+  /** Spéciale slot: content owner-only (fires publicly at trigger, then discards). */
+  specialSlot: PlacedCardView | null;
+}
+
 export interface PlayerProjection {
   roomId: string;
   status: RoomStatus;
@@ -65,13 +88,15 @@ export interface PlayerProjection {
   seatOrder: UserId[];
   self: SelfView;
   opponents: OpponentView[];
-  /** Placed question/special cards are PUBLIC once on the board (allowlisted). */
-  boardBySeat: Record<UserId, Board>;
+  /** Per-viewer board views — question contents redacted (see PlacedCardView). */
+  boardBySeat: Record<UserId, BoardView>;
   drawCounts: { attributs: number; actions: number; pouvoirs: number };
   barrier: { phase: Phase; submitted: UserId[]; youSubmitted: boolean };
   declarationWindowOpen: boolean;
   winner: UserId | null;
   eliminated: UserId[];
+  /** The viewer's question rules this turn (powers/Spéciales woven in). */
+  questionRules: { max: number; sameTargetOk: boolean; askBlocked: boolean };
 }
 
 /** Build the projection for `viewer`. Allowlist construction — public fields only. */
@@ -121,7 +146,7 @@ export function project(state: GameState, viewer: UserId, index?: CardIndex): Pl
     seatOrder: [...state.seatOrder],
     self,
     opponents,
-    boardBySeat: projectBoards(state),
+    boardBySeat: projectBoards(state, viewer),
     drawCounts: {
       attributs: state.drawPiles.attributs.length,
       actions: state.drawPiles.actions.length,
@@ -135,26 +160,50 @@ export function project(state: GameState, viewer: UserId, index?: CardIndex): Pl
     declarationWindowOpen: state.status === 'resolutionDeclaration',
     winner: state.winner,
     eliminated: [...state.eliminated],
+    questionRules: {
+      max: questionCap(state, viewer),
+      sameTargetOk: sameTargetAllowed(state, viewer),
+      askBlocked: isAskBlocked(state, viewer),
+    },
   };
 }
 
-/** Boards carry only PLACED cards, which are public by rule (a posed question is visible). */
-function projectBoards(state: GameState): Record<UserId, Board> {
-  const out: Record<UserId, Board> = {};
+/**
+ * Boards carry PLACED cards with per-viewer redaction: a posed question is FACE DOWN —
+ * content for the placer always, for the target once resolved, never for bystanders.
+ * The special slot's content is owner-only. Kind + occupancy + oui/non stay public.
+ */
+function projectBoards(state: GameState, viewer: UserId): Record<UserId, BoardView> {
+  const out: Record<UserId, BoardView> = {};
   for (const uid of state.seatOrder) {
     const b = state.boardBySeat[uid];
     if (!b) continue;
     out[uid] = {
-      questionSlots: b.questionSlots.map(clonePlaced),
-      specialSlot: clonePlaced(b.specialSlot),
+      questionSlots: b.questionSlots.map((stack) =>
+        (stack ?? []).map((p) => projectPlaced(state, p, uid, viewer)),
+      ),
+      specialSlot: b.specialSlot
+        ? {
+            card: uid === viewer ? b.specialSlot.card : null,
+            cardKind: 'action',
+            targetSeat: uid === viewer ? b.specialSlot.targetSeat : -1,
+          }
+        : null,
     };
   }
   return out;
 }
 
-function clonePlaced(p: PlacedCard | null): PlacedCard | null {
-  if (!p) return null;
-  return { card: p.card, targetSeat: p.targetSeat, answeredOui: p.answeredOui };
+function projectPlaced(state: GameState, p: PlacedCard, placer: UserId, viewer: UserId): PlacedCardView {
+  const targetUser = state.seatOrder[p.targetSeat];
+  const visible =
+    viewer === placer || (viewer === targetUser && p.answeredOui !== undefined);
+  return {
+    card: visible ? p.card : null,
+    cardKind: p.card.type === 'attribut' ? 'attribut' : 'action',
+    targetSeat: p.targetSeat,
+    answeredOui: p.answeredOui,
+  };
 }
 
 /** Map owned card ids to card objects, dropping unknown ids (defensive, never inventive). */

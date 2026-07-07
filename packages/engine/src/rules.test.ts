@@ -84,8 +84,8 @@ test('réponse: a "oui" earns the asked player an action draw', () => {
   applyQuestions(state, 'u1', { plays: [{ cardId: 'q1', card, targetSeat: 1 }] });
 
   const actionsBefore = state.players['u2']!.hand.actions.length;
-  const results = resolveReponsePhase(state);
-  const r = results.find((x) => x.cardId === 'q1')!;
+  const { answers } = resolveReponsePhase(state);
+  const r = answers.find((x) => x.cardId === 'q1')!;
   assert.equal(r.oui, true);
   assert.equal(state.players['u2']!.hand.actions.length, actionsBefore + 1);
 });

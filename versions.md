@@ -1,3 +1,38 @@
+# Version 1.1.0
+
+## Vraies faces : transcription intégrale + logique des effets + DA re-vérifiée
+
+Session 2 (2026-07-07). Les 64 faces de cartes, indisponibles en 1.0.0 (pointeurs LFS),
+sont des fichiers git normaux depuis la fin de session 1 — cette version accomplit le
+mandat original de 1.0.0 (« read every .webp and define the logic of every card »).
+
+### Claude code done
+
+1. **Vérification des assets** ✓ — 64/64 faces réelles (en-têtes RIFF, aucun pointeur).
+2. **DA re-analysée sur les vraies faces** ✓ — écart modéré, extension sans contradiction
+   (PANTHEONS_PROGRESS.md §1bis) : couleurs d'identité par catégorie (Attribut sarcelle
+   `#338381`, Action vermillon-saumon, **Pouvoir violet `#614BA9`** — absent du
+   pense-bête), fonds Personnage = couleur de panthéon, bande diagonale = couleur d'yeux,
+   ratio réel 520×804 (le 5/7 supposé rognait les faces). Tokens + tuiles fallback +
+   versos par catégorie + `object-fit: contain` appliqués ; landing/lobby inchangés.
+3. **Catalogue transcrit à 100 %** ✓ — `docs/card-catalog.md` : 12 pouvoirs, 9 Non
+   (chacune porte SA question — les 9 valeurs d'attribut — + malus par axe), 9 Multiple
+   (sets de 4 dieux verbatim, sans effet additionnel), 9 Spéciales (texte + phase
+   imprimée), questions Attribut verbatim. Plus aucun `⟨À_TRANSCRIRE⟩`. **Erratas
+   d'assets** consignés (§7) : bande Ganesh rouge vs pense-bête turquoise (→ `bleus`
+   canonique), icônes interverties (Multiple 1/5), fichier `optimisse` titré
+   **OPTIMISME**, formulation d'Exécution.
+4. **Logique câblée de bout en bout** ✓ — engine : effets Non/Spéciales/pouvoirs réels
+   (modificateurs de pioche et de questions, suivi « aucun oui au tour précédent »,
+   activations validées une fois par tour, âmes sœurs à la déclaration, deck 27 cartes) ;
+   serveur : message `power`, payloads de pose des Spéciales, canal privé `reveal`
+   (never-send) ; client : limites dynamiques, Spéciales à cible, dock pouvoir
+   activable, plateaux à piles. **Découverte de modèle** : les faces (Espionnage,
+   Spéciales 1/4) prouvent que les questions posées sont **face cachée** → redaction
+   par viewer dans `projection.ts` ([OPUS 🔒] — relecture Jules), versos affichés.
+5. **Vérification** ✓ — engine 39 tests (dont 19 effets + 3 redaction), serveur 15,
+   typecheck et build verts. Arbitrages détaillés : PANTHEONS_PROGRESS.md §8.1.
+
 # Version 1.0.0
 
 ## Bootstrap: define the Pantheons card catalog from the source art

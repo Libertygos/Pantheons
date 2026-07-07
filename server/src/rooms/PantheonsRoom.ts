@@ -105,13 +105,27 @@ export class PantheonsRoom extends Room {
     // registration client-side, so a resuming client explicitly requests its state.
     this.onMessage('REQUEST_STATE', (client) => this.guard(client, (uid) => this.sendResumeState(client, uid)));
 
-    // Match surface (unchanged): submissions to the simultaneous-phase barrier.
+    // Match surface: submissions to the simultaneous-phase barrier.
     this.onMessage('pioche', (client, msg) => this.guard(client, (uid) => this.controller?.submitPioche(uid, msg)));
     this.onMessage('question', (client, msg) =>
-      this.guard(client, (uid) => this.controller?.submitQuestion(uid, msg.intent, msg.specialeCardIds ?? [])),
+      this.guard(client, (uid) => {
+        // specialePlays carries placement choices; legacy specialeCardIds still accepted.
+        const plays =
+          msg.specialePlays ?? (msg.specialeCardIds ?? []).map((cardId: string) => ({ cardId }));
+        this.controller?.submitQuestion(uid, msg.intent, plays);
+        this.broadcastProjections();
+      }),
     );
     this.onMessage('declaration', (client, msg) =>
       this.guard(client, (uid) => this.controller?.submitDeclaration(uid, msg)),
+    );
+    // Explicit power activations (Sabotage / Refus royal / Clonage / Déduction /
+    // Espionnage / Exécution). Public event via onPhaseEvent; private payloads unicast.
+    this.onMessage('power', (client, msg) =>
+      this.guard(client, (uid) => {
+        this.controller?.activatePower(uid, msg);
+        this.broadcastProjections();
+      }),
     );
   }
 
@@ -379,7 +393,13 @@ export class PantheonsRoom extends Room {
     const seed = Math.floor(Math.random() * 0xffffffff);
     const { state, index } = createGame(this.roomId, seatInputs, seed);
     this.index = index;
-    this.controller = new MatchController(state, index, (e) => this.onPhaseEvent(e));
+    this.controller = new MatchController(
+      state,
+      index,
+      (e) => this.onPhaseEvent(e),
+      // Never-send: private reveals (Déduction / Espionnage / Spéciale 1) unicast only.
+      (userId, reveal) => this.clientByUser.get(userId)?.send('reveal', reveal),
+    );
     this.started = true;
     this.lock(); // no new joiners mid-match (reconnects still allowed)
     // The start signal is the first per-seat projection ('state'), wog-room.md §4.3.

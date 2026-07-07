@@ -8,7 +8,9 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import type { Room } from 'colyseus.js';
-import type { PlayerProjection } from '@pantheons/engine';
+import type { PlayerProjection, PrivateReveal } from '@pantheons/engine';
+import { GODS, data } from '@pantheons/engine';
+import { describeQuestionCard } from '../components/BoardSlots.js';
 import { fr } from '../i18n/fr.js';
 import { navigate } from '../router.js';
 import { depositForTeardown, peekActiveRoom } from '../net/active-room.js';
@@ -39,8 +41,16 @@ export function RoomScreen({
   const [proj, setProj] = useState<PlayerProjection | null>(null);
   const [over, setOver] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [seatId, setSeatId] = useState(0);
   const roomRef = useRef<Room | null>(null);
+  const projRef = useRef<PlayerProjection | null>(null);
+  const nameForRef = useRef((uid: string) => {
+    const p = projRef.current;
+    if (!p) return uid;
+    if (p.self.userId === uid) return `${p.self.displayName} (${fr.jeu.vous})`;
+    return p.opponents.find((o) => o.userId === uid)?.displayName ?? uid;
+  });
   const seatRef = useRef(0);
   const startedRef = useRef(false);
   const intentionalRef = useRef(false);
@@ -60,6 +70,7 @@ export function RoomScreen({
     setSeatId(seat);
 
     room.onMessage('state', (p: PlayerProjection) => {
+      projRef.current = p;
       setProj(p);
       setOver(p.status === 'terminee');
       if (viewRef.current !== 'game') {
@@ -71,7 +82,26 @@ export function RoomScreen({
       }
     });
     room.onMessage('gameOver', () => setOver(true));
-    room.onMessage('event', () => {});
+    // Public power activations (physical equivalence: activating a power is visible).
+    room.onMessage('event', (e: { type?: string; by?: string; effectKey?: string }) => {
+      if (e?.type === 'powerActivated' && e.by && e.effectKey) {
+        const who = nameForRef.current(e.by);
+        const label = data.POWERS[e.effectKey]?.label ?? e.effectKey;
+        setInfo(fr.jeu.pouvoirActive(who, label));
+      }
+    });
+    // Private reveals (Déduction / Espionnage / Spéciale 1) — unicast, viewer-only info.
+    room.onMessage('reveal', (r: PrivateReveal) => {
+      if (r.kind === 'personnage' && r.god) {
+        setInfo(
+          r.aboutUser
+            ? fr.jeu.revelePersonnageDe(nameForRef.current(r.aboutUser), GODS[r.god].label)
+            : fr.jeu.revelePersonnagePioche(GODS[r.god].label),
+        );
+      } else if (r.kind === 'question' && r.card) {
+        setInfo(fr.jeu.reveleQuestion(nameForRef.current(r.aboutUser ?? ''), describeQuestionCard(r.card)));
+      }
+    });
     room.onMessage('CONN_STATUS', () => {});
     room.onMessage('error', (m: { message: string }) => setBanner(m.message));
     room.onMessage('MATCH_ABORTED', (m: { message?: string }) => {
@@ -89,6 +119,7 @@ export function RoomScreen({
     });
 
     if (initialProj) {
+      projRef.current = initialProj;
       setProj(initialProj);
       setOver(initialProj.status === 'terminee');
     }
@@ -223,6 +254,8 @@ export function RoomScreen({
         proj={proj}
         send={(t, p) => roomRef.current?.send(t, p)}
         banner={banner}
+        info={info}
+        onInfoDismiss={() => setInfo(null)}
         over={over}
         onExit={leaveIntentionally}
       />

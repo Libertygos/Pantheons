@@ -3,28 +3,27 @@
  * initial server-authoritative GameState. The room calls this once; the seed makes the
  * whole match reproducible.
  *
- * Deck composition follows docs/card-catalog.md (12 Personnages, 9×4 Attributs,
- * 27 Actions, 12 Pouvoirs); the Action deck is partially placeholder while the card
- * faces are ⟨À_TRANSCRIRE⟩ — see buildActionDeck.
+ * Deck composition follows docs/card-catalog.md (12 Personnages, 9×4 Attributs, 27 Actions,
+ * 12 Pouvoirs) — fully transcribed 2026-07-07. Card ids are SELF-DESCRIBING
+ * (`attr_<valeur>_<n>`, `act_<effectKey>`, `pow_<effectKey>`) so effects can reason about
+ * identities without a CardIndex (effects.ts).
  */
+import { ACTIONS } from './data/actions.js';
 import { ALL_GODS, GODS } from './data/gods.js';
 import { POWER_KEYS } from './data/powers.js';
 import { makeRng, shuffle } from './rng.js';
 import {
   COULEURS_YEUX,
   GENRES,
-  GOD_IDS,
   MAX_PLAYERS,
   MIN_PLAYERS,
   PANTHEONS,
-  QUESTION_SLOTS,
 } from './types.js';
 import type {
   ActionCard,
   AttributCard,
   Board,
   GameState,
-  GodId,
   PlayerState,
   PouvoirCard,
   UserId,
@@ -38,18 +37,12 @@ export interface SeatInput {
 /** 4 copies of each of the 9 Attribut faces = 36 cards (docs/card-catalog.md §2). */
 const ATTRIBUT_COPIES = 4;
 
-let cardSeq = 0;
-function cid(prefix: string): string {
-  return `${prefix}_${(cardSeq++).toString(36)}`;
-}
-
 /** Build the full Attribut question deck: one card per (axe, valeur), × copies. */
 export function buildAttributDeck(): AttributCard[] {
-  cardSeq = 0;
   const cards: AttributCard[] = [];
   const push = (axe: AttributCard['axe'], valeur: AttributCard['valeur']) => {
     for (let c = 0; c < ATTRIBUT_COPIES; c++) {
-      cards.push({ id: cid('attr'), type: 'attribut', axe, valeur });
+      cards.push({ id: `attr_${valeur}_${c + 1}`, type: 'attribut', axe, valeur });
     }
   };
   for (const g of GENRES) push('genre', g);
@@ -59,28 +52,30 @@ export function buildAttributDeck(): AttributCard[] {
 }
 
 /**
- * Build the Action deck. The real deck is 27 cards (9 Non / 9 Multiple / 9 Spéciale, one
- * copy each — docs/card-catalog.md §3), but Non/Spéciale effects and each Multiple's 4-god
- * set are ⟨À_TRANSCRIRE⟩ (unreadable card faces). Until transcribed, the playable deck is the
- * 9 Multiple identities with PLACEHOLDER rotating 4-god windows so the action economy stays
- * alive; Non/Spéciale enter the deck when their effects land.
+ * Build the full 27-card Action deck (9 Non / 9 Multiple / 9 Spéciale, one copy each)
+ * straight from the transcribed registry (data/actions.ts).
  */
 export function buildActionDeck(): ActionCard[] {
-  const cards: ActionCard[] = [];
-  for (let i = 0; i < 9; i++) {
-    const gods: GodId[] = [0, 1, 2, 3].map((k) => GOD_IDS[(i + k) % GOD_IDS.length]!);
-    cards.push({ id: cid('act'), type: 'action', subtype: 'multiple', gods, effectKey: `action_multiple_${i + 1}` });
-  }
-  return cards;
+  return Object.values(ACTIONS).map((def) => ({
+    id: `act_${def.effectKey}`,
+    type: 'action',
+    subtype: def.subtype,
+    effectKey: def.effectKey,
+    ...(def.gods ? { gods: [...def.gods] } : {}),
+    ...(def.axe ? { axe: def.axe, valeur: def.valeur } : {}),
+    ...(def.triggerPhase ? { triggerPhase: def.triggerPhase } : {}),
+  }) satisfies ActionCard);
 }
 
 /** The 12 Pouvoir cards, keyed to the registry (docs/card-catalog.md §4). */
 export function buildPouvoirDeck(): PouvoirCard[] {
-  return POWER_KEYS.map((key) => ({ id: cid('pow'), type: 'pouvoir', effectKey: key }) satisfies PouvoirCard);
+  return POWER_KEYS.map((key) => ({ id: `pow_${key}`, type: 'pouvoir', effectKey: key }) satisfies PouvoirCard);
 }
 
 function emptyBoard(): Board {
-  return { questionSlots: Array.from({ length: QUESTION_SLOTS }, () => null), specialSlot: null };
+  // Indexed by the TARGET's GLOBAL seat (0..MAX_PLAYERS-1); the owner's own index stays
+  // unused — the physical board's 6 numbered slots cover the up-to-6 opponents.
+  return { questionSlots: Array.from({ length: MAX_PLAYERS }, () => []), specialSlot: null };
 }
 
 export interface CardIndex {
@@ -135,6 +130,7 @@ export function createGame(roomId: string, seats: SeatInput[], seed: number): Se
       god,
       hand: { attributs: [], actions: [] },
       powers: [startPower],
+      clonedPowerKey: null,
     };
     boardBySeat[seat.userId] = emptyBoard();
     seatOrder.push(seat.userId);
@@ -159,6 +155,16 @@ export function createGame(roomId: string, seats: SeatInput[], seed: number): Se
     declarations: [],
     winner: null,
     eliminated: [],
+    undealtGods: godPool.slice(seats.length),
+    effets: {
+      questionsMaxOverride: {},
+      sameTargetOkTour: {},
+      askBlockedTour: {},
+      executionIntent: {},
+      watchPersonnage: {},
+      powerUsedTour: {},
+    },
+    lastTurn: { ouiFor: {}, nonAnswerers: {} },
   };
 
   return { state, index };

@@ -66,8 +66,8 @@ export const fr = {
     reponse: 'Réponse',
   },
   phaseHint: {
-    pioche: 'Régularisez votre pouvoir puis piochez 2 attributs.',
-    question: 'Posez jusqu’à 2 questions (jamais deux au même joueur).',
+    pioche: 'Régularisez votre pouvoir puis piochez vos attributs.',
+    question: 'Posez vos questions — votre pouvoir peut en changer les limites.',
     reponse: 'Réponses en cours — déclarez « Panthéons » ou passez.',
   },
 
@@ -96,6 +96,19 @@ export const fr = {
     vous: 'vous',
     poserIci: 'Poser ici',
     cible: 'Ciblé',
+    faceCachee: 'Face cachée',
+    utiliser: 'Utiliser',
+    annulerPouvoir: 'Annuler',
+    choisirCiblePouvoir: (pouvoir: string) => `${pouvoir} — choisissez un adversaire.`,
+    choisirCartePosee: (pouvoir: string) =>
+      `${pouvoir} — cliquez une carte posée sur un plateau (changez de plateau au besoin).`,
+    refusRoyalBloque: 'Refus royal : vous ne posez pas de questions à ce tour.',
+    specialeCible: (nom: string) => `Spéciale → ${nom}`,
+    choisirCibleSpeciale: 'Cette Spéciale vise un joueur : cliquez un adversaire pour la poser.',
+    pouvoirActive: (nom: string, pouvoir: string) => `${nom} a activé ${pouvoir}.`,
+    revelePersonnageDe: (nom: string, dieu: string) => `Révélation : ${nom} est ${dieu}.`,
+    revelePersonnagePioche: (dieu: string) => `Carte personnage non piochée vue : ${dieu}.`,
+    reveleQuestion: (nom: string, q: string) => `Question de ${nom} espionnée : ${q}.`,
   },
 
   consignes: {

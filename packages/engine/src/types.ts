@@ -69,9 +69,12 @@ export interface ActionCard {
   subtype: ActionSubtype;
   /** For 'multiple': the 4-god set the question asks about. */
   gods?: GodId[];
+  /** For 'non': the question the card carries (one of the 9 attribute values). */
+  axe?: Axe;
+  valeur?: AxeValeur;
   /** For 'speciale': the phase at whose START the card triggers. */
   triggerPhase?: Phase;
-  /** Effect key resolved against data/actions.ts (effect text ⟨À_TRANSCRIRE⟩ — card-catalog.md §3). */
+  /** Effect key resolved against data/actions.ts (card-catalog.md §3). */
   effectKey: string;
 }
 
@@ -87,16 +90,31 @@ export type AnyCard = AttributCard | ActionCard | PouvoirCard;
 
 // ---- Board & state ---------------------------------------------------------
 
+/** Placement-time choices a Spéciale can carry (card-catalog.md §3.3). */
+export interface SpecialePayload {
+  /** speciale 1 / 5 / 6: the chosen player's seat. */
+  targetSeat?: number;
+  /** speciale 7: the coveted power's effectKey (fallback: top of pile). */
+  pouvoirChoisi?: string;
+  /** speciale 8: up to two coveted attribute values (fallback: top of pile). */
+  attributsChoisis?: AxeValeur[];
+}
+
 export interface PlacedCard {
   card: QuestionCard;
-  /** Seat index (0..5) of the targeted opponent on the placer's board. */
+  /** Seat index (0..6) of the targeted opponent on the placer's board (-1 for Spéciale). */
   targetSeat: number;
   answeredOui?: boolean; // set during réponse resolution (public result)
+  /** Spéciale placement choices. */
+  payload?: SpecialePayload;
 }
 
 export interface Board {
-  /** 6 numbered question slots (opponents 1..7 mapped by seat). */
-  questionSlots: (PlacedCard | null)[];
+  /**
+   * One STACK of placed questions per opposing seat (a slot physically stacks when a
+   * power/Spéciale allows two questions to the same player — Concentration, spéciale 9).
+   */
+  questionSlots: PlacedCard[][];
   specialSlot: PlacedCard | null;
 }
 
@@ -109,6 +127,8 @@ export interface PlayerState {
   god: GodId;
   hand: { attributs: CardId[]; actions: CardId[] };
   powers: CardId[];
+  /** Clonage: effectKey currently copied (null = not chosen / reset after the copied power left play). */
+  clonedPowerKey: string | null;
 }
 
 export type RoomStatus = 'lobby' | 'enCours' | 'resolutionDeclaration' | 'terminee';
@@ -126,6 +146,33 @@ export interface Declaration {
   guesses: Record<UserId, GodId>;
 }
 
+/**
+ * Cross-phase effect flags (powers + Spéciales). Entries are stamped with the `tour` they
+ * apply to and lazily ignored/pruned once the tour has passed.
+ */
+export interface TurnEffects {
+  /** speciale 3: question cap override for that tour ("autant de questions qu'il y a de joueurs"). */
+  questionsMaxOverride: Record<UserId, { max: number; tour: number }>;
+  /** speciale 9: may ask the same player twice during that tour (Concentration grants it permanently). */
+  sameTargetOkTour: Record<UserId, number>;
+  /** Refus royal: blocked from asking during that tour. */
+  askBlockedTour: Record<UserId, number>;
+  /** Exécution pre-declared for that tour: on answering "oui", skip the action draw and discard target's power. */
+  executionIntent: Record<UserId, { target: UserId; tour: number }>;
+  /** speciale 1: if `target` answers "oui" to owner's question that tour, owner sees target's god. */
+  watchPersonnage: Record<UserId, { target: UserId; tour: number }>;
+  /** Once-per-tour activation stamps: user -> effectKey -> tour it was last used. */
+  powerUsedTour: Record<UserId, Record<string, number>>;
+}
+
+/** Réponse outcome of the previous tour, feeding the "aucun oui au tour précédent" powers. */
+export interface LastTurnStats {
+  /** asker -> at least one of their questions was answered "oui". */
+  ouiFor: Record<UserId, boolean>;
+  /** asker -> users who answered "non" to at least one of their questions. */
+  nonAnswerers: Record<UserId, UserId[]>;
+}
+
 export interface GameState {
   roomId: string;
   status: RoomStatus;
@@ -141,6 +188,10 @@ export interface GameState {
   declarations: Declaration[];
   winner: UserId | null;
   eliminated: UserId[];
+  /** SECRET — Personnage cards left undealt at setup (Déduction peeks here). Never projected. */
+  undealtGods: GodId[];
+  effets: TurnEffects;
+  lastTurn: LastTurnStats;
 }
 
 export const MIN_PLAYERS = 4;
