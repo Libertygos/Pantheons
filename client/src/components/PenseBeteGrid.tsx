@@ -1,70 +1,104 @@
 /**
- * Pense-bête — the per-player deduction grid. CLIENT-ONLY (Decision 5 / game-state-model.md):
- * this state is NEVER sent to the server and never appears in any projection. It is the
- * player's private scratch pad: for each opponent × axis-value, mark possible / excluded.
+ * Pense-bête — the per-player deduction grid, CLIENT-ONLY (Decision 5 /
+ * game-state-model.md): never sent to the server, never in any projection.
+ *
+ * Modelled on the physical artefact: columns = the 12 god heads (pense-bête crops),
+ * rows = your live opponents; you strike gods out per opponent. Cell cycles
+ * · (inconnu) → ✕ (exclu) → ○ (suspect) → ·. Marks persist per room in sessionStorage so a
+ * reload mid-match keeps your notes — still strictly on this device.
  */
-import { useState } from 'react';
-import { ALL_GODS, GENRES, COULEURS_YEUX, PANTHEONS } from '@pantheons/engine';
+import { useEffect, useState } from 'react';
+import { ALL_GODS, GODS, type GodId } from '@pantheons/engine';
+import { godPortraitSrc } from '../assets.js';
 import { fr } from '../i18n/fr.js';
 
-type Mark = 'unknown' | 'yes' | 'no';
-const cycle: Record<Mark, Mark> = { unknown: 'yes', yes: 'no', no: 'unknown' };
-const glyph: Record<Mark, string> = { unknown: '·', yes: '✓', no: '✕' };
+type Mark = 'inconnu' | 'exclu' | 'suspect';
+const CYCLE: Record<Mark, Mark> = { inconnu: 'exclu', exclu: 'suspect', suspect: 'inconnu' };
+const GLYPH: Record<Mark, string> = { inconnu: '', exclu: '✕', suspect: '○' };
 
-export function PenseBeteGrid({ opponents }: { opponents: { userId: string; displayName: string }[] }) {
-  // marks[opponentId][`${axe}:${valeur}`] = Mark
-  const [marks, setMarks] = useState<Record<string, Record<string, Mark>>>({});
+type Marks = Record<string, Partial<Record<GodId, Mark>>>;
 
-  const rows: { axe: keyof typeof fr.penseBete.axes; valeur: string; label: string }[] = [
-    ...PANTHEONS.map((v) => ({ axe: 'pantheon' as const, valeur: v, label: v })),
-    ...GENRES.map((v) => ({ axe: 'genre' as const, valeur: v, label: v })),
-    ...COULEURS_YEUX.map((v) => ({ axe: 'couleurYeux' as const, valeur: v, label: v })),
-  ];
+function storageKey(roomId: string): string {
+  return `pantheons.pense-bete.${roomId}`;
+}
 
-  const get = (opp: string, key: string): Mark => marks[opp]?.[key] ?? 'unknown';
-  const toggle = (opp: string, key: string) =>
-    setMarks((m) => ({ ...m, [opp]: { ...m[opp], [key]: cycle[get(opp, key)] } }));
+function load(roomId: string): Marks {
+  try {
+    return JSON.parse(sessionStorage.getItem(storageKey(roomId)) ?? '{}') as Marks;
+  } catch {
+    return {};
+  }
+}
+
+export function PenseBeteGrid({
+  roomId,
+  opponents,
+}: {
+  roomId: string;
+  opponents: { userId: string; displayName: string; alive: boolean }[];
+}) {
+  const [marks, setMarks] = useState<Marks>(() => load(roomId));
+
+  useEffect(() => {
+    sessionStorage.setItem(storageKey(roomId), JSON.stringify(marks));
+  }, [roomId, marks]);
+
+  const get = (opp: string, god: GodId): Mark => marks[opp]?.[god] ?? 'inconnu';
+  const toggle = (opp: string, god: GodId) =>
+    setMarks((m) => ({ ...m, [opp]: { ...m[opp], [god]: CYCLE[get(opp, god)] } }));
+
+  const remaining = (opp: string) => ALL_GODS.filter((g) => get(opp, g.id) !== 'exclu').length;
 
   return (
-    <div style={{ fontSize: 12 }}>
-      <strong>{fr.penseBete.title}</strong>
-      <div style={{ opacity: 0.6, marginBottom: 4 }}>{fr.penseBete.note}</div>
-      <table style={{ borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign: 'left', padding: 2 }} />
-            {opponents.map((o) => (
-              <th key={o.userId} style={{ padding: 2, fontWeight: 600 }}>
-                {o.displayName}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => {
-            const key = `${r.axe}:${r.valeur}`;
-            return (
-              <tr key={key}>
-                <td style={{ padding: 2, whiteSpace: 'nowrap' }}>
-                  <span style={{ opacity: 0.6 }}>{fr.penseBete.axes[r.axe]}:</span> {r.label}
-                </td>
-                {opponents.map((o) => (
-                  <td key={o.userId} style={{ textAlign: 'center', padding: 2 }}>
-                    <button
-                      onClick={() => toggle(o.userId, key)}
-                      style={{ width: 24, cursor: 'pointer', background: 'transparent', border: '1px solid #443', color: '#cdbde8' }}
-                    >
-                      {glyph[get(o.userId, key)]}
-                    </button>
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div style={{ opacity: 0.5, marginTop: 4 }}>
-        {ALL_GODS.length} dieux · {rows.length} valeurs d’attribut
+    <div>
+      <div className="pense-bete__titre-rang">
+        <h3 className="titre-affiche pense-bete__titre">{fr.penseBete.title}</h3>
+      </div>
+      <p className="pense-bete__note">{fr.penseBete.note}</p>
+
+      <div className="pb-grille">
+        <div className="pb-grille__rang">
+          <span className="pb-grille__coin" />
+          {ALL_GODS.map((god) => (
+            <span
+              key={god.id}
+              className="pb-grille__dieu-tete"
+              title={`${god.label} — ${fr.penseBete.axes.genre} ${god.genre}, ${fr.penseBete.axes.couleurYeux} ${god.couleurYeux}, ${god.pantheon}`}
+            >
+              <img src={godPortraitSrc(god.id)} alt={god.label} />
+            </span>
+          ))}
+        </div>
+
+        {opponents.map((opp) => (
+          <div className="pb-grille__rang" key={opp.userId}>
+            <span className="pb-grille__adv" title={opp.displayName}>
+              {opp.alive ? opp.displayName : `✕ ${opp.displayName}`}
+            </span>
+            {ALL_GODS.map((god) => {
+              const mark = get(opp.userId, god.id);
+              return (
+                <button
+                  key={god.id}
+                  className={`pb-case ${mark === 'exclu' ? 'pb-case--exclu' : ''} ${
+                    mark === 'suspect' ? 'pb-case--suspect' : ''
+                  }`}
+                  onClick={() => toggle(opp.userId, god.id)}
+                  aria-label={`${opp.displayName} — ${GODS[god.id].label} : ${mark}`}
+                >
+                  {GLYPH[mark]}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      <div className="pb-restants">
+        {opponents
+          .filter((o) => o.alive)
+          .map((o) => `${o.displayName} : ${fr.penseBete.restants(remaining(o.userId))}`)
+          .join(' · ')}
       </div>
     </div>
   );

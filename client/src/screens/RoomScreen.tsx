@@ -206,9 +206,11 @@ export function RoomScreen({
 
   if (view === 'duplicate') {
     return (
-      <div style={{ maxWidth: 480, margin: '80px auto', textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
-        <h2>{fr.room.duplicateTitle}</h2>
-        <p>{fr.room.duplicateBody}</p>
+      <div className="plein-centre">
+        <div>
+          <h2 className="titre-affiche">{fr.room.duplicateTitle}</h2>
+          <p style={{ color: 'var(--texte-faible)' }}>{fr.room.duplicateBody}</p>
+        </div>
       </div>
     );
   }
@@ -226,5 +228,9 @@ export function RoomScreen({
       />
     );
   }
-  return <p style={{ textAlign: 'center', marginTop: 80, fontFamily: 'system-ui, sans-serif' }}>{fr.connecting}</p>;
+  return (
+    <div className="plein-centre">
+      <span className="libelle">{fr.connecting}</span>
+    </div>
+  );
 }

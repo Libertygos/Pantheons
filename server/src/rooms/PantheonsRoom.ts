@@ -27,6 +27,12 @@ import { MatchController, type PhaseEvent } from './barrier.js';
 import { generateRoomCode, normalizeRoomCode } from './room-code.js';
 import { isCodeTaken, registerRoom, unregisterRoom, type RoomPhase } from './room-registry.js';
 import { verifySession } from '../auth/session.js';
+import {
+  recordPlayerConnected,
+  recordPlayerDisconnected,
+  recordRoomClosed,
+  recordRoomOpened,
+} from '../http/metrics.js';
 
 interface JoinOptions {
   sessionToken: string;
@@ -79,6 +85,7 @@ export class PantheonsRoom extends Room {
   // ---- lifecycle ------------------------------------------------------------
 
   override onCreate(): void {
+    recordRoomOpened();
     do {
       this.roomCode = generateRoomCode();
     } while (isCodeTaken(this.roomCode));
@@ -109,6 +116,7 @@ export class PantheonsRoom extends Room {
   }
 
   override onDispose(): void {
+    recordRoomClosed();
     for (const grace of this.graceByUser.values()) grace.reject();
     this.graceByUser.clear();
     unregisterRoom(this.roomCode);
@@ -153,6 +161,7 @@ export class PantheonsRoom extends Room {
 
   override onJoin(client: Client, _options: JoinOptions, auth?: { userId: string; displayName: string }): void {
     if (!auth) return;
+    recordPlayerConnected();
     const { userId, displayName } = auth;
     client.userData = { userId };
     this.clientByUser.set(userId, client);
@@ -184,6 +193,7 @@ export class PantheonsRoom extends Room {
   override async onLeave(client: Client, consented: boolean): Promise<void> {
     const userId = client.userData?.userId as string | undefined;
     if (!userId) return;
+    recordPlayerDisconnected();
     this.clientByUser.delete(userId);
 
     if (this.started && this.controller) {
@@ -206,6 +216,7 @@ export class PantheonsRoom extends Room {
     try {
       await this.openGrace(client, userId, LOBBY_RECONNECT_GRACE_S);
       // Reconnected: same client instance is live again. onJoin does not re-run.
+      recordPlayerConnected();
       this.clientByUser.set(userId, client);
       const seat = this.accountToSeat.get(userId);
       if (seat !== undefined) this.slots[seat]!.conn = 'CONNECTED';
@@ -245,6 +256,7 @@ export class PantheonsRoom extends Room {
     if (consented || state.status === 'terminee') return;
     try {
       await this.openGrace(client, userId, MATCH_RECONNECT_GRACE_S);
+      recordPlayerConnected();
       this.clientByUser.set(userId, client);
       p.connected = true;
       if (seatId !== undefined) this.slots[seatId]!.conn = 'CONNECTED';
@@ -254,7 +266,7 @@ export class PantheonsRoom extends Room {
         roomCode: this.roomCode,
         seatId,
         hostSeat: this.hostSeat,
-        state: project(this.controller!.state, userId),
+        state: project(this.controller!.state, userId, this.index ?? undefined),
       });
       this.broadcast('CONN_STATUS', { userId, conn: 'CONNECTED' });
       this.broadcastProjections();
@@ -421,7 +433,7 @@ export class PantheonsRoom extends Room {
         roomCode: this.roomCode,
         seatId: this.accountToSeat.get(userId),
         hostSeat: this.hostSeat,
-        state: project(this.controller.state, userId),
+        state: project(this.controller.state, userId, this.index ?? undefined),
       });
       return;
     }
@@ -438,7 +450,7 @@ export class PantheonsRoom extends Room {
     const state = this.controller?.state;
     const client = this.clientByUser.get(userId);
     if (!state || !client) return;
-    client.send('state', project(state, userId));
+    client.send('state', project(state, userId, this.index ?? undefined));
   }
 
   private broadcastProjections(): void {

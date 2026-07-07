@@ -17,6 +17,9 @@ importers:
 
   client:
     dependencies:
+      '@fontsource/fira-mono':
+        specifier: ^5.2.7
+        version: 5.2.7
       '@pantheons/engine':
         specifier: workspace:*
         version: link:../packages/engine
@@ -611,6 +614,9 @@ packages:
     engines: {node: '>=12'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource/fira-mono@5.2.7':
+    resolution: {integrity: sha512-wYrAn6i3nH6luqQBZxtWUpl4UTUvs9AEbEeZxksPMwIqyjRRaxHTNW3c2VfM50gabS2IS7pT8lVWS2USB4ukYA==}
 
   '@gamestdio/clock@1.1.9':
     resolution: {integrity: sha512-O+PG3aRRytgX2BhAPMIhbM2ftq1Q8G4xUrYjEWYM6EmpoKn8oY4lXENGhpgfww6mQxHPbjfWyIAR6Xj3y1+avw==}
@@ -1900,6 +1906,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.21.5':
     optional: true
+
+  '@fontsource/fira-mono@5.2.7': {}
 
   '@gamestdio/clock@1.1.9': {}
 

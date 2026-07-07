@@ -1,6 +1,6 @@
 {
   "name": "@pantheons/engine",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Pantheons pure rules/state engine — no I/O. Mirrors the WoG engine pattern (Decision 2).",
   "type": "module",

@@ -60,35 +60,18 @@ function Toast() {
   });
   if (!message) return null;
   return (
-    <div
-      style={{
-        maxWidth: 480,
-        margin: '16px auto 0',
-        background: '#530',
-        color: '#fff',
-        padding: 10,
-        borderRadius: 6,
-        textAlign: 'center',
-        fontFamily: 'system-ui, sans-serif',
-      }}
-    >
-      {message}
+    <div style={{ maxWidth: 520, margin: '16px auto 0', padding: '0 16px' }}>
+      <div className="notice notice--erreur" role="status">
+        {message}
+      </div>
     </div>
   );
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        display: 'grid',
-        placeItems: 'center',
-        height: '60vh',
-        color: '#cdbde8',
-        fontFamily: 'system-ui, sans-serif',
-      }}
-    >
-      {children}
+    <div className="plein-centre">
+      <span className="libelle">{children}</span>
     </div>
   );
 }

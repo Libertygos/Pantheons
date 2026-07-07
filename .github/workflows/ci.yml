@@ -1,0 +1,176 @@
+name: CI
+
+# LFS note: checkouts deliberately do NOT pull LFS objects — the repo's LFS budget is
+# exhausted and `lfs: true` would fail every job. The card .webp faces stay pointer
+# files and the client ships its typographic fallback tiles. Once the budget is
+# restored, add `lfs: true` to the build/image checkouts to bake the real card art.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/libertygos/pantheons
+
+jobs:
+  # ── 1. Typecheck ───────────────────────────────────────────────────────────
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Engine dist first: server/client typecheck resolve @pantheons/engine types from it.
+      - run: pnpm --filter @pantheons/engine build
+
+      - run: pnpm typecheck
+
+  # ── 2. Unit Tests ──────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
+    needs: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @pantheons/engine build
+
+      - name: Engine tests
+        run: pnpm --filter @pantheons/engine test
+
+      - name: Server tests (room flows, barrier, auth)
+        run: pnpm --filter @pantheons/server test
+
+  # ── 3. Build ───────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build engine
+        run: pnpm --filter @pantheons/engine build
+
+      - name: Build server
+        run: pnpm --filter @pantheons/server build
+
+      - name: Build client
+        run: pnpm --filter @pantheons/client build
+
+  # ── 4. Image Build + Push (main pushes only) ───────────────────────────────
+  image:
+    name: Image Build + Push
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+
+  # ── 5. Auto-deploy: retarget homelab Pantheons newTag (main pushes only) ────
+  # Strict GitOps (mirrors WoG): the only deploy action is a commit to
+  # Libertygos/homelab that bumps the Pantheons kustomization's images[].newTag to
+  # the SHA we just pushed. ArgoCD reconciles from there — no kubectl/helm here.
+  # Requires the HOMELAB_DEPLOY_TOKEN repo secret (same PAT as WoG's).
+  retarget:
+    name: Retarget homelab Pantheons image tag
+    needs: image
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout homelab
+        uses: actions/checkout@v6
+        with:
+          repository: Libertygos/homelab
+          token: ${{ secrets.HOMELAB_DEPLOY_TOKEN }}
+          ref: main
+          path: homelab
+
+      - name: Patch Pantheons image newTag
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          KUSTOMIZATION=infra/pantheons/kustomization.yaml
+          test -f "homelab/${KUSTOMIZATION}" || {
+            echo "::error::homelab/${KUSTOMIZATION} not found on homelab main"
+            exit 1
+          }
+          # Guard: the images entry we expect to retarget must exist.
+          present=$(yq '[.images[] | select(.name == strenv(IMAGE))] | length' "homelab/${KUSTOMIZATION}")
+          if [ "${present}" != "1" ]; then
+            echo "::error::expected exactly one images[] entry for ${IMAGE} in ${KUSTOMIZATION}, found ${present}"
+            exit 1
+          fi
+          yq -i '(.images[] | select(.name == strenv(IMAGE))).newTag = strenv(SHA)' "homelab/${KUSTOMIZATION}"
+          # Fail loudly on a no-op (e.g. tag already at this SHA) — never push an empty deploy.
+          if git -C homelab diff --quiet -- "${KUSTOMIZATION}"; then
+            echo "::error::newTag patch was a no-op (already ${SHA}?) — refusing an empty deploy commit"
+            exit 1
+          fi
+
+      - name: Commit and push
+        working-directory: homelab
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "pantheons-ci[bot]"
+          git config user.email "pantheons-ci@users.noreply.github.com"
+          git add infra/pantheons/kustomization.yaml
+          git commit -m "chore(deploy): Pantheons ${IMAGE}:${SHA}"
+          # A rejected push (non-fast-forward, auth) fails the step under set -e.
+          git push origin HEAD:main

@@ -79,18 +79,74 @@ export const fr = {
   pass: 'Passer',
   submit: 'Valider',
 
+  jeu: {
+    votrePlateau: 'Votre plateau',
+    plateauDe: (nom: string) => `Plateau de ${nom}`,
+    voirMonPlateau: 'Revenir à mon plateau',
+    emplacementSpecial: 'Spéciale',
+    attributs: 'Attributs',
+    actions: 'Actions',
+    pouvoir: 'Pouvoir',
+    maMain: 'Ma main',
+    monDieuHint: 'survoler pour révéler',
+    enAttente: (n: number, total: number) => `En attente des autres joueurs (${n}/${total})`,
+    aide: 'Aide',
+    quitter: 'Quitter',
+    elimine: 'Éliminé',
+    vous: 'vous',
+    poserIci: 'Poser ici',
+    cible: 'Ciblé',
+  },
+
+  consignes: {
+    piochePret: 'Phase de pioche — validez pour recevoir vos 2 cartes Attribut.',
+    piocheDefausse: 'Vous détenez deux pouvoirs : défaussez-en un pour valider la pioche.',
+    question:
+      'Choisissez une carte en main, puis un adversaire — jusqu’à 2 questions, jamais deux au même joueur.',
+    questionSpeciale: 'Cette Spéciale se pose sur votre emplacement dédié, pas sur un adversaire.',
+    reponse: 'Les réponses sont affichées sur les plateaux. Déclarez « Panthéons » — ou passez.',
+    validerPioche: 'Valider la pioche',
+    validerQuestions: (n: number) =>
+      n === 0 ? 'Passer sans question' : `Valider ${n} question${n > 1 ? 's' : ''}`,
+    poserSpeciale: 'Poser sur l’emplacement spécial',
+    retirer: 'Retirer',
+  },
+
   declaration: {
-    button: 'Déclarer « Panthéons » !',
+    button: 'Déclarer « Panthéons »',
     title: 'Déclaration « Panthéons »',
-    instruction: 'Devinez le dieu de chaque adversaire.',
-    win: 'Toutes vos suppositions sont correctes — vous gagnez !',
-    lose: 'Une erreur : vous êtes éliminé (votre dieu reste caché).',
+    instruction:
+      'Nommez le dieu de chaque adversaire vivant. Tout juste : vous gagnez. Une seule erreur : vous êtes éliminé et votre dieu reste caché.',
+    aChoisir: 'à choisir',
+    confirm: 'Je déclare « Panthéons »',
+    cancel: 'Annuler',
+    eliminated: (nom: string) =>
+      `${nom} a déclaré « Panthéons » et s’est trompé — éliminé, son dieu reste caché.`,
+  },
+
+  aide: {
+    titre: 'Rappel des règles',
+    fermer: 'Fermer',
+    corps: [
+      'Chaque joueur incarne en secret l’un des 12 dieux, défini par trois attributs : genre, couleur des yeux, panthéon.',
+      'Un tour = trois phases simultanées. Pioche : exactement un pouvoir, puis 2 attributs. Question : jusqu’à 2 cartes posées sur des adversaires différents. Réponse : chacun répond oui/non, sans mentir.',
+      'Tout « oui » fait piocher une carte Action au joueur interrogé. Les effets « Non » se déclenchent sur un non.',
+      'Après une phase Réponse, déclarez « Panthéons » : nommez le dieu de chacun. Tout juste, vous gagnez ; une erreur, vous êtes éliminé.',
+    ],
   },
 
   penseBete: {
     title: 'Pense-bête',
-    note: 'Vos notes personnelles — jamais partagées.',
+    note: 'Vos notes personnelles — jamais partagées, jamais envoyées.',
+    restants: (n: number) => `${n} possibles`,
     axes: { genre: 'Genre', couleurYeux: 'Yeux', pantheon: 'Panthéon' },
+  },
+
+  fin: {
+    titre: 'Panthéons',
+    vainqueur: (nom: string) => `${nom} a percé tous les secrets et remporte la partie.`,
+    vainqueurVous: 'Vous avez percé tous les secrets — victoire !',
+    retour: 'Retour à l’accueil',
   },
 
   gameOver: (winner: string) => `Partie terminée — vainqueur : ${winner}.`,

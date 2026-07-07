@@ -82,3 +82,16 @@ _2026-07-07 — catalog authored; card-face effect text blocked on Git LFS._
    (`gods.ts`, `actions.ts`, `powers.ts`, `setup.ts`) and specs (`glossary.md`,
    `rules.md`) updated to match; engine + server test suites green. The landing page
    displays this file's version per the WoG convention.
+
+4. **Launch (2026-07-07)** ✓ — full playable UI (landing / lobby / game screens, DA from
+   the pense-bête, cf. `PANTHEONS_PROGRESS.md`) plus the production layer mirroring WoG:
+   server `/healthz/ready` (DB ping) + `/metrics` (Prometheus gauges) + `CLIENT_DIST` +
+   idempotent drizzle migrations at boot; `Dockerfile`/`.dockerignore` (versions.md kept
+   in context — vite stamps the version from it); `.github/workflows/ci.yml` (typecheck →
+   tests → build → GHCR image `ghcr.io/libertygos/pantheons` → homelab newTag retarget).
+   CI checks out WITHOUT LFS while the budget is exhausted (card faces render fallback
+   tiles; flip `lfs: true` once restored). Deployed at **pantheons.gosgames.com** via
+   `homelab/infra/pantheons` (ArgoCD app, Traefik IngressRoute, cert, CNPG `pantheons`
+   DB). **Actions for Jules:** add the `HOMELAB_DEPLOY_TOKEN` secret to this repo (same
+   PAT as WoG) for future auto-deploys, and seed the platform catalog so Pantheons shows
+   as `live` on www.gosgames.com.

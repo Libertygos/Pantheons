@@ -1,0 +1,1367 @@
+/*
+ * Panthéons — système de design.
+ * Ligne artistique extraite du pense-bête (voir PANTHEONS_PROGRESS.md §1) :
+ * marine profond, blanc glacé, monospace grotesque (PT Mono), tri-bande
+ * rouge/turquoise/verte (légende des yeux), icônes filaires en cercle,
+ * chartreuse réservée au « divin » (meneur, CTA, déclaration).
+ */
+
+:root {
+  --nuit: #222c5d;
+  --nuit-clair: #2a3468;
+  --nuit-sombre: #1c2550;
+  --nuit-2: #1a2248;
+  --nuit-3: #141b3a;
+  --givre: #edf8f9;
+  --givre-2: #dde7e8;
+  --blanc: #ffffff;
+  --turquoise: #68cbc0;
+  --vert: #81b93f;
+  --vermillon: #fb4537;
+  --chartreuse: #e5eb2e;
+
+  --filet: rgba(255, 255, 255, 0.28);
+  --filet-fort: rgba(255, 255, 255, 0.65);
+  --encre-sur-clair: #222c5d;
+  --texte: var(--givre);
+  --texte-faible: rgba(237, 248, 249, 0.62);
+
+  --fonte: 'Fira Mono', 'PT Mono', 'Courier New', monospace;
+  --carte-ratio: 5 / 7;
+
+  --dur-vite: 140ms;
+  --dur: 240ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: linear-gradient(135deg, var(--nuit-sombre) 0%, var(--nuit) 45%, var(--nuit-clair) 100%);
+  background-attachment: fixed;
+  color: var(--texte);
+  font-family: var(--fonte);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- typographie ---------------------------------------------------------- */
+
+h1,
+h2,
+h3 {
+  font-weight: 700;
+  color: var(--blanc);
+  margin: 0;
+}
+
+.titre-affiche {
+  /* le titre du pense-bête : capitales mono très espacées */
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+}
+
+.libelle {
+  /* labels de grille façon BRAHMA / PANTHÉON GREC */
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 11px;
+  color: var(--texte-faible);
+}
+
+.libelle--clair {
+  color: var(--encre-sur-clair);
+  opacity: 0.85;
+}
+
+a {
+  color: var(--turquoise);
+}
+
+/* ---- tri-bande (légende des yeux, motif signature) ------------------------ */
+
+.tri-bande {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  height: 6px;
+  border: none;
+  margin: 0;
+}
+
+.tri-bande > span:nth-child(1) {
+  background: var(--vermillon);
+}
+.tri-bande > span:nth-child(2) {
+  background: var(--turquoise);
+}
+.tri-bande > span:nth-child(3) {
+  background: var(--vert);
+}
+
+/* ---- boutons --------------------------------------------------------------- */
+
+button {
+  font-family: var(--fonte);
+  font-size: 14px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  background: transparent;
+  color: var(--blanc);
+  border: 1px solid var(--filet-fort);
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background var(--dur-vite) ease,
+    color var(--dur-vite) ease,
+    border-color var(--dur-vite) ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: rgba(237, 248, 249, 0.12);
+}
+
+.btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.btn--primaire {
+  background: var(--chartreuse);
+  border-color: var(--chartreuse);
+  color: var(--encre-sur-clair);
+}
+
+.btn--primaire:hover:not(:disabled) {
+  background: #eef455;
+  border-color: #eef455;
+}
+
+.btn--givre {
+  background: var(--givre);
+  border-color: var(--givre);
+  color: var(--encre-sur-clair);
+}
+
+.btn--givre:hover:not(:disabled) {
+  background: var(--blanc);
+}
+
+.btn--petit {
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+.btn--nu {
+  border-color: transparent;
+  color: var(--texte-faible);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+.btn--nu:hover:not(:disabled) {
+  color: var(--blanc);
+  background: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--turquoise);
+  outline-offset: 2px;
+}
+
+/* ---- champs ----------------------------------------------------------------- */
+
+.champ-code {
+  font-family: var(--fonte);
+  font-size: 20px;
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  text-align: center;
+  text-indent: 0.45em; /* compense le letter-spacing du dernier caractère */
+  padding: 10px 8px;
+  width: 190px;
+  background: var(--nuit-3);
+  color: var(--blanc);
+  border: 1px solid var(--filet);
+  border-radius: 2px;
+}
+
+.champ-code::placeholder {
+  color: rgba(237, 248, 249, 0.35);
+  letter-spacing: 0.3em;
+}
+
+/* ---- notices / bannières ----------------------------------------------------- */
+
+.notice {
+  border: 1px solid var(--filet);
+  border-left: 4px solid var(--turquoise);
+  background: var(--nuit-2);
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.notice--erreur {
+  border-left-color: var(--vermillon);
+}
+
+.notice--ok {
+  border-left-color: var(--vert);
+}
+
+/* ---- cadre plein écran (connexion, duplicata…) -------------------------------- */
+
+.plein-centre {
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 24px;
+}
+
+/* =================================================================== LANDING */
+
+.landing {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing__hero {
+  text-align: center;
+  padding: 9vh 24px 40px;
+}
+
+.landing__titre {
+  font-size: clamp(38px, 7vw, 84px);
+  letter-spacing: 0.16em;
+  line-height: 1.05;
+}
+
+.landing__sous-titre {
+  font-size: clamp(15px, 2.2vw, 24px);
+  letter-spacing: 0.34em;
+  text-transform: none;
+  color: var(--givre);
+  font-weight: 400;
+  margin-top: 10px;
+}
+
+.landing__tagline {
+  max-width: 560px;
+  margin: 26px auto 0;
+  color: var(--texte-faible);
+  font-size: 14px;
+}
+
+/* frise des douze */
+.frise {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  max-width: 1080px;
+  margin: 42px auto 0;
+  border: 2px solid var(--blanc);
+  background: var(--blanc);
+  gap: 2px;
+}
+
+.frise__dieu {
+  display: flex;
+  flex-direction: column;
+  background: var(--nuit);
+}
+
+.frise__dieu img {
+  width: 100%;
+  aspect-ratio: 179 / 213;
+  object-fit: cover;
+  display: block;
+}
+
+.frise__nom {
+  display: block;
+  background: var(--givre);
+  color: var(--encre-sur-clair);
+  font-size: clamp(6px, 0.75vw, 10px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 4px 0 3px;
+  border-top: 2px solid var(--nuit);
+}
+
+.landing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  margin-top: 46px;
+}
+
+.landing__rejoindre {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.landing__erreur {
+  max-width: 480px;
+  margin: 18px auto 0;
+}
+
+/* règles en trois temps */
+.landing__regles {
+  max-width: 1080px;
+  margin: 64px auto 0;
+  padding: 0 24px 56px;
+  width: 100%;
+}
+
+.landing__regles-titre {
+  text-align: center;
+  font-size: 15px;
+  margin-bottom: 28px;
+}
+
+.regles-grille {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  border: 1px solid var(--filet-fort);
+  background: var(--filet-fort);
+}
+
+.regle {
+  background: var(--nuit-2);
+  padding: 22px 20px 26px;
+}
+
+.regle__phase {
+  color: var(--chartreuse);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.regle__texte {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--texte-faible);
+}
+
+/* légende des axes */
+.axes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px 34px;
+  margin-top: 34px;
+}
+
+.axe {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.axe__pastille {
+  width: 22px;
+  height: 10px;
+  display: inline-block;
+}
+
+.landing__pied {
+  margin-top: auto;
+  text-align: center;
+  padding: 22px;
+  color: var(--texte-faible);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+
+/* ===================================================================== LOBBY */
+
+.lobby {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 6vh 20px 60px;
+  width: 100%;
+}
+
+.lobby__entete {
+  text-align: center;
+}
+
+.lobby__titre {
+  font-size: 26px;
+  letter-spacing: 0.2em;
+}
+
+.lobby__code-bloc {
+  margin: 30px auto 0;
+  max-width: 420px;
+  border: 1px solid var(--filet-fort);
+  background: var(--nuit-2);
+}
+
+.lobby__code-libelle {
+  display: block;
+  padding: 10px 0 0;
+  text-align: center;
+}
+
+.lobby__code {
+  display: block;
+  text-align: center;
+  font-size: clamp(34px, 6vw, 48px);
+  font-weight: 700;
+  color: var(--blanc);
+  letter-spacing: 0.4em;
+  text-indent: 0.4em;
+  padding: 2px 0 10px;
+}
+
+.lobby__inviter {
+  display: flex;
+  justify-content: center;
+  padding: 0 0 16px;
+}
+
+.lobby__notice {
+  margin: 18px 0 0;
+}
+
+/* table des sièges, façon grille du pense-bête */
+.sieges {
+  margin: 34px 0 0;
+  border: 1px solid var(--filet-fort);
+}
+
+.siege {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 58px;
+  border-top: 1px solid var(--filet);
+  padding-right: 16px;
+}
+
+.siege:first-child {
+  border-top: none;
+}
+
+.siege__num {
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  background: var(--givre);
+  color: var(--encre-sur-clair);
+  font-weight: 700;
+  font-size: 18px;
+  border-right: 1px solid var(--nuit);
+}
+
+.siege--libre .siege__num {
+  background: transparent;
+  color: var(--texte-faible);
+  border-right: 1px solid var(--filet);
+}
+
+.siege__nom {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--blanc);
+  min-width: 0;
+}
+
+.siege__nom-texte {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.siege--libre .siege__nom {
+  color: var(--texte-faible);
+  font-style: normal;
+}
+
+.siege__badge {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border: 1px solid var(--filet);
+  color: var(--texte-faible);
+  white-space: nowrap;
+}
+
+.siege__badge--hote {
+  border-color: var(--chartreuse);
+  color: var(--chartreuse);
+}
+
+.siege__etat {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.siege__etat--pret {
+  color: var(--vert);
+}
+
+.siege__etat--attente {
+  color: var(--texte-faible);
+}
+
+.siege__etat--deco {
+  color: var(--vermillon);
+}
+
+.lobby__controles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.lobby__hint {
+  text-align: center;
+  color: var(--texte-faible);
+  font-size: 12px;
+  margin-top: 14px;
+}
+
+/* ====================================================================== JEU */
+
+.jeu {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* barre haute */
+.jeu__barre {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--filet);
+  background: var(--nuit-2);
+  flex-wrap: wrap;
+}
+
+.jeu__marque {
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  font-size: 14px;
+  color: var(--blanc);
+}
+
+.jeu__tour {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--texte-faible);
+}
+
+.phases {
+  display: flex;
+  border: 1px solid var(--filet);
+}
+
+.phases__etape {
+  padding: 5px 14px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--texte-faible);
+  border-left: 1px solid var(--filet);
+}
+
+.phases__etape:first-child {
+  border-left: none;
+}
+
+.phases__etape--active {
+  background: var(--givre);
+  color: var(--encre-sur-clair);
+  font-weight: 700;
+}
+
+.jeu__meneur {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chartreuse);
+}
+
+.jeu__barriere {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--texte-faible);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.barriere__points {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.barriere__point {
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--filet-fort);
+  background: transparent;
+}
+
+.barriere__point--soumis {
+  background: var(--vert);
+  border-color: var(--vert);
+}
+
+/* rang des adversaires */
+.table-rang {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(130px, 1fr);
+  gap: 10px;
+  padding: 14px 18px 4px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.adversaire {
+  position: relative;
+  border: 1px solid var(--filet);
+  background: var(--nuit-2);
+  padding: 10px 12px 9px;
+  text-align: left;
+  color: var(--texte);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-vite) ease,
+    background var(--dur-vite) ease,
+    transform var(--dur-vite) ease;
+}
+
+.adversaire:hover {
+  border-color: var(--filet-fort);
+}
+
+.adversaire--regarde {
+  border-color: var(--givre);
+  background: var(--nuit-clair);
+}
+
+.adversaire--cible {
+  border-color: var(--turquoise);
+  box-shadow: 0 0 0 1px var(--turquoise);
+}
+
+.adversaire--cible:hover {
+  transform: translateY(-2px);
+}
+
+.adversaire--choisi {
+  border-color: var(--turquoise);
+  background: rgba(104, 203, 192, 0.14);
+  box-shadow: 0 0 0 1px var(--turquoise);
+}
+
+.adversaire--mort {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.adversaire__nom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--blanc);
+  font-size: 13px;
+  min-width: 0;
+}
+
+.adversaire__nom-texte {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.point-conn {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vert);
+  flex: none;
+}
+
+.point-conn--deco {
+  background: var(--vermillon);
+}
+
+.adversaire__compteurs {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--texte-faible);
+  letter-spacing: 0.06em;
+}
+
+.adversaire__etiquette {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  background: var(--chartreuse);
+  color: var(--encre-sur-clair);
+  font-weight: 700;
+}
+
+.adversaire__etiquette--elimine {
+  background: var(--vermillon);
+  color: var(--blanc);
+}
+
+.adversaire__cible-note {
+  margin-top: 7px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--turquoise);
+}
+
+/* bandeau d'instruction de phase */
+.consigne {
+  max-width: 1280px;
+  width: 100%;
+  margin: 12px auto 0;
+  padding: 0 18px;
+}
+
+.consigne__cadre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  border: 1px solid var(--filet-fort);
+  border-left: 5px solid var(--chartreuse);
+  background: var(--nuit-2);
+  padding: 12px 16px;
+}
+
+.consigne__cadre--attente {
+  border-left-color: var(--turquoise);
+}
+
+.consigne__texte {
+  font-size: 13px;
+  color: var(--givre);
+}
+
+.consigne__actions {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+/* zone centrale : plateau + pense-bête */
+.jeu__centre {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  align-items: start;
+}
+
+.plateau-zone {
+  padding: 16px 18px 8px;
+  min-width: 0;
+}
+
+.plateau__proprio {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.plateau__proprio-nom {
+  font-size: 15px;
+  color: var(--blanc);
+  font-weight: 700;
+}
+
+.plateau {
+  border: 1px solid var(--filet-fort);
+  background: var(--nuit-2);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 12px;
+}
+
+.slot {
+  text-align: center;
+}
+
+.slot__libelle {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.slot__creux {
+  aspect-ratio: var(--carte-ratio);
+  border: 1px dashed var(--filet);
+  display: grid;
+  place-items: center;
+  color: rgba(237, 248, 249, 0.25);
+  font-size: 20px;
+}
+
+.slot__carte {
+  position: relative;
+}
+
+.reponse-pastille {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  color: var(--blanc);
+}
+
+.reponse-pastille--oui {
+  background: var(--vert);
+}
+
+.reponse-pastille--non {
+  background: var(--vermillon);
+}
+
+/* cartes */
+.carte {
+  width: 100%;
+  aspect-ratio: var(--carte-ratio);
+  display: block;
+  border: 1px solid var(--filet);
+  background: var(--nuit-3);
+  object-fit: cover;
+}
+
+.carte-tuile {
+  width: 100%;
+  aspect-ratio: var(--carte-ratio);
+  border: 1px solid var(--filet-fort);
+  background: var(--nuit-3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: center;
+}
+
+.carte-tuile__type {
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--encre-sur-clair);
+  background: var(--givre);
+  padding: 3px 2px;
+  font-weight: 700;
+}
+
+.carte-tuile__corps {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 6px 4px;
+  font-size: 11px;
+  color: var(--givre);
+  word-break: break-word;
+}
+
+.carte-tuile__bande {
+  height: 8px;
+}
+
+/* main du joueur */
+.main-dock {
+  border-top: 1px solid var(--filet-fort);
+  background: var(--nuit-2);
+  padding: 12px 18px 16px;
+}
+
+.main-dock__interieur {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 22px;
+  align-items: start;
+}
+
+.main-dock__section-titre {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.ma-main {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.carte-main {
+  flex: none;
+  width: 96px;
+  padding: 0;
+  border: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  transition:
+    transform var(--dur-vite) ease,
+    border-color var(--dur-vite) ease;
+}
+
+.carte-main:hover:not(:disabled) {
+  transform: translateY(-6px);
+}
+
+.carte-main:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.carte-main--choisie {
+  border-color: var(--turquoise);
+  transform: translateY(-6px);
+}
+
+.carte-main--posee {
+  opacity: 0.35;
+  transform: none;
+}
+
+.carte-main__note {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--turquoise);
+  padding-top: 4px;
+  min-height: 17px;
+}
+
+/* mon dieu (face cachée par défaut, appui pour révéler) */
+.mon-dieu {
+  width: 116px;
+  position: relative;
+}
+
+.mon-dieu__scene {
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--carte-ratio);
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  background: none;
+  display: block;
+}
+
+.mon-dieu__face,
+.mon-dieu__dos {
+  position: absolute;
+  inset: 0;
+  transition: opacity var(--dur-vite) ease;
+}
+
+.mon-dieu__scene .mon-dieu__face {
+  opacity: 0;
+}
+
+.mon-dieu__scene:hover .mon-dieu__face,
+.mon-dieu__scene:focus-visible .mon-dieu__face,
+.mon-dieu__scene[data-revele='true'] .mon-dieu__face {
+  opacity: 1;
+}
+
+.mon-dieu__scene:hover .mon-dieu__dos,
+.mon-dieu__scene:focus-visible .mon-dieu__dos,
+.mon-dieu__scene[data-revele='true'] .mon-dieu__dos {
+  opacity: 0;
+}
+
+.mon-dieu__hint {
+  display: block;
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--texte-faible);
+  margin-top: 6px;
+}
+
+.mon-pouvoir {
+  width: 96px;
+}
+
+/* pense-bête */
+.pense-bete {
+  width: 380px;
+  max-width: 42vw;
+  border-left: 1px solid var(--filet);
+  padding: 16px 18px 24px;
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+
+.pense-bete--replie {
+  width: auto;
+  border-left: none;
+}
+
+.pense-bete__titre-rang {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.pense-bete__titre {
+  font-size: 13px;
+  letter-spacing: 0.18em;
+}
+
+.pense-bete__note {
+  font-size: 10px;
+  color: var(--texte-faible);
+  margin: 0 0 12px;
+}
+
+.pb-grille {
+  border: 2px solid var(--blanc);
+  background: var(--blanc);
+  display: grid;
+  gap: 1px;
+}
+
+.pb-grille__rang {
+  display: grid;
+  grid-template-columns: 92px repeat(12, 1fr);
+  gap: 1px;
+}
+
+.pb-grille__coin {
+  background: var(--nuit);
+}
+
+.pb-grille__dieu-tete {
+  background: var(--nuit);
+  padding: 0;
+  border: none;
+  cursor: help;
+  aspect-ratio: 179 / 213;
+  overflow: hidden;
+}
+
+.pb-grille__dieu-tete img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pb-grille__adv {
+  background: var(--nuit);
+  color: var(--givre);
+  font-size: 10px;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pb-case {
+  background: var(--givre);
+  border: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--encre-sur-clair);
+  aspect-ratio: 1;
+  padding: 0;
+  transition: background var(--dur-vite) ease;
+}
+
+.pb-case:hover {
+  background: var(--blanc);
+}
+
+.pb-case--exclu {
+  color: var(--vermillon);
+  background: var(--givre-2);
+}
+
+.pb-case--suspect {
+  color: var(--encre-sur-clair);
+  background: var(--chartreuse);
+}
+
+.pb-restants {
+  font-size: 10px;
+  color: var(--texte-faible);
+  margin-top: 8px;
+}
+
+/* superposition (modales : déclaration, défausse pouvoir, aide, fin) */
+.voile {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 27, 58, 0.82);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  z-index: 40;
+  overflow-y: auto;
+}
+
+.modale {
+  background: var(--nuit-2);
+  border: 1px solid var(--filet-fort);
+  max-width: 860px;
+  width: 100%;
+  padding: 26px 28px 28px;
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+.modale__titre {
+  font-size: 18px;
+  letter-spacing: 0.16em;
+}
+
+.modale__texte {
+  color: var(--texte-faible);
+  font-size: 13px;
+  margin: 10px 0 20px;
+}
+
+.modale__pied {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+/* sélecteur de déclaration : une rangée par adversaire, 12 têtes */
+.decl-rang {
+  border-top: 1px solid var(--filet);
+  padding: 14px 0;
+}
+
+.decl-rang__nom {
+  font-weight: 700;
+  color: var(--blanc);
+  font-size: 14px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.decl-rang__choix {
+  color: var(--chartreuse);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.decl-dieux {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(34px, 1fr));
+  gap: 4px;
+}
+
+.decl-dieu {
+  padding: 0;
+  border: 2px solid transparent;
+  background: var(--nuit);
+  cursor: pointer;
+  overflow: hidden;
+  aspect-ratio: 179 / 213;
+  transition:
+    border-color var(--dur-vite) ease,
+    transform var(--dur-vite) ease;
+}
+
+.decl-dieu img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.decl-dieu:hover {
+  transform: scale(1.06);
+  border-color: var(--filet-fort);
+}
+
+.decl-dieu--choisi {
+  border-color: var(--chartreuse);
+  box-shadow: 0 0 0 1px var(--chartreuse);
+}
+
+/* choix de pouvoir à défausser */
+.choix-cartes {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.choix-carte {
+  width: 140px;
+  padding: 0;
+  border: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+}
+
+.choix-carte--choisi {
+  border-color: var(--vermillon);
+}
+
+.choix-carte__note {
+  display: block;
+  font-size: 10px;
+  text-align: center;
+  padding-top: 6px;
+  color: var(--texte-faible);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* fin de partie */
+.fin {
+  text-align: center;
+  padding: 10px 0 4px;
+}
+
+.fin__titre {
+  font-size: clamp(26px, 4vw, 40px);
+  letter-spacing: 0.2em;
+}
+
+.fin__texte {
+  color: var(--texte-faible);
+  margin: 14px 0 26px;
+}
+
+/* ---- responsive -------------------------------------------------------------- */
+
+@media (max-width: 980px) {
+  .jeu__centre {
+    grid-template-columns: 1fr;
+  }
+
+  .pense-bete {
+    width: 100%;
+    max-width: none;
+    border-left: none;
+    border-top: 1px solid var(--filet);
+    position: static;
+  }
+
+  .main-dock__interieur {
+    grid-template-columns: 1fr;
+  }
+
+  .table-rang {
+    grid-auto-columns: minmax(112px, 1fr);
+    overflow-x: auto;
+  }
+
+  .regles-grille {
+    grid-template-columns: 1fr;
+  }
+
+  .frise {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .frise__dieu:nth-child(n + 7) {
+    border-top: 2px solid var(--nuit);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

@@ -1,27 +1,109 @@
 /**
- * Asset manifest — identity → immutable PNG path (Decision 5: faces are finished PNGs the
- * client only DISPLAYS; there is no compositing). Real PNGs land via Git LFS with a filename
- * manifest (⟨INPUT⟩). Until then CardImage falls back to a labelled placeholder tile so the
- * UI is exercisable without art.
+ * Asset manifest — identity → immutable card face (Decision 5: faces are finished images
+ * the client only DISPLAYS; there is no compositing, no text overlay, ever).
+ *
+ * The faces live in conversion_cartes/cartes_webp/cartes_finales/*.webp and are bundled
+ * from there via import.meta.glob — NOT copied — so a `git lfs pull` hydrates what the app
+ * serves with no code change. While the LFS budget is exhausted the files are pointer text:
+ * <img> fails and CardImage falls back to a typographic tile.
+ *
+ * Derived UI art (NOT cards): the 12 god heads cropped from the pense-bête, used as
+ * avatars in the frieze / pense-bête header / declaration picker.
  */
-import type { GodId } from '@pantheons/engine';
+import type { ActionSubtype, Axe, AxeValeur, GodId, QuestionCard } from '@pantheons/engine';
 
-/** Base under which card PNGs live once pushed (public/ or CDN). */
-export const ASSET_BASE = import.meta.env.VITE_ASSET_BASE ?? '/assets';
+const faces = import.meta.glob('../../conversion_cartes/cartes_webp/cartes_finales/*.webp', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
 
+const portraits = import.meta.glob('./ui-art/gods/*.png', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+
+const penseBete = import.meta.glob('../../conversion_cartes/*.webp', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+
+/** The printed pense-bête sheet (hydrated, non-LFS) — shown in the in-game help. */
+export function penseBeteSrc(): string {
+  return Object.values(penseBete)[0] ?? '';
+}
+
+function face(name: string): string {
+  return faces[`../../conversion_cartes/cartes_webp/cartes_finales/${name}.webp`] ?? '';
+}
+
+/** Personnage card face (the full, final card image). */
 export function godCardSrc(id: GodId): string {
-  return `${ASSET_BASE}/personnages/${id}.png`;
+  return face(`card_personnages_${id}`);
 }
-export function godMiniatureSrc(id: GodId): string {
-  return `${ASSET_BASE}/miniatures/${id}.png`;
+
+/** Derived pense-bête head crop — UI avatar, not a card. */
+export function godPortraitSrc(id: GodId): string {
+  return portraits[`./ui-art/gods/${id}.png`] ?? '';
 }
-export function cardBackSrc(): string {
-  return `${ASSET_BASE}/dos.png`;
+
+/** The asset filename says `indou`; the canonical enum stays `hindou` (card-catalog.md §2). */
+const ATTR_FILE: Record<string, string> = {
+  masculin: 'card_attributs_masculin',
+  feminin: 'card_attributs_feminin',
+  bleus: 'card_attributs_bleus',
+  verts: 'card_attributs_verts',
+  rouges: 'card_attributs_rouges',
+  hindou: 'card_attributs_indou',
+  grec: 'card_attributs_grec',
+  egyptien: 'card_attributs_egyptien',
+  nordique: 'card_attributs_nordique',
+};
+
+export function attributCardSrc(valeur: AxeValeur): string {
+  return face(ATTR_FILE[valeur] ?? '');
 }
-/** Attribut/action/pouvoir card faces keyed by card id or effect key (⟨INPUT⟩ manifest). */
-export function cardFaceSrc(key: string): string {
-  return `${ASSET_BASE}/cartes/${key}.png`;
+
+/** Action faces are keyed on the effectKey (action_non_3 → card_actions_non_3.webp). */
+export function actionCardSrc(effectKey: string): string {
+  return face(`card_${effectKey.replace(/^action_/, 'actions_')}`);
 }
-export function boardSrc(): string {
-  return `${ASSET_BASE}/plateau.png`;
+
+export function pouvoirCardSrc(effectKey: string): string {
+  return face(`card_pouvoirs_${effectKey}`);
 }
+
+export function questionCardSrc(card: QuestionCard): string {
+  return card.type === 'attribut' ? attributCardSrc(card.valeur) : actionCardSrc(card.effectKey);
+}
+
+export function cardBackSrc(type: 'personnages' | 'attributs' | 'actions' | 'pouvoirs'): string {
+  return face(`card_${type}_verso`);
+}
+
+/** FR display labels for the fallback tile while faces are LFS pointers (chrome, not card copy). */
+export const AXE_LABEL: Record<Axe, string> = {
+  genre: 'Genre',
+  couleurYeux: 'Yeux',
+  pantheon: 'Panthéon',
+};
+
+export const VALEUR_LABEL: Record<string, string> = {
+  masculin: 'Masculin',
+  feminin: 'Féminin',
+  bleus: 'Yeux bleus',
+  verts: 'Yeux verts',
+  rouges: 'Yeux rouges',
+  hindou: 'Hindou',
+  grec: 'Grec',
+  egyptien: 'Égyptien',
+  nordique: 'Nordique',
+};
+
+export const SUBTYPE_LABEL: Record<ActionSubtype, string> = {
+  non: 'Action · Non',
+  multiple: 'Action · Multiple',
+  speciale: 'Action · Spéciale',
+};

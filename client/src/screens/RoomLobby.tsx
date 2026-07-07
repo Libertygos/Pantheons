@@ -2,6 +2,9 @@
  * Lobby (wog-room.md §4): seat-slot list, ready toggle, host-only seat controls, start,
  * consented leave. Driven entirely by the pre-bound room; re-asks with REQUEST_LOBBY_STATE
  * on mount because the join-time broadcast races handler registration.
+ *
+ * Visual: the seat list is the pense-bête grid — numbered givre row-heads 1..7 on navy,
+ * hairline rules; ready/disconnected speak the legend colours (vert / vermillon).
  */
 import { useEffect, useRef, useState } from 'react';
 import type { Room } from 'colyseus.js';
@@ -31,11 +34,18 @@ export function RoomLobby({
     }
   }, [room]);
 
-  if (!lobby) return <p style={{ textAlign: 'center', marginTop: 80 }}>{fr.connecting}</p>;
+  if (!lobby) {
+    return (
+      <div className="plein-centre">
+        <span className="libelle">{fr.connecting}</span>
+      </div>
+    );
+  }
 
   const mySeat = lobby.seats[seatId];
   const isHost = seatId === lobby.hostSeat;
   const trailingEmpty = lobby.seats.length > 0 && !lobby.seats[lobby.seats.length - 1]!.occupied;
+  const occupied = lobby.seats.filter((s) => s.occupied).length;
 
   const copyInvite = async () => {
     await navigator.clipboard.writeText(`${window.location.origin}/room/${lobby.roomCode}`);
@@ -44,84 +54,111 @@ export function RoomLobby({
   };
 
   return (
-    <div style={{ maxWidth: 520, margin: '40px auto', textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
-      <h1>{fr.appTitle}</h1>
-      <h2>{fr.lobby.title}</h2>
-      {notice && <div style={{ background: '#530', padding: 8, borderRadius: 6, margin: '8px 0' }}>{notice}</div>}
+    <div className="lobby">
+      <header className="lobby__entete">
+        <h1 className="titre-affiche lobby__titre">Panthéons</h1>
 
-      <p>
-        {fr.lobby.code} : <strong style={{ letterSpacing: 3 }}>{lobby.roomCode}</strong>{' '}
-        <button onClick={() => void copyInvite()} style={{ marginLeft: 8, cursor: 'pointer' }}>
-          {copied ? fr.lobby.copied : fr.lobby.copyInvite}
-        </button>
-      </p>
+        <div className="lobby__code-bloc">
+          <span className="libelle lobby__code-libelle">{fr.lobby.code}</span>
+          <strong className="lobby__code">{lobby.roomCode}</strong>
+          <div className="lobby__inviter">
+            <button className="btn btn--nu btn--petit" onClick={() => void copyInvite()}>
+              {copied ? fr.lobby.copied : fr.lobby.copyInvite}
+            </button>
+          </div>
+          <div className="tri-bande" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+        </div>
 
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {lobby.seats.map((seat) => (
-          <li
-            key={seat.seatId}
-            style={{
-              padding: '6px 12px',
-              margin: '4px 0',
-              border: '1px solid #446',
-              borderRadius: 6,
-              display: 'flex',
-              justifyContent: 'space-between',
-              opacity: seat.occupied ? 1 : 0.5,
-            }}
-          >
-            <span>
-              {seat.occupied ? seat.displayName : fr.lobby.seatEmpty}
-              {seat.seatId === lobby.hostSeat && seat.occupied ? ` — ${fr.lobby.host}` : ''}
-              {seat.seatId === seatId ? ' (vous)' : ''}
-            </span>
-            <span style={{ opacity: 0.8 }}>
-              {seat.occupied
-                ? seat.conn === 'DISCONNECTED'
-                  ? fr.lobby.disconnectedSeat
-                  : seat.ready
-                    ? `✓ ${fr.lobby.ready}`
-                    : fr.lobby.notReady
-                : ''}
-            </span>
-          </li>
-        ))}
+        {notice && (
+          <div className="notice notice--erreur lobby__notice" role="alert">
+            {notice}
+          </div>
+        )}
+      </header>
+
+      <ul className="sieges" aria-label={fr.lobby.players}>
+        {lobby.seats.map((seat) => {
+          const isMe = seat.seatId === seatId;
+          const isHostSeat = seat.seatId === lobby.hostSeat && seat.occupied;
+          return (
+            <li key={seat.seatId} className={`siege ${seat.occupied ? '' : 'siege--libre'}`}>
+              <span className="siege__num" aria-hidden="true">
+                {seat.seatId + 1}
+              </span>
+              <span className="siege__nom">
+                <span className="siege__nom-texte">
+                  {seat.occupied ? seat.displayName : fr.lobby.seatEmpty}
+                </span>
+                {isHostSeat && <span className="siege__badge siege__badge--hote">{fr.lobby.host}</span>}
+                {isMe && seat.occupied && <span className="siege__badge">vous</span>}
+              </span>
+              <span
+                className={`siege__etat ${
+                  !seat.occupied
+                    ? ''
+                    : seat.conn === 'DISCONNECTED'
+                      ? 'siege__etat--deco'
+                      : seat.ready
+                        ? 'siege__etat--pret'
+                        : 'siege__etat--attente'
+                }`}
+              >
+                {seat.occupied
+                  ? seat.conn === 'DISCONNECTED'
+                    ? fr.lobby.disconnectedSeat
+                    : seat.ready
+                      ? `✓ ${fr.lobby.ready}`
+                      : fr.lobby.notReady
+                  : ''}
+              </span>
+            </li>
+          );
+        })}
       </ul>
 
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-        <button onClick={() => room.send('SET_READY', { ready: !mySeat?.ready })} style={{ cursor: 'pointer' }}>
+      <p className="lobby__hint">{fr.lobby.waiting(occupied, lobby.minSeats)}</p>
+
+      <div className="lobby__controles">
+        <button
+          className={`btn ${mySeat?.ready ? '' : 'btn--givre'}`}
+          onClick={() => room.send('SET_READY', { ready: !mySeat?.ready })}
+        >
           {mySeat?.ready ? fr.lobby.cancelReady : fr.lobby.imReady}
         </button>
         {isHost && (
           <>
             <button
+              className="btn"
               onClick={() => room.send('ADD_SEAT', {})}
               disabled={lobby.seats.length >= lobby.maxSeats}
-              style={{ cursor: 'pointer' }}
             >
               {fr.lobby.addSeat}
             </button>
             <button
+              className="btn"
               onClick={() => room.send('REMOVE_SEAT', {})}
               disabled={lobby.seats.length <= lobby.minSeats || !trailingEmpty}
-              style={{ cursor: 'pointer' }}
             >
               {fr.lobby.removeSeat}
             </button>
             <button
+              className="btn btn--primaire"
               onClick={() => room.send('START_MATCH', {})}
               disabled={!lobby.canStart}
-              style={{ cursor: lobby.canStart ? 'pointer' : 'not-allowed', fontWeight: 'bold' }}
             >
               {fr.lobby.start}
             </button>
           </>
         )}
-        <button onClick={onLeave} style={{ cursor: 'pointer' }}>
+        <button className="btn btn--nu" onClick={onLeave}>
           {fr.lobby.leave}
         </button>
       </div>
-      {isHost && !lobby.canStart && <p style={{ opacity: 0.6, marginTop: 8 }}>{fr.lobby.startHint}</p>}
+      {isHost && !lobby.canStart && <p className="lobby__hint">{fr.lobby.startHint}</p>}
     </div>
   );
 }

@@ -1,7 +1,10 @@
 /**
  * DB client + lazy user upsert (T-12). The row is created on first entry (Decision 4).
  */
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { sql } from 'drizzle-orm';
 import pg from 'pg';
 import * as schema from './schema.js';
@@ -18,6 +21,25 @@ export function getDb(): Db {
   pool = new pg.Pool({ connectionString });
   db = drizzle(pool, { schema });
   return db;
+}
+
+/** Readiness-probe dependency check: throws when Postgres is unreachable. */
+export async function pingDb(): Promise<void> {
+  getDb();
+  await pool!.query('SELECT 1');
+}
+
+/**
+ * Apply the drizzle migrations at boot (idempotent — every statement is IF NOT EXISTS).
+ * The folder ships with the package: server/drizzle next to dist/, both locally and in
+ * the production image, hence the ../../ from this compiled module (dist/db/).
+ */
+export async function runMigrations(): Promise<void> {
+  const migrationsFolder = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../../drizzle',
+  );
+  await migrate(getDb(), { migrationsFolder });
 }
 
 /** Lazily create/refresh the user row on first entry. Idempotent. */

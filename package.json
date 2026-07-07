@@ -1,6 +1,6 @@
 {
   "name": "pantheons",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Panthéons — Le jeu des Dieux. A hidden-identity social-deduction game, gosgames tenant.",
   "type": "module",

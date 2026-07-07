@@ -1,0 +1,23 @@
+# NOTE: conversion_cartes/ must stay IN the context — the client build globs the card
+# .webp faces from it (import.meta.glob). While the LFS budget is exhausted they are
+# pointer files and the client renders its typographic fallback tiles.
+docs/
+**/*.test.ts
+**/*.spec.ts
+.git/
+.github/
+*.md
+# versions.md is read at build time (client/src/version.ts) to stamp the app version.
+!versions.md
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+coverage/
+**/coverage/
+*.tsbuildinfo
+**/*.tsbuildinfo
+**/.test-dist/
+.pnpm-store/
+.env
+.env.*

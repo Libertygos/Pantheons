@@ -12,14 +12,18 @@
  * from known-public fields, never by deleting from the full state.
  */
 import type {
+  AttributCard,
+  ActionCard,
   Board,
   GameState,
   GodId,
   PlacedCard,
   Phase,
+  PouvoirCard,
   RoomStatus,
   UserId,
 } from './types.js';
+import type { CardIndex } from './setup.js';
 
 /** Public view of another player — no secret fields. */
 export interface OpponentView {
@@ -42,6 +46,14 @@ export interface SelfView {
   god: GodId; // the viewer's own, allowed
   hand: { attributs: string[]; actions: string[] };
   powers: string[];
+  /**
+   * The viewer's OWN cards resolved to full card objects (present when the caller passes
+   * the match CardIndex). Ids alone are opaque: without this the client can neither show
+   * a face nor build a QuestionIntent. Own-secret detail is exactly what the never-send
+   * rule allows the owner to see — these fields are populated for viewer === owner ONLY.
+   */
+  handCards?: { attributs: AttributCard[]; actions: ActionCard[] };
+  powerCards?: PouvoirCard[];
 }
 
 export interface PlayerProjection {
@@ -63,7 +75,7 @@ export interface PlayerProjection {
 }
 
 /** Build the projection for `viewer`. Allowlist construction — public fields only. */
-export function project(state: GameState, viewer: UserId): PlayerProjection {
+export function project(state: GameState, viewer: UserId, index?: CardIndex): PlayerProjection {
   const me = state.players[viewer];
   if (!me) throw new Error(`project: unknown viewer ${viewer}`);
 
@@ -76,6 +88,14 @@ export function project(state: GameState, viewer: UserId): PlayerProjection {
     hand: { attributs: [...me.hand.attributs], actions: [...me.hand.actions] },
     powers: [...me.powers],
   };
+  if (index) {
+    // Resolve ONLY ids already in the viewer's own secret state — never someone else's.
+    self.handCards = {
+      attributs: resolve(me.hand.attributs, index.attributs),
+      actions: resolve(me.hand.actions, index.actions),
+    };
+    self.powerCards = resolve(me.powers, index.pouvoirs);
+  }
 
   const opponents: OpponentView[] = state.seatOrder
     .filter((uid) => uid !== viewer)
@@ -135,4 +155,14 @@ function projectBoards(state: GameState): Record<UserId, Board> {
 function clonePlaced(p: PlacedCard | null): PlacedCard | null {
   if (!p) return null;
   return { card: p.card, targetSeat: p.targetSeat, answeredOui: p.answeredOui };
+}
+
+/** Map owned card ids to card objects, dropping unknown ids (defensive, never inventive). */
+function resolve<T>(ids: string[], lookup: Map<string, T>): T[] {
+  const out: T[] = [];
+  for (const id of ids) {
+    const card = lookup.get(id);
+    if (card) out.push(card);
+  }
+  return out;
 }
