@@ -1,3 +1,37 @@
+# Version 1.2.0
+
+## Visual V2 — « des cartes sur une table de nuit » (phases A–E)
+
+Session 4 (2026-07-08). Restyle intégral de la couche de présentation sur le brief
+Visual V2 : profondeur, physicalité, sens spatial — marque intacte (marine, mono,
+chartreuse, faces PNG immuables), zéro diff moteur/serveur/protocole.
+
+1. **Fondation (A)** — jetons de profondeur (rampe d'ombres 4 crans + liseret haut),
+   atmosphère de table (spot radial + vignette + grain), jetons de motion
+   (120/240/420ms, expo-out, back-out), primitive `<GameCard>` (4 tailles, chrome
+   d'encre, flip 3D intégré, face cachée sans aucune donnée d'identité dans le DOM).
+2. **Landing (B)** — l'éventail des douze vraies cartes Personnage en héros (survol ET
+   focus clavier : la carte se redresse, les voisines s'écartent ; rangée scroll-snap
+   sous 900px), mat de table pour les actions (CTA lumineux, code segmenté 5 cases),
+   les trois temps posés en cartes I·II·III sur ligne pointillée, légende en jetons.
+3. **La table (C)** — trois bandes : arc des sièges adverses (plaques + compteurs en
+   jetons libellés, plus de codes à une lettre ; les questions s'attachent au siège
+   VISÉ, tous poseurs confondus), traqueur de phase (remplace onglets + bannière,
+   coches prêt par siège), table centrale (pioches empilées sur `drawCounts`, tour),
+   dock (dieu à appui maintenu = flip 3D, main en éventail, Contre vous / Spéciale,
+   pouvoir armé). Classes de siège du jeu = `.place*` (`.siege` reste au lobby).
+4. **Pense-bête (D)** — tiroir de droite (ESC, voile, focus géré), grille tri-état
+   (inconnu → exclu ✕ → retenu ★, aria-pressed, navigation aux flèches), badges
+   « N possibles » vivants sur les plaques, teintés par siège comme leur rangée ;
+   persistance sessionStorage strictement identique.
+5. **Juice (E)** — vols de cartes pioche→main et main→siège (clones fixes,
+   transform-only), tampons ✓ OUI / ✗ NON, entrées de modales + révélation de la
+   carte du vainqueur, secousse d'élimination, chaloupe <1° de la main. Reduced-motion
+   respecté effet par effet (durées à zéro, vols non créés, anneaux statiques).
+
+Écart assumé vs brief (signalé, §12) : jamais de flip face-visible des dieux adverses
+(éliminés ou déclarés) — la projection never-send ne les transmet pas, c'est la règle.
+
 # Version 1.1.1
 
 ## Retours de mise en prod : pseudo, barre de navigation, partie de test admin
