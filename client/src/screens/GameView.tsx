@@ -9,8 +9,8 @@
  * Cards are final images displayed as-is; all interaction is chrome around them.
  * Un éliminé reste face cachée (la projection n'envoie jamais son dieu — never-send).
  */
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import type { GodId, PlacedCardView, PlayerProjection, QuestionPlay } from '@pantheons/engine';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import type { GodId, PlacedCardView, PlayerProjection, QuestionCard, QuestionPlay } from '@pantheons/engine';
 import { GODS, ALL_GODS, data } from '@pantheons/engine';
 import { GameTopBar } from '../components/GameTopBar.js';
 import { PhaseTracker } from '../components/PhaseTracker.js';
@@ -50,6 +50,58 @@ interface StagedSpeciale {
   targetSeat?: number;
 }
 
+/**
+ * Vol de carte (Phase E, recette §9.3) : un clone en position fixe part du rect source
+ * et se pose sur le rect destination — transform-only, l'élément réel est masqué le temps
+ * du vol. `hide` dit quel élément réel couvrir : la carte en main (arrivée de la pioche)
+ * ou le fantôme sous le siège (pose d'une question).
+ */
+interface Flight {
+  key: string;
+  cardId: string;
+  hide: 'main' | 'fantome';
+  back?: 'attributs' | 'actions';
+  face?: QuestionCard;
+  top: number;
+  left: number;
+  w: number;
+  h: number;
+  dx: number;
+  dy: number;
+  dech: number;
+  delay: number;
+}
+
+const reduceMotion = () =>
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function makeFlight(
+  key: string,
+  cardId: string,
+  hide: Flight['hide'],
+  fromEl: Element,
+  toEl: Element,
+  art: { back?: Flight['back']; face?: QuestionCard },
+  delay: number,
+): Flight {
+  const fr = fromEl.getBoundingClientRect();
+  const to = toEl.getBoundingClientRect();
+  return {
+    key,
+    cardId,
+    hide,
+    ...art,
+    top: to.top,
+    left: to.left,
+    w: to.width,
+    h: to.height,
+    dx: fr.left - to.left,
+    dy: fr.top - to.top,
+    dech: to.width > 0 ? fr.width / to.width : 1,
+    delay,
+  };
+}
+
 export function GameView({
   proj,
   send,
@@ -79,8 +131,13 @@ export function GameView({
   const [showNotes, setShowNotes] = useState(false);
   const [discardId, setDiscardId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [flights, setFlights] = useState<Flight[]>([]);
   const notesCloseRef = useRef<HTMLButtonElement | null>(null);
   const penseBete = usePenseBete(proj.roomId);
+
+  /** Éléments réels couverts par un vol en cours. */
+  const volMain = new Set(flights.filter((f) => f.hide === 'main').map((f) => f.cardId));
+  const volFantome = new Set(flights.filter((f) => f.hide === 'fantome').map((f) => f.cardId));
 
   // Tiroir : ESC ferme, l'ouverture donne le focus au bouton de fermeture.
   useEffect(() => {
@@ -235,6 +292,8 @@ export function GameView({
       items.push(
         <button
           key={p.cardId}
+          data-fantome={p.cardId}
+          style={volFantome.has(p.cardId) ? { visibility: 'hidden' } : undefined}
           className="pose-ev__item pose-ev__item--fantome"
           onClick={() => unstage(p.cardId)}
           title={`${describeQuestionCard(p.card)} — ${fr.consignes.retirer}`}
@@ -253,6 +312,8 @@ export function GameView({
       items.push(
         <button
           key={sp.cardId}
+          data-fantome={sp.cardId}
+          style={volFantome.has(sp.cardId) ? { visibility: 'hidden' } : undefined}
           className="pose-ev__item pose-ev__item--fantome"
           onClick={() => unstage(sp.cardId)}
           title={`${describeQuestionCard(card)} — ${fr.consignes.retirer}`}
@@ -371,6 +432,48 @@ export function GameView({
   const receivedQuestions = questionsAgainst(me.userId);
 
   const hand = [...handCards.attributs, ...handCards.actions];
+
+  // §8.1 — la distribution : toute carte qui ENTRE en main vole depuis sa pioche
+  // (attributs à la pioche, actions sur un « oui »), 60ms d'écart, puis se pose en éventail.
+  const prevHandIds = useRef<string[]>(hand.map((c) => c.id));
+  useLayoutEffect(() => {
+    const ids = hand.map((c) => c.id);
+    const fresh = ids.filter((id) => !prevHandIds.current.includes(id));
+    prevHandIds.current = ids;
+    if (fresh.length === 0 || reduceMotion()) return;
+    const arrivals: Flight[] = [];
+    fresh.forEach((id, i) => {
+      const card = hand.find((c) => c.id === id);
+      if (!card) return;
+      const kind = card.type === 'attribut' ? 'attributs' : 'actions';
+      const fromEl = document.querySelector(`[data-pioche='${kind}']`);
+      const toEl = document.querySelector(`[data-carte-main='${CSS.escape(id)}']`);
+      if (!fromEl || !toEl) return;
+      arrivals.push(makeFlight(`arr-${id}`, id, 'main', fromEl, toEl, { back: kind }, i * 60));
+    });
+    if (arrivals.length > 0) setFlights((f) => [...f, ...arrivals]);
+  }, [hand]);
+
+  // §8.2 — la pose : la carte mise en attente voyage de la main vers la zone du siège visé
+  // et atterrit avec un léger sur-pivotement corrigé (keyframes vol-carte).
+  const stagedIdsKey = [...stagedPlays.map((p) => p.cardId), ...stagedSpeciales.map((s) => s.cardId)].join(',');
+  const prevStagedIds = useRef<string[]>([]);
+  useLayoutEffect(() => {
+    const ids = stagedIdsKey === '' ? [] : stagedIdsKey.split(',');
+    const fresh = ids.filter((id) => !prevStagedIds.current.includes(id));
+    prevStagedIds.current = ids;
+    if (fresh.length === 0 || reduceMotion()) return;
+    const poses: Flight[] = [];
+    for (const id of fresh) {
+      const card = hand.find((c) => c.id === id);
+      const fromEl = document.querySelector(`[data-carte-main='${CSS.escape(id)}']`);
+      const toEl = document.querySelector(`[data-fantome='${CSS.escape(id)}']`);
+      if (!card || !fromEl || !toEl) continue;
+      poses.push(makeFlight(`pose-${id}`, id, 'fantome', fromEl, toEl, { face: card }, 0));
+    }
+    if (poses.length > 0) setFlights((f) => [...f, ...poses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stagedIdsKey]);
 
   return (
     <div className="jeu">
@@ -543,12 +646,20 @@ export function GameView({
                 return (
                   <button
                     key={card.id}
+                    data-carte-main={card.id}
                     className={[
                       'main-ev__carte',
                       selectedCardId === card.id ? 'main-ev__carte--choisie' : '',
                       staged ? 'main-ev__carte--posee' : '',
                     ].join(' ')}
-                    style={{ '--i': i, '--abs-i': Math.abs(i), '--z': 10 + idx } as CSSProperties}
+                    style={
+                      {
+                        '--i': i,
+                        '--abs-i': Math.abs(i),
+                        '--z': 10 + idx,
+                        visibility: volMain.has(card.id) ? 'hidden' : undefined,
+                      } as CSSProperties
+                    }
                     disabled={proj.phase !== 'question' || youSubmitted || !alive}
                     onClick={() => {
                       if (staged) unstage(card.id);
@@ -616,6 +727,12 @@ export function GameView({
                     {stagedSpecialeSansCibleCard && (
                       <button
                         className="pose-ev__item pose-ev__item--fantome"
+                        data-fantome={stagedSpecialeSansCibleCard.id}
+                        style={
+                          volFantome.has(stagedSpecialeSansCibleCard.id)
+                            ? { visibility: 'hidden' }
+                            : undefined
+                        }
                         onClick={() => unstage(stagedSpecialeSansCibleCard.id)}
                         title={`${describeQuestionCard(stagedSpecialeSansCibleCard)} — ${fr.consignes.retirer}`}
                       >
@@ -777,6 +894,48 @@ export function GameView({
         </div>
       )}
 
+      {/* vols de cartes en cours (§8.1–8.2) : clones fixes, transform-only, auto-retirés */}
+      {flights.map((f) => (
+        <span
+          key={f.key}
+          className="vol"
+          aria-hidden="true"
+          style={
+            {
+              top: f.top,
+              left: f.left,
+              width: f.w,
+              height: f.h,
+              '--dx': `${f.dx}px`,
+              '--dy': `${f.dy}px`,
+              '--dech': f.dech,
+              '--delai': `${f.delay}ms`,
+            } as CSSProperties
+          }
+          onAnimationEnd={(e) => {
+            if (e.target === e.currentTarget) {
+              setFlights((cur) => cur.filter((x) => x.key !== f.key));
+            }
+          }}
+        >
+          {f.face ? (
+            <GameCard
+              size="sm"
+              face={{
+                src: questionCardSrc(f.face),
+                alt: '',
+                typeLabel: f.face.type === 'attribut' ? 'Attribut' : 'Action',
+                bodyLabel: describeQuestionCard(f.face),
+                bandColor: questionCardBand(f.face),
+                tint: f.face.type === 'attribut' ? 'teinte-attribut' : 'teinte-action',
+              }}
+            />
+          ) : (
+            <GameCard size="sm" back={f.back ?? 'attributs'} />
+          )}
+        </span>
+      ))}
+
       {/* fin de partie */}
       {over && (
         <div className="voile">
@@ -820,7 +979,10 @@ function DeckPile({
   const layers = count === 0 ? 0 : Math.min(4, 1 + Math.floor(count / 10));
   return (
     <div className="pioche-pile" title={fr.jeu.cartesRestantes(count)}>
-      <div className={`pioche-pile__couches ${layers === 0 ? 'pioche-pile__couches--vide' : ''}`}>
+      <div
+        className={`pioche-pile__couches ${layers === 0 ? 'pioche-pile__couches--vide' : ''}`}
+        data-pioche={kind}
+      >
         {Array.from({ length: layers }, (_, k) => (
           <span key={k} className="pioche-pile__couche" style={{ '--k': k } as CSSProperties}>
             <GameCard size="sm" back={kind} />

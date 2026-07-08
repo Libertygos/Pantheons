@@ -2130,6 +2130,135 @@ button.pose-ev__item {
   box-shadow: var(--ombre-2), var(--liseret-haut);
 }
 
+/* ============================================== VISUAL V2 — JUICE (PHASE E) */
+
+/*
+ * Le motion est un canal d'information : plus le moment compte, plus il bouge.
+ * Tout est transform + opacity ; chaque effet a son repli reduced-motion.
+ */
+
+/* §8.1–8.2 — vol de carte : clone fixe qui part du rect source (translate/scale) et se
+   pose sur le rect destination avec un léger sur-pivotement corrigé. */
+.vol {
+  position: fixed;
+  z-index: 900;
+  pointer-events: none;
+  transform-origin: 0 0;
+  animation: vol-carte 360ms var(--ease-pop) var(--delai, 0ms) both;
+}
+
+.vol .carte-jeu {
+  width: 100%;
+}
+
+@keyframes vol-carte {
+  from {
+    transform: translate(var(--dx), var(--dy)) scale(var(--dech, 1));
+  }
+  80% {
+    transform: translate(0, 0) scale(1) rotate(2deg);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* §8.3 — le tampon OUI/NON : encrage 1.45 → 1.0 avec fondu, à l'apparition */
+.reponse-pastille {
+  animation: tampon var(--dur) var(--ease-pop) both;
+}
+
+@keyframes tampon {
+  from {
+    transform: translateX(-50%) scale(1.45);
+    opacity: 0;
+  }
+}
+
+/* §8.4 — le temps fort : la table s'assombrit (voile), la modale se lève, et sur la fin
+   de partie la carte du vainqueur se révèle d'un quart de tour. */
+.voile {
+  animation: voile-entree var(--dur) ease both;
+}
+
+@keyframes voile-entree {
+  from {
+    opacity: 0;
+  }
+}
+
+.modale {
+  animation: modale-entree var(--dur-lent) var(--ease-sortie) both;
+}
+
+@keyframes modale-entree {
+  from {
+    transform: translateY(16px) scale(0.97);
+    opacity: 0;
+  }
+}
+
+.fin__dieu {
+  perspective: 900px;
+}
+
+.fin__dieu .carte-jeu {
+  animation: dieu-revele var(--dur-lent) var(--ease-pop) 180ms both;
+}
+
+@keyframes dieu-revele {
+  from {
+    transform: rotateY(88deg);
+    opacity: 0.4;
+  }
+}
+
+/* §8.5 — élimination : la plaque encaisse le coup (petite secousse), puis l'état
+   désaturé (déjà posé par .place--elimine) reste. */
+.place--elimine .place__plaque {
+  animation: coup-elimine 420ms var(--ease-sortie);
+}
+
+@keyframes coup-elimine {
+  0% {
+    transform: none;
+  }
+  20% {
+    transform: translateX(-4px) rotate(-0.6deg);
+  }
+  45% {
+    transform: translateX(3px) rotate(0.5deg);
+  }
+  70% {
+    transform: translateX(-2px);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* §8.6 — micro-vie : chaloupe < 1° de la main, offsets lents indépendants par carte */
+@keyframes chaloupe {
+  from {
+    transform: rotate(-0.5deg);
+  }
+  to {
+    transform: rotate(0.6deg);
+  }
+}
+
+.main-ev .carte-jeu {
+  animation: chaloupe 5600ms ease-in-out infinite alternate;
+  animation-delay: calc(var(--i, 0) * -900ms - 3000ms);
+}
+
+.main-ev__carte:hover .carte-jeu,
+.main-ev__carte:focus-visible .carte-jeu,
+.main-ev__carte--choisie .carte-jeu,
+.main-ev__carte:disabled .carte-jeu {
+  animation-play-state: paused;
+}
+
 /* ---- responsive -------------------------------------------------------------- */
 
 @media (max-width: 980px) {
@@ -2221,5 +2350,10 @@ button.pose-ev__item {
   .pose-ev__item--choisissable::after {
     animation: none;
     opacity: 0.95;
+  }
+
+  /* pas de chaloupe : la main reste posée (les vols sont déjà coupés côté JS) */
+  .main-ev .carte-jeu {
+    animation: none;
   }
 }

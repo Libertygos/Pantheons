@@ -49,7 +49,8 @@ export function PlacedMiniCard({ placed, title }: { placed: PlacedCardView; titl
         <span
           className={`reponse-pastille ${placed.answeredOui ? 'reponse-pastille--oui' : 'reponse-pastille--non'}`}
         >
-          {placed.answeredOui ? fr.oui : fr.non}
+          {/* icône + couleur, jamais la couleur seule (§8.3) */}
+          {placed.answeredOui ? `✓ ${fr.oui}` : `✗ ${fr.non}`}
         </span>
       )}
     </span>
