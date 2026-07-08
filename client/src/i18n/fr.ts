@@ -21,9 +21,20 @@ export const fr = {
     welcome: (name: string) => `Bienvenue, ${name}.`,
     create: 'Créer un salon',
     joinTitle: 'Rejoindre avec un code',
-    codePlaceholder: 'CODE',
+    codeChar: (i: number, n: number) => `Caractère ${i} sur ${n} du code`,
     join: 'Rejoindre',
     version: (v: string) => `version ${v}`,
+    fanAria: 'Les douze dieux du jeu',
+    reglesAria: 'Comment on joue',
+    reglesTitre: 'Un tour, trois temps — tous en même temps',
+    regles: {
+      pioche: 'Assurez-vous d’avoir exactement un pouvoir, puis piochez deux cartes Attribut.',
+      question:
+        'Posez jusqu’à deux questions — jamais deux au même joueur. Chaque carte posée interroge le dieu secret d’un adversaire.',
+      reponse:
+        'Chacun répond oui ou non, sans mentir. Sûr de vous ? Déclarez « Panthéons » et nommez le dieu de chacun. Tout juste : vous gagnez. Une erreur : vous êtes éliminé.',
+    },
+    axesAria: 'Les trois axes de déduction',
   },
 
   room: {

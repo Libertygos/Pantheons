@@ -3,12 +3,14 @@
  * `bindAndNavigate` persists the resume record, stashes the live room in the baton, and
  * routes to /room/<code> — the socket survives the client-side navigation.
  *
- * Visual: the pense-bête itself is the poster — mono display title, la frise des douze,
- * the three-phase turn as a givre-on-navy grid, the eye-colour legend as the only colour.
+ * Visual V2 « cartes sur une table de nuit » : l'éventail des douze cartes Personnage en
+ * héros (le titre partage son espace), zone d'action sur un mat de table (CTA lumineux +
+ * code segmenté), les trois temps du tour posés comme trois cartes ordonnées I·II·III
+ * sur une ligne pointillée, la légende en jetons de jeu.
  */
 import { useEffect, useState } from 'react';
 import type { Room } from 'colyseus.js';
-import { PANTHEONS } from '@pantheons/engine';
+import { PANTHEONS, type Pantheon } from '@pantheons/engine';
 import { fr } from '../i18n/fr.js';
 import { APP_VERSION } from '../version.js';
 import { navigate } from '../router.js';
@@ -16,14 +18,18 @@ import { clearActiveRoom, setActiveRoom } from '../net/active-room.js';
 import { createGameRoom, joinGameRoom, onceMessage, type RoomWelcome } from '../net/room.js';
 import { loadResume, saveResume } from '../state/resume.js';
 import type { Session } from '../auth/handoff.js';
-import { GodFrieze } from '../components/GodFrieze.js';
+import { VALEUR_LABEL } from '../assets.js';
+import { HeroFan } from '../components/HeroFan.js';
 import { PantheonIcon } from '../components/PantheonIcon.js';
+import { CodeInput } from '../components/CodeInput.js';
 
-const PANTHEON_LABEL: Record<string, string> = {
-  hindou: 'Hindou',
-  grec: 'Grec',
-  egyptien: 'Égyptien',
-  nordique: 'Nordique',
+const ROOM_CODE_LENGTH = 5;
+
+const TEMPS = ['pioche', 'question', 'reponse'] as const;
+const TEMPS_CHIP: Record<(typeof TEMPS)[number], string> = {
+  pioche: 'I',
+  question: 'II',
+  reponse: 'III',
 };
 
 export function LandingScreen({
@@ -77,7 +83,7 @@ export function LandingScreen({
 
   const handleJoin = async () => {
     const code = joinCode.trim().toUpperCase();
-    if (!code) return;
+    if (code.length < ROOM_CODE_LENGTH) return;
     setBusy(true);
     setError(null);
     clearActiveRoom();
@@ -94,15 +100,21 @@ export function LandingScreen({
   return (
     <div className="landing">
       <header className="landing__hero">
-        <h1 className="titre-affiche landing__titre">Panthéons</h1>
-        <p className="landing__sous-titre">Le Jeu des Dieux</p>
+        <div className="landing__titre-bloc">
+          <h1 className="titre-affiche landing__titre">Panthéons</h1>
+          <p className="landing__sous-titre">Le Jeu des Dieux</p>
+        </div>
 
-        <GodFrieze />
+        <HeroFan />
 
         <p className="landing__tagline">{fr.appTagline}</p>
 
-        <div className="landing__actions">
-          <button className="btn btn--primaire" onClick={() => void handleCreate()} disabled={busy}>
+        <div className="landing__mat surface-levee">
+          <button
+            className="btn btn--primaire btn--lueur"
+            onClick={() => void handleCreate()}
+            disabled={busy}
+          >
             {fr.landing.create}
           </button>
 
@@ -113,15 +125,17 @@ export function LandingScreen({
               void handleJoin();
             }}
           >
-            <input
-              className="champ-code"
+            <CodeInput
               value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              placeholder={fr.landing.codePlaceholder}
-              maxLength={8}
-              aria-label={fr.landing.joinTitle}
+              onChange={setJoinCode}
+              length={ROOM_CODE_LENGTH}
+              disabled={busy}
             />
-            <button type="submit" className="btn" disabled={busy || !joinCode.trim()}>
+            <button
+              type="submit"
+              className="btn"
+              disabled={busy || joinCode.length < ROOM_CODE_LENGTH}
+            >
               {fr.landing.join}
             </button>
           </form>
@@ -134,48 +148,43 @@ export function LandingScreen({
         )}
       </header>
 
-      <section className="landing__regles" aria-label="Comment on joue">
-        <h2 className="titre-affiche landing__regles-titre">Un tour, trois temps — tous en même temps</h2>
-        <div className="regles-grille">
-          <div className="regle">
-            <span className="regle__phase">Pioche</span>
-            <p className="regle__texte">
-              Assurez-vous d’avoir exactement un pouvoir, puis piochez deux cartes Attribut.
-            </p>
-          </div>
-          <div className="regle">
-            <span className="regle__phase">Question</span>
-            <p className="regle__texte">
-              Posez jusqu’à deux questions — jamais deux au même joueur. Chaque carte posée
-              interroge le dieu secret d’un adversaire.
-            </p>
-          </div>
-          <div className="regle">
-            <span className="regle__phase">Réponse</span>
-            <p className="regle__texte">
-              Chacun répond oui ou non, sans mentir. Sûr de vous ? Déclarez « Panthéons » et
-              nommez le dieu de chacun. Tout juste : vous gagnez. Une erreur : vous êtes éliminé.
-            </p>
-          </div>
+      <hr className="tri-bande tri-bande--fine" aria-hidden="true" />
+
+      <section className="landing__regles" aria-label={fr.landing.reglesAria}>
+        <h2 className="titre-affiche landing__regles-titre">{fr.landing.reglesTitre}</h2>
+
+        <div className="temps-rang">
+          {TEMPS.map((temps) => (
+            <article className={`carte-temps carte-temps--${temps}`} key={temps}>
+              <span className="carte-temps__chip" aria-hidden="true">
+                {TEMPS_CHIP[temps]}
+              </span>
+              <TempsPicto temps={temps} />
+              <h3 className="carte-temps__phase">{fr.phases[temps]}</h3>
+              <p className="carte-temps__texte">{fr.landing.regles[temps]}</p>
+            </article>
+          ))}
         </div>
 
-        <div className="axes" aria-label="Les trois axes de déduction">
+        <div className="axes" aria-label={fr.landing.axesAria}>
           <span className="axe">
-            <span className="axe__pastille" style={{ background: 'var(--vermillon)' }} />
-            Yeux rouges
+            <EyeToken color="var(--vermillon)" />
+            {VALEUR_LABEL['rouges']}
           </span>
           <span className="axe">
-            <span className="axe__pastille" style={{ background: 'var(--turquoise)' }} />
-            Yeux bleus
+            <EyeToken color="var(--turquoise)" />
+            {VALEUR_LABEL['bleus']}
           </span>
           <span className="axe">
-            <span className="axe__pastille" style={{ background: 'var(--vert)' }} />
-            Yeux verts
+            <EyeToken color="var(--vert)" />
+            {VALEUR_LABEL['verts']}
           </span>
-          {PANTHEONS.map((p) => (
+          {PANTHEONS.map((p: Pantheon) => (
             <span className="axe" key={p}>
-              <PantheonIcon pantheon={p} size={24} />
-              {PANTHEON_LABEL[p]}
+              <span className="jeton">
+                <PantheonIcon pantheon={p} size={24} />
+              </span>
+              {VALEUR_LABEL[p]}
             </span>
           ))}
         </div>
@@ -187,6 +196,66 @@ export function LandingScreen({
         </span>
       </footer>
     </div>
+  );
+}
+
+/** Pictogrammes filaires des trois temps — même langage que PantheonIcon (trait 1.4). */
+function TempsPicto({ temps }: { temps: (typeof TEMPS)[number] }) {
+  return (
+    <svg
+      className="carte-temps__picto"
+      width="34"
+      height="34"
+      viewBox="0 0 32 32"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {temps === 'pioche' && (
+        <g>
+          <rect x="5.5" y="7" width="11" height="17" rx="1.5" transform="rotate(-7 11 15.5)" />
+          <rect x="15" y="7.5" width="11" height="17" rx="1.5" transform="rotate(7 20.5 16)" />
+          <path d="M20.5 13v6M17.5 16h6" />
+        </g>
+      )}
+      {temps === 'question' && (
+        <g>
+          <rect x="10" y="5.5" width="12" height="18" rx="1.5" />
+          <path d="M13.8 11.5c0-3.4 4.9-3.3 4.9-.5 0 1.9-2.6 2-2.6 4.2" />
+          <circle cx="16" cy="19" r="0.4" fill="currentColor" />
+          <path d="M16 26.5v2.5" />
+        </g>
+      )}
+      {temps === 'reponse' && (
+        <g>
+          <path d="M5.5 7.5h21v13H15l-5.5 5v-5h-4z" />
+          <path d="M10.5 14l2.6 2.6 5-5" />
+          <path d="M20.5 11.8l3.6 3.6M24.1 11.8l-3.6 3.6" />
+        </g>
+      )}
+    </svg>
+  );
+}
+
+/** Jeton « œil » de la légende : l'amande filaire, l'iris dans la couleur de l'axe. */
+function EyeToken({ color }: { color: string }) {
+  return (
+    <svg
+      width="30"
+      height="18"
+      viewBox="0 0 30 18"
+      fill="none"
+      stroke="var(--filet-fort)"
+      strokeWidth="1.2"
+      aria-hidden="true"
+    >
+      <path d="M2 9c4.4-5.3 8.7-8 13-8s8.6 2.7 13 8c-4.4 5.3-8.7 8-13 8S6.4 14.3 2 9Z" fill="var(--nuit-3)" />
+      <circle cx="15" cy="9" r="4.2" fill={color} stroke="none" />
+      <circle cx="15" cy="9" r="1.6" fill="var(--nuit-3)" stroke="none" />
+    </svg>
   );
 }
 
