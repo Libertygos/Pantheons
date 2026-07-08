@@ -73,13 +73,20 @@
 
   --grain-opacite: 0.035;
 
-  /* éventail (héros + main) : écart horizontal, pas angulaire, chute d'arc par carte */
+  /* éventail héros : écart horizontal, pas angulaire, chute d'arc par carte */
   --ev-ecart: 56px;
   --ev-pas: 4deg;
   --ev-chute: 9px;
 
+  /* éventail de la main (2–8 cartes → pas plus large, chevauchement moindre) */
+  --main-ecart: 46px;
+  --main-pas: 5deg;
+  --main-chute: 7px;
+
   /* lueur du CTA divin (composants rgb de la chartreuse) */
   --lueur-divine: 229, 235, 46;
+  /* halo des cibles légales (composants rgb de la turquoise) */
+  --cible-rgb: 104, 203, 192;
 }
 
 * {
@@ -791,7 +798,7 @@ button {
   border-right: 1px solid var(--filet);
 }
 
-.siege__nom {
+.place__nom {
   display: flex;
   align-items: baseline;
   gap: 10px;
@@ -800,13 +807,13 @@ button {
   min-width: 0;
 }
 
-.siege__nom-texte {
+.place__nom-texte {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.siege--libre .siege__nom {
+.siege--libre .place__nom {
   color: var(--texte-faible);
   font-style: normal;
 }
@@ -893,135 +900,11 @@ button {
   color: var(--texte-faible);
 }
 
-.phases {
-  display: flex;
-  border: 1px solid var(--filet);
-}
-
-.phases__etape {
-  padding: 5px 14px;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--texte-faible);
-  border-left: 1px solid var(--filet);
-}
-
-.phases__etape:first-child {
-  border-left: none;
-}
-
-.phases__etape--active {
-  background: var(--givre);
-  color: var(--encre-sur-clair);
-  font-weight: 700;
-}
-
-.jeu__meneur {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--chartreuse);
-}
-
-.jeu__barriere {
+.jeu__barre-droite {
   margin-left: auto;
-  font-size: 12px;
-  color: var(--texte-faible);
   display: inline-flex;
   align-items: center;
   gap: 10px;
-}
-
-.barriere__points {
-  display: inline-flex;
-  gap: 4px;
-}
-
-.barriere__point {
-  width: 9px;
-  height: 9px;
-  border: 1px solid var(--filet-fort);
-  background: transparent;
-}
-
-.barriere__point--soumis {
-  background: var(--vert);
-  border-color: var(--vert);
-}
-
-/* rang des adversaires */
-.table-rang {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(130px, 1fr);
-  gap: 10px;
-  padding: 14px 18px 4px;
-  max-width: 1280px;
-  width: 100%;
-  margin: 0 auto;
-}
-
-.adversaire {
-  position: relative;
-  border: 1px solid var(--filet);
-  background: var(--nuit-2);
-  padding: 10px 12px 9px;
-  text-align: left;
-  color: var(--texte);
-  cursor: pointer;
-  transition:
-    border-color var(--dur-vite) ease,
-    background var(--dur-vite) ease,
-    transform var(--dur-vite) ease;
-}
-
-.adversaire:hover {
-  border-color: var(--filet-fort);
-}
-
-.adversaire--regarde {
-  border-color: var(--givre);
-  background: var(--nuit-clair);
-}
-
-.adversaire--cible {
-  border-color: var(--turquoise);
-  box-shadow: 0 0 0 1px var(--turquoise);
-}
-
-.adversaire--cible:hover {
-  transform: translateY(-2px);
-}
-
-.adversaire--choisi {
-  border-color: var(--turquoise);
-  background: rgba(104, 203, 192, 0.14);
-  box-shadow: 0 0 0 1px var(--turquoise);
-}
-
-.adversaire--mort {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.adversaire__nom {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  color: var(--blanc);
-  font-size: 13px;
-  min-width: 0;
-}
-
-.adversaire__nom-texte {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .point-conn {
@@ -1036,77 +919,427 @@ button {
   background: var(--vermillon);
 }
 
-.adversaire__compteurs {
+/* ---- l'arc des sièges (bande haute, §6.1) ---- */
+
+.places-arc {
   display: flex;
-  gap: 12px;
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--texte-faible);
-  letter-spacing: 0.06em;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 18px 4px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
 }
 
-.adversaire__etiquette {
+.place {
+  position: relative;
+  flex: 1;
+  min-width: 150px;
+  max-width: 210px;
+  /* la courbe : chaque siège descend et pivote selon sa distance au centre */
+  transform: translateY(calc(var(--abs-s, 0) * 8px)) rotate(calc(var(--s, 0) * 2deg));
+}
+
+.place--elimine .place__plaque,
+.place--elimine .place__zone {
+  filter: grayscale(0.85);
+  opacity: 0.55;
+}
+
+.place__plaque {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--nuit-2);
+  border: 1px solid var(--encre-bord);
+  border-radius: var(--rayon-2);
+  box-shadow: var(--ombre-2), var(--liseret-haut);
+  color: var(--texte);
+  font-family: var(--fonte);
+  text-align: left;
+}
+
+button.place__plaque--legale {
+  cursor: pointer;
+  border-color: var(--turquoise);
+  box-shadow: 0 0 0 1px var(--turquoise), var(--ombre-2), var(--liseret-haut);
+  transition: transform var(--dur-vite) var(--ease-sortie);
+}
+
+button.place__plaque--legale:hover,
+button.place__plaque--legale:focus-visible {
+  transform: translateY(-2px);
+}
+
+.place__vignette {
+  flex: none;
+}
+
+.place__identite {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 6px;
+}
+
+.place__nom {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  color: var(--blanc);
+  font-size: 13px;
+  min-width: 0;
+}
+
+.place__nom-texte {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.place__pret {
+  color: var(--vert);
+  flex: none;
+}
+
+.place__jetons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* compteurs en jetons libellés — plus aucun code à une lettre */
+.jeton-stat {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 1px 7px;
+  border: 1px solid var(--filet);
+  border-radius: 999px;
+  color: var(--texte-faible);
+  white-space: nowrap;
+}
+
+.jeton-stat--attribut {
+  color: var(--turquoise);
+}
+
+.jeton-stat--action {
+  color: var(--saumon);
+}
+
+.jeton-stat--pouvoir {
+  color: var(--pouvoir-clair);
+}
+
+.jeton-stat--speciale {
+  color: var(--chartreuse);
+}
+
+.place__etiquette {
   position: absolute;
-  top: -1px;
-  right: -1px;
+  top: -10px;
+  right: 8px;
+  z-index: 2;
   font-size: 9px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  padding: 2px 7px;
+  padding: 2px 8px;
   background: var(--chartreuse);
   color: var(--encre-sur-clair);
   font-weight: 700;
+  border-radius: 999px;
+  box-shadow: var(--ombre-1);
 }
 
-.adversaire__etiquette--elimine {
+.place__etiquette--elimine {
   background: var(--vermillon);
   color: var(--blanc);
 }
 
-.adversaire__cible-note {
-  margin-top: 7px;
-  font-size: 10px;
+/* la zone de pose sous le siège : les questions contre ce joueur */
+.place__zone {
+  position: relative;
+  margin-top: 10px;
+  padding: 7px 8px 9px;
+  border: 1px dashed var(--filet);
+  border-radius: var(--rayon-2);
+  min-height: 140px;
+}
+
+.place__zone-libelle {
+  display: block;
+  font-size: 9px;
+  margin-bottom: 6px;
+}
+
+.place__zone--legale {
+  border-color: transparent;
+}
+
+.place__zone--legale::after,
+.zone-speciale--legale::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--rayon-2);
+  border: 1px dashed var(--turquoise);
+  box-shadow: 0 0 16px rgba(var(--cible-rgb), 0.35);
+  pointer-events: none;
+  animation: pulse-legal 900ms ease-in-out infinite alternate;
+}
+
+@keyframes pulse-legal {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 0.95;
+  }
+}
+
+/* mini éventail des cartes posées (attachées au siège visé) */
+.pose-ev {
+  display: flex;
+  align-items: flex-start;
+}
+
+.pose-ev > * + * {
+  margin-left: -46px; /* chevauchement fort sur cartes sm */
+}
+
+.pose-ev__item {
+  position: relative;
+  display: inline-block;
+  padding: 0;
+  border: none;
+  background: none;
+  transform: rotate(calc(var(--k, 0) * 1.5deg - 1.5deg));
+  transition: transform var(--dur) var(--ease-sortie);
+  border-radius: var(--rayon-1);
+}
+
+.pose-ev__item:hover,
+.pose-ev__item:focus-visible {
+  transform: translateY(-10px) scale(1.4) rotate(0deg);
+  z-index: 6;
+}
+
+button.pose-ev__item {
+  cursor: pointer;
+}
+
+.pose-ev__item--choisissable .carte-jeu__face {
+  outline: 2px dashed var(--turquoise);
+  outline-offset: -2px;
+}
+
+.pose-ev__item--choisissable::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: var(--rayon-1);
+  box-shadow: 0 0 14px rgba(var(--cible-rgb), 0.45);
+  pointer-events: none;
+  animation: pulse-legal 900ms ease-in-out infinite alternate;
+}
+
+/* fantôme : ma carte en attente de validation sur ce siège */
+.pose-ev__item--fantome {
+  opacity: 0.62;
+}
+
+.pose-ev__item--fantome .carte-jeu__face {
+  outline: 2px dashed var(--turquoise);
+  outline-offset: -2px;
+}
+
+.pose-ev__fantome-note,
+.pose-ev__spe-note {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--nuit-3);
+  border: 1px solid var(--turquoise);
+  color: var(--turquoise);
+  white-space: nowrap;
+}
+
+.pose-ev__spe-note {
+  border-color: var(--chartreuse);
+  color: var(--chartreuse);
+}
+
+.pose-ev__cible-note {
+  align-self: center;
+  margin-left: 10px;
+  font-size: 9px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--turquoise);
 }
 
-/* bandeau d'instruction de phase */
-.consigne {
+.pose-ev__creux {
+  width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  color: rgba(237, 248, 249, 0.25);
+  font-size: 20px;
+}
+
+.pose-ev__deposer {
+  align-self: center;
+  margin-left: 8px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px dashed var(--turquoise);
+  border-radius: var(--rayon-1);
+  background: rgba(var(--cible-rgb), 0.08);
+  color: var(--turquoise);
+  font-family: var(--fonte);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.pose-ev__deposer:hover {
+  background: rgba(var(--cible-rgb), 0.16);
+}
+
+/* la mini-carte posée + sa pastille de réponse */
+.pose {
+  position: relative;
+  display: block;
+}
+
+.pose .reponse-pastille {
+  font-size: 9px;
+  padding: 2px 7px;
+  bottom: 4px;
+}
+
+/* ---- traqueur de phase (§6.4) — remplace onglets + bannière ---- */
+
+.traqueur {
   max-width: 1280px;
   width: 100%;
-  margin: 12px auto 0;
+  margin: 14px auto 0;
   padding: 0 18px;
 }
 
-.consigne__cadre {
+.traqueur__cadre {
+  padding: 10px 16px 12px;
+}
+
+.traqueur__etapes {
   display: flex;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
+}
+
+.traqueur__etape {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--texte-faible);
+  border: 1px solid var(--filet);
+  border-radius: 999px;
+}
+
+.traqueur__etape--active {
+  background: var(--givre);
+  border-color: var(--givre);
+  color: var(--encre-sur-clair);
+  font-weight: 700;
+  box-shadow: var(--ombre-1);
+}
+
+.traqueur__num {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  font-size: 9px;
+}
+
+.traqueur__lien {
+  flex: none;
+  width: 22px;
+  border-top: 2px dotted var(--filet);
+}
+
+.traqueur__prets {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pret-tique {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  padding: 2px 8px;
+  border: 1px solid var(--filet);
+  border-radius: 999px;
+  color: var(--texte-faible);
+}
+
+.pret-tique--ok {
+  border-color: var(--vert);
+  color: var(--vert);
+}
+
+.pret-tique__nom {
+  max-width: 82px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.traqueur__pied {
+  display: flex;
   align-items: center;
   gap: 12px 20px;
-  border: 1px solid var(--filet-fort);
-  border-left: 5px solid var(--chartreuse);
-  background: var(--nuit-2);
-  padding: 12px 16px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+  border-top: 1px solid var(--filet);
+  padding-top: 9px;
 }
 
-.consigne__cadre--attente {
-  border-left-color: var(--turquoise);
-}
-
-.consigne__texte {
+.traqueur__consigne {
   font-size: 13px;
   color: var(--givre);
 }
 
-.consigne__actions {
+.traqueur__actions {
+  margin-left: auto;
   display: flex;
   gap: 10px;
-  margin-left: auto;
   flex-wrap: wrap;
 }
 
-/* zone centrale : plateau + pense-bête */
+/* zone centrale : la table partagée (spot) + pense-bête */
 .jeu__centre {
   flex: 1;
   display: grid;
@@ -1115,56 +1348,81 @@ button {
   max-width: 1280px;
   width: 100%;
   margin: 0 auto;
-  align-items: start;
+  align-items: stretch;
 }
 
-.plateau-zone {
-  padding: 16px 18px 8px;
+.table-centre {
   min-width: 0;
-}
-
-.plateau__proprio {
+  padding: 16px 18px;
   display: flex;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 10px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
 }
 
-.plateau__proprio-nom {
-  font-size: 15px;
-  color: var(--blanc);
-  font-weight: 700;
-}
-
-.plateau {
-  border: 1px solid var(--filet-fort);
-  background: var(--nuit-2);
-  padding: 14px;
+.table-centre__notices {
+  width: 100%;
+  max-width: 640px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
-.slot {
+.table-centre__scene {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 44px;
+  padding: 8px 0 14px;
+}
+
+.table-centre__tour {
+  display: grid;
+  gap: 2px;
   text-align: center;
 }
 
-.slot__libelle {
-  display: block;
-  margin-bottom: 6px;
+.table-centre__tour strong {
+  font-size: 36px;
+  line-height: 1;
+  color: var(--blanc);
 }
 
-.slot__creux {
+/* la pioche : 1 à 4 couches de versos décalées, le compte en libellé */
+.pioche-pile {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.pioche-pile__couches {
+  position: relative;
+  width: var(--carte-sm);
   aspect-ratio: var(--carte-ratio);
+}
+
+.pioche-pile__couche {
+  position: absolute;
+  inset: 0;
+  transform: translate(calc(var(--k) * 2.5px), calc(var(--k) * -2.5px)) rotate(calc(var(--k) * 1.1deg));
+}
+
+.pioche-pile__couches--vide {
   border: 1px dashed var(--filet);
+  border-radius: var(--rayon-1);
+}
+
+.pioche-pile__creux {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
   color: rgba(237, 248, 249, 0.25);
   font-size: 20px;
 }
 
-.slot__carte {
-  position: relative;
+.pioche-pile__libelle {
+  font-size: 9px;
 }
 
 .reponse-pastille {
@@ -1198,27 +1456,6 @@ button {
   object-fit: contain; /* jamais rogner une face finale (Décision 5) */
 }
 
-/* pile de questions d'un même slot (Concentration / Spéciale 9) */
-.slot__pile {
-  display: grid;
-  gap: 6px;
-}
-
-.slot__choix {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-}
-
-.slot__choix:hover .carte,
-.slot__choix:hover .carte-tuile {
-  outline: 2px solid var(--turquoise);
-  outline-offset: 2px;
-}
-
 /* face cachée : le verso de catégorie, légèrement assombri pour lire « dos de carte » */
 .carte--verso {
   filter: brightness(0.92);
@@ -1240,17 +1477,6 @@ button {
 .teinte-personnage.carte-tuile {
   background:
     linear-gradient(115deg, var(--vermillon) 0 26%, var(--turquoise) 26% 58%, var(--vert) 58% 82%, var(--chartreuse) 82%);
-}
-
-/* dock pouvoir : carte + bouton d'activation */
-.mon-pouvoir__carte {
-  display: grid;
-  gap: 6px;
-  justify-items: center;
-}
-
-.mon-pouvoir__utiliser {
-  width: 100%;
 }
 
 .carte-tuile {
@@ -1288,116 +1514,43 @@ button {
   height: 8px;
 }
 
-/* main du joueur */
-.main-dock {
-  border-top: 1px solid var(--filet-fort);
-  background: var(--nuit-2);
-  padding: 12px 18px 16px;
+/* ---- mon dock (bande basse, §6.5) : une seule surface levée, trois zones ancrées ---- */
+
+.dock {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  padding: 12px 18px 14px;
+  box-shadow: 0 -12px 32px rgba(10, 14, 35, 0.45), var(--liseret-haut);
 }
 
-.main-dock__interieur {
+.dock__interieur {
   max-width: 1280px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 22px;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 26px;
   align-items: start;
 }
 
-.main-dock__section-titre {
+.dock__titre {
   display: block;
   margin-bottom: 8px;
 }
 
-.ma-main {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.carte-main {
-  flex: none;
-  width: 96px;
-  padding: 0;
-  border: 2px solid transparent;
-  background: none;
-  cursor: pointer;
-  transition:
-    transform var(--dur-vite) ease,
-    border-color var(--dur-vite) ease;
-}
-
-.carte-main:hover:not(:disabled) {
-  transform: translateY(-6px);
-}
-
-.carte-main:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
-.carte-main--choisie {
-  border-color: var(--turquoise);
-  transform: translateY(-6px);
-}
-
-.carte-main--posee {
-  opacity: 0.35;
-  transform: none;
-}
-
-.carte-main__note {
+/* mon dieu : appui maintenu = retournement 3D (GameCard revealed) */
+.dock-dieu {
   display: block;
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--turquoise);
-  padding-top: 4px;
-  min-height: 17px;
-}
-
-/* mon dieu (face cachée par défaut, appui pour révéler) */
-.mon-dieu {
-  width: 116px;
-  position: relative;
-}
-
-.mon-dieu__scene {
-  position: relative;
-  width: 100%;
-  aspect-ratio: var(--carte-ratio);
-  cursor: pointer;
+  padding: 0;
   border: none;
-  padding: 0;
   background: none;
-  display: block;
+  cursor: pointer;
+  border-radius: var(--rayon-2);
+  touch-action: none; /* l'appui maintenu ne doit pas défiler la page */
 }
 
-.mon-dieu__face,
-.mon-dieu__dos {
-  position: absolute;
-  inset: 0;
-  transition: opacity var(--dur-vite) ease;
-}
-
-.mon-dieu__scene .mon-dieu__face {
-  opacity: 0;
-}
-
-.mon-dieu__scene:hover .mon-dieu__face,
-.mon-dieu__scene:focus-visible .mon-dieu__face,
-.mon-dieu__scene[data-revele='true'] .mon-dieu__face {
-  opacity: 1;
-}
-
-.mon-dieu__scene:hover .mon-dieu__dos,
-.mon-dieu__scene:focus-visible .mon-dieu__dos,
-.mon-dieu__scene[data-revele='true'] .mon-dieu__dos {
-  opacity: 0;
-}
-
-.mon-dieu__hint {
+.dock-dieu__hint {
   display: block;
   text-align: center;
   font-size: 9px;
@@ -1407,8 +1560,115 @@ button {
   margin-top: 6px;
 }
 
-.mon-pouvoir {
-  width: 96px;
+/* la main en éventail (recette §9.1, pas plus large que le héros) */
+.main-ev {
+  position: relative;
+  height: 212px;
+}
+
+.main-ev__carte {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  margin-left: calc(var(--carte-md) / -2);
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  z-index: var(--z, 1);
+  transform-origin: 50% 120%;
+  transform: translateX(calc(var(--i) * var(--main-ecart) + var(--ev-decale, 0px)))
+    rotate(calc(var(--i) * var(--main-pas))) translateY(calc(var(--abs-i) * var(--main-chute)));
+  transition: transform var(--dur) var(--ease-sortie);
+  border-radius: var(--rayon-2);
+}
+
+.main-ev__carte:hover:not(:disabled),
+.main-ev__carte:focus-visible {
+  z-index: 60;
+  transform: translateX(calc(var(--i) * var(--main-ecart))) rotate(0deg) translateY(-22px)
+    scale(1.06);
+}
+
+.main-ev__carte:hover:not(:disabled) + .main-ev__carte,
+.main-ev__carte:focus-visible + .main-ev__carte {
+  --ev-decale: calc(var(--main-ecart) / 2);
+}
+
+.main-ev__carte:has(+ .main-ev__carte:hover:not(:disabled)),
+.main-ev__carte:has(+ .main-ev__carte:focus-visible) {
+  --ev-decale: calc(var(--main-ecart) / -2);
+}
+
+/* sélectionnée : levée en position d'attente, les cibles légales pulsent sur la table */
+.main-ev__carte--choisie {
+  z-index: 61;
+  transform: translateX(calc(var(--i) * var(--main-ecart))) rotate(0deg) translateY(-26px)
+    scale(1.06);
+}
+
+.main-ev__carte--choisie .carte-jeu__face {
+  outline: 2px solid var(--turquoise);
+  outline-offset: -2px;
+  box-shadow: 0 0 18px rgba(var(--cible-rgb), 0.4), var(--ombre-3);
+}
+
+.main-ev__carte--posee {
+  opacity: 0.38;
+}
+
+.main-ev__carte:disabled {
+  cursor: default;
+}
+
+.main-ev__note {
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--nuit-3);
+  border: 1px solid var(--turquoise);
+  color: var(--turquoise);
+  white-space: nowrap;
+}
+
+/* contre vous / spéciale */
+.zone-speciale {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px dashed var(--filet);
+  border-radius: var(--rayon-2);
+  min-height: 60px;
+}
+
+.zone-speciale--legale {
+  border-color: transparent;
+}
+
+/* pouvoir : la carte dans son emplacement libellé, UTILISER attaché, état armé */
+.pouvoir-slot {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.pouvoir-slot--arme .carte-jeu__face {
+  outline: 2px solid var(--turquoise);
+  outline-offset: -2px;
+  box-shadow: 0 0 18px rgba(var(--cible-rgb), 0.45), var(--ombre-3);
+}
+
+.pouvoir-slot__utiliser {
+  width: 100%;
 }
 
 /* pense-bête */
@@ -1539,7 +1799,9 @@ button {
 
 .modale {
   background: var(--nuit-2);
-  border: 1px solid var(--filet-fort);
+  border: 1px solid var(--encre-bord);
+  border-radius: var(--rayon-2);
+  box-shadow: var(--ombre-4), var(--liseret-haut);
   max-width: 860px;
   width: 100%;
   padding: 26px 28px 28px;
@@ -1633,9 +1895,9 @@ button {
 }
 
 .choix-carte {
-  width: 140px;
-  padding: 0;
+  padding: 4px;
   border: 2px solid transparent;
+  border-radius: var(--rayon-3);
   background: none;
   cursor: pointer;
 }
@@ -1668,6 +1930,11 @@ button {
 .fin__texte {
   color: var(--texte-faible);
   margin: 14px 0 26px;
+}
+
+.fin__dieu {
+  width: fit-content;
+  margin: 0 auto 22px;
 }
 
 /* ================================================== VISUAL V2 — PRIMITIVE CARTE */
@@ -1823,13 +2090,26 @@ button {
     position: static;
   }
 
-  .main-dock__interieur {
-    grid-template-columns: 1fr;
+  .dock__interieur {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .table-rang {
-    grid-auto-columns: minmax(112px, 1fr);
+  .dock__zone--main {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+
+  /* l'arc s'aplatit et défile — jamais des sièges écrasés */
+  .places-arc {
+    justify-content: flex-start;
     overflow-x: auto;
+    padding-bottom: 10px;
+  }
+
+  .place {
+    flex: none;
+    min-width: 172px;
+    transform: none;
   }
 
   .temps-rang {
@@ -1890,5 +2170,13 @@ button {
   /* pas de vie au repos : l'éventail reste posé */
   .eventail .carte-jeu {
     animation: none;
+  }
+
+  /* les halos de cible ne pulsent plus : anneau statique bien visible */
+  .place__zone--legale::after,
+  .zone-speciale--legale::after,
+  .pose-ev__item--choisissable::after {
+    animation: none;
+    opacity: 0.95;
   }
 }

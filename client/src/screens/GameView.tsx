@@ -1,24 +1,24 @@
 /**
- * In-match view over the per-seat projection. Screen-first layout (not a table replica):
- * top bar (phase rail + barrier), opponents rank (compact tiles = targets during Question,
- * board selectors otherwise), one focused plateau, own-hand dock, collapsible pense-bête.
+ * In-match view over the per-seat projection — Visual V2 « la table » (§6) : trois bandes
+ * horizontales. En haut, les sièges adverses sur un arc, chacun portant SES questions
+ * reçues (la table montre « qui s'est fait demander quoi »). Au centre, la table partagée :
+ * traqueur de phase (consigne + actions + coches prêt par siège), pioches empilées,
+ * indicateur de tour, événements transients. En bas, mon dock : VOTRE DIEU (face cachée,
+ * appui maintenu = retournement 3D), MA MAIN en éventail, CONTRE VOUS / SPÉCIALE, POUVOIR.
+ *
  * Cards are final images displayed as-is; all interaction is chrome around them.
+ * Un éliminé reste face cachée (la projection n'envoie jamais son dieu — never-send).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { GodId, PlacedCardView, PlayerProjection, QuestionPlay } from '@pantheons/engine';
 import { GODS, ALL_GODS, data } from '@pantheons/engine';
-import { PhaseIndicator } from '../components/PhaseIndicator.js';
-import { BoardSlots, describeQuestionCard, questionCardBand } from '../components/BoardSlots.js';
+import { GameTopBar } from '../components/GameTopBar.js';
+import { PhaseTracker } from '../components/PhaseTracker.js';
+import { SeatPlaque, PlacedMiniCard, type SeatQuestion } from '../components/SeatPlaque.js';
+import { GameCard } from '../components/GameCard.js';
 import { PenseBeteGrid } from '../components/PenseBeteGrid.js';
-import { CardImage } from '../components/CardImage.js';
-import {
-  cardBackSrc,
-  godCardSrc,
-  godPortraitSrc,
-  penseBeteSrc,
-  pouvoirCardSrc,
-  questionCardSrc,
-} from '../assets.js';
+import { describeQuestionCard, questionCardBand } from '../components/card-text.js';
+import { godCardSrc, godPortraitSrc, penseBeteSrc, pouvoirCardSrc, questionCardSrc } from '../assets.js';
 import { fr } from '../i18n/fr.js';
 
 /** Spéciales dont la face exige une cible (« Choisissez un joueur » / « d'un autre joueur »). */
@@ -51,7 +51,6 @@ export function GameView({
   over: boolean;
   onExit: () => void;
 }) {
-  const [viewedBoard, setViewedBoard] = useState(proj.self.userId);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [stagedPlays, setStagedPlays] = useState<QuestionPlay[]>([]);
   const [stagedSpeciales, setStagedSpeciales] = useState<StagedSpeciale[]>([]);
@@ -117,6 +116,10 @@ export function GameView({
   const powerPicksPlaced = powerMode !== null && POUVOIRS_CIBLE_CARTE.has(powerMode);
 
   const seatOf = (uid: string) => proj.seatOrder.indexOf(uid);
+  const nameOf = (uid: string) =>
+    uid === me.userId
+      ? `${me.displayName} (${fr.jeu.vous})`
+      : (proj.opponents.find((o) => o.userId === uid)?.displayName ?? uid);
   const stagedCountBySeat = new Map<number, number>();
   for (const p of stagedPlays) stagedCountBySeat.set(p.targetSeat, (stagedCountBySeat.get(p.targetSeat) ?? 0) + 1);
   const maxPerTarget = rules.sameTargetOk ? 2 : 1;
@@ -164,12 +167,73 @@ export function GameView({
     send('question', { intent: { plays: stagedPlays }, specialePlays: stagedSpeciales });
   };
 
-  /** Sabotage / Espionnage : choisir une carte posée sur le plateau affiché. */
+  /** Sabotage / Espionnage : choisir une carte posée n'importe où sur la table. */
   const pickPlaced = (placer: string, targetSeat: number, stackIndex: number, placed: PlacedCardView) => {
     if (!powerPicksPlaced) return;
-    if (powerMode === 'sabotage' && (placed.cardKind !== 'attribut' || placed.answeredOui !== undefined)) return;
+    if (!canPickPlaced(placed)) return;
     send('power', { effectKey: powerMode, placer, targetSeat, stackIndex });
     setPowerMode(null);
+  };
+
+  const canPickPlaced = (placed: PlacedCardView): boolean => {
+    if (!powerPicksPlaced) return false;
+    if (powerMode === 'sabotage' && (placed.cardKind !== 'attribut' || placed.answeredOui !== undefined)) return false;
+    return true;
+  };
+
+  /** Toutes les questions posées CONTRE ce joueur, tous poseurs confondus. */
+  const questionsAgainst = (uid: string): SeatQuestion[] => {
+    const t = seatOf(uid);
+    if (t < 0) return [];
+    const out: SeatQuestion[] = [];
+    for (const placerId of proj.seatOrder) {
+      if (placerId === uid) continue;
+      const stack = proj.boardBySeat[placerId]?.questionSlots[t] ?? [];
+      stack.forEach((placed, stackIndex) =>
+        out.push({ placerId, placerName: nameOf(placerId), stackIndex, placed }),
+      );
+    }
+    return out;
+  };
+
+  /** Prévisualisations locales sous un siège : mes cartes en attente de validation. */
+  const ghostsFor = (seat: number): ReactNode => {
+    const items: ReactNode[] = [];
+    for (const p of stagedPlays) {
+      if (p.targetSeat !== seat) continue;
+      items.push(
+        <button
+          key={p.cardId}
+          className="pose-ev__item pose-ev__item--fantome"
+          onClick={() => unstage(p.cardId)}
+          title={`${describeQuestionCard(p.card)} — ${fr.consignes.retirer}`}
+        >
+          <PlacedMiniCard
+            placed={{ card: p.card, cardKind: p.card.type === 'attribut' ? 'attribut' : 'action', targetSeat: seat }}
+          />
+          <span className="pose-ev__fantome-note">{fr.jeu.aValider}</span>
+        </button>,
+      );
+    }
+    for (const sp of stagedSpeciales) {
+      if (sp.targetSeat !== seat) continue;
+      const card = handCards.actions.find((c) => c.id === sp.cardId);
+      if (!card) continue;
+      items.push(
+        <button
+          key={sp.cardId}
+          className="pose-ev__item pose-ev__item--fantome"
+          onClick={() => unstage(sp.cardId)}
+          title={`${describeQuestionCard(card)} — ${fr.consignes.retirer}`}
+        >
+          <PlacedMiniCard
+            placed={{ card, cardKind: 'action', targetSeat: seat }}
+          />
+          <span className="pose-ev__fantome-note">{fr.jeu.aValider}</span>
+        </button>,
+      );
+    }
+    return items.length > 0 ? <>{items}</> : null;
   };
 
   const liveOpponents = proj.opponents.filter((o) => o.alive);
@@ -194,188 +258,184 @@ export function GameView({
     return proj.opponents.find((o) => o.userId === uid)?.displayName ?? null;
   };
 
-  const viewedOwner = proj.boardBySeat[viewedBoard] ? viewedBoard : me.userId;
-  const viewedName =
-    viewedOwner === me.userId
-      ? fr.jeu.votrePlateau
-      : fr.jeu.plateauDe(proj.opponents.find((o) => o.userId === viewedOwner)?.displayName ?? viewedOwner);
+  // ---- consigne du traqueur (absorbe l'ancienne bannière jaune) --------------------
+  const instruction =
+    over || !alive
+      ? null
+      : powerMode
+        ? powerPicksOpponent
+          ? fr.jeu.choisirCiblePouvoir(data.POWERS[powerMode]?.label ?? powerMode)
+          : fr.jeu.choisirCartePosee(data.POWERS[powerMode]?.label ?? powerMode)
+        : youSubmitted
+          ? fr.jeu.enAttente(proj.barrier.submitted.length, liveTotal)
+          : proj.phase === 'pioche'
+            ? powerCards.length > 1
+              ? fr.consignes.piocheDefausse
+              : fr.consignes.piochePret
+            : proj.phase === 'question'
+              ? rules.askBlocked
+                ? fr.jeu.refusRoyalBloque
+                : selectedSpecialeACible
+                  ? fr.jeu.choisirCibleSpeciale
+                  : selectedIsSpeciale
+                    ? fr.consignes.questionSpeciale
+                    : fr.consignes.question
+              : fr.consignes.reponse;
+
+  const trackerActions =
+    over || !alive ? null : powerMode ? (
+      <button className="btn btn--nu btn--petit" onClick={() => setPowerMode(null)}>
+        {fr.jeu.annulerPouvoir}
+      </button>
+    ) : youSubmitted ? null : (
+      <>
+        {proj.phase === 'pioche' && (
+          <button
+            className="btn btn--givre btn--petit"
+            onClick={submitPioche}
+            disabled={powerCards.length > 1 && !discardId}
+          >
+            {fr.consignes.validerPioche}
+          </button>
+        )}
+        {proj.phase === 'question' && (
+          <>
+            {selectedIsSpeciale && !selectedSpecialeACible && (
+              <button className="btn btn--petit" onClick={stageSpeciale} disabled={stagedSpeciales.length > 0}>
+                {fr.consignes.poserSpeciale}
+              </button>
+            )}
+            <button className="btn btn--givre btn--petit" onClick={submitQuestions}>
+              {fr.consignes.validerQuestions(stagedPlays.length)}
+            </button>
+          </>
+        )}
+        {proj.phase === 'reponse' && (
+          <>
+            <button className="btn btn--petit" onClick={() => send('declaration', {})}>
+              {fr.pass}
+            </button>
+            <button className="btn btn--primaire btn--petit" onClick={() => setDeclaring(true)}>
+              {fr.declaration.button}
+            </button>
+          </>
+        )}
+      </>
+    );
+
+  // ---- sièges : adversaires dans l'ordre de la table -------------------------------
+  const seatedOpponents = proj.seatOrder
+    .filter((uid) => uid !== me.userId)
+    .map((uid) => proj.opponents.find((o) => o.userId === uid))
+    .filter((o): o is NonNullable<typeof o> => Boolean(o));
+  const nOpp = seatedOpponents.length;
+
+  const mySpecial = proj.boardBySeat[me.userId]?.specialSlot ?? null;
+  const stagedSpecialeSansCible = stagedSpeciales.find((s) => s.targetSeat === undefined);
+  const stagedSpecialeSansCibleCard = stagedSpecialeSansCible
+    ? handCards.actions.find((c) => c.id === stagedSpecialeSansCible.cardId)
+    : undefined;
+  const specialeZoneLegale =
+    !!selectedCard && selectedIsSpeciale && !selectedSpecialeACible && stagedSpeciales.length === 0;
+  const receivedQuestions = questionsAgainst(me.userId);
+
+  const hand = [...handCards.attributs, ...handCards.actions];
 
   return (
     <div className="jeu">
-      <PhaseIndicator p={proj} onHelp={() => setShowHelp(true)} onExit={onExit} />
+      <GameTopBar tour={proj.tour} onHelp={() => setShowHelp(true)} onExit={onExit} />
 
-      {/* rang des adversaires */}
-      <div className="table-rang">
-        {proj.opponents.map((opp) => {
+      {/* bande haute : l'arc des sièges */}
+      <div className="places-arc">
+        {seatedOpponents.map((opp, idx) => {
           const seat = seatOf(opp.userId);
           const isTargeted =
             (stagedCountBySeat.get(seat) ?? 0) > 0 || stagedSpeciales.some((s) => s.targetSeat === seat);
-          const targetable =
-            (powerPicksOpponent && opp.alive) ||
-            (targeting &&
-              opp.alive &&
-              (selectedSpecialeACible
-                ? stagedSpeciales.length === 0
-                : (stagedCountBySeat.get(seat) ?? 0) < maxPerTarget && stagedPlays.length < rules.max));
+          const zoneLegale =
+            targeting &&
+            opp.alive &&
+            (selectedSpecialeACible
+              ? stagedSpeciales.length === 0
+              : (stagedCountBySeat.get(seat) ?? 0) < maxPerTarget && stagedPlays.length < rules.max);
+          const oppSpecial = proj.boardBySeat[opp.userId]?.specialSlot;
+          const ghosts = ghostsFor(seat);
+          const extras =
+            ghosts || oppSpecial || isTargeted ? (
+              <>
+                {ghosts}
+                {oppSpecial && (
+                  <span className="pose-ev__item" title={fr.jeu.emplacementSpecial}>
+                    <PlacedMiniCard placed={oppSpecial} />
+                    <span className="pose-ev__spe-note">{fr.jeu.statCourt.speciale}</span>
+                  </span>
+                )}
+                {isTargeted && <span className="pose-ev__cible-note">{fr.jeu.cible}</span>}
+              </>
+            ) : null;
           return (
-            <button
+            <SeatPlaque
               key={opp.userId}
-              className={[
-                'adversaire',
-                viewedOwner === opp.userId ? 'adversaire--regarde' : '',
-                targetable ? 'adversaire--cible' : '',
-                isTargeted ? 'adversaire--choisi' : '',
-                !opp.alive ? 'adversaire--mort' : '',
-              ].join(' ')}
-              onClick={() => {
-                if (targetable) stageOn(opp.userId);
-                else if (opp.alive || proj.boardBySeat[opp.userId]) setViewedBoard(opp.userId);
-              }}
-            >
-              {proj.meneur === opp.userId && <span className="adversaire__etiquette">{fr.meneur}</span>}
-              {!opp.alive && (
-                <span className="adversaire__etiquette adversaire__etiquette--elimine">
-                  {fr.jeu.elimine}
-                </span>
-              )}
-              <span className="adversaire__nom">
-                <span className={`point-conn ${opp.connected ? '' : 'point-conn--deco'}`} />
-                <span className="adversaire__nom-texte">{opp.displayName}</span>
-              </span>
-              <span className="adversaire__compteurs">
-                <span title={fr.jeu.attributs}>A {opp.handCounts.attributs}</span>
-                <span title={fr.jeu.actions}>Ac {opp.handCounts.actions}</span>
-                <span title={fr.jeu.pouvoir}>P {opp.powerCount}</span>
-                {opp.hasSpecialCard && <span title={fr.jeu.emplacementSpecial}>S✶</span>}
-              </span>
-              {targetable && <span className="adversaire__cible-note">{fr.jeu.poserIci}</span>}
-              {isTargeted && <span className="adversaire__cible-note">{fr.jeu.cible}</span>}
-            </button>
+              opp={opp}
+              seat={seat + 1}
+              arcIndex={idx - (nOpp - 1) / 2}
+              isMeneur={proj.meneur === opp.userId}
+              submitted={proj.barrier.submitted.includes(opp.userId)}
+              questions={questionsAgainst(opp.userId)}
+              stagedGhosts={extras}
+              zoneLegale={zoneLegale}
+              plaqueLegale={powerPicksOpponent && opp.alive}
+              pickMode={powerPicksPlaced}
+              canPick={canPickPlaced}
+              onZone={() => stageOn(opp.userId)}
+              onPlaque={() => stageOn(opp.userId)}
+              onPick={(q) => pickPlaced(q.placerId, q.placed.targetSeat, q.stackIndex, q.placed)}
+            />
           );
         })}
       </div>
 
-      {/* bannières */}
-      {(banner || notice || info) && (
-        <div className="consigne">
-          {banner && (
-            <div className="notice notice--erreur" role="alert">
-              {banner}
-            </div>
-          )}
-          {notice && (
-            <div className="notice" role="status" style={{ marginTop: banner ? 8 : 0 }}>
-              {notice}
-              <button className="btn btn--nu btn--petit" onClick={() => setNotice(null)}>
-                ✕
-              </button>
-            </div>
-          )}
-          {info && (
-            <div className="notice" role="status" style={{ marginTop: banner || notice ? 8 : 0 }}>
-              {info}
-              <button className="btn btn--nu btn--petit" onClick={() => onInfoDismiss?.()}>
-                ✕
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {/* traqueur de phase : étapes + coches prêt par siège + consigne + actions */}
+      <PhaseTracker p={proj} instruction={instruction}>
+        {trackerActions}
+      </PhaseTracker>
 
-      {/* consigne de phase + actions */}
-      {!over && alive && (
-        <div className="consigne">
-          <div className={`consigne__cadre ${youSubmitted ? 'consigne__cadre--attente' : ''}`}>
-            <span className="consigne__texte">
-              {powerMode
-                ? powerPicksOpponent
-                  ? fr.jeu.choisirCiblePouvoir(data.POWERS[powerMode]?.label ?? powerMode)
-                  : fr.jeu.choisirCartePosee(data.POWERS[powerMode]?.label ?? powerMode)
-                : youSubmitted
-                  ? fr.jeu.enAttente(proj.barrier.submitted.length, liveTotal)
-                  : proj.phase === 'pioche'
-                    ? powerCards.length > 1
-                      ? fr.consignes.piocheDefausse
-                      : fr.consignes.piochePret
-                    : proj.phase === 'question'
-                      ? rules.askBlocked
-                        ? fr.jeu.refusRoyalBloque
-                        : selectedSpecialeACible
-                          ? fr.jeu.choisirCibleSpeciale
-                          : selectedIsSpeciale
-                            ? fr.consignes.questionSpeciale
-                            : fr.consignes.question
-                      : fr.consignes.reponse}
-            </span>
-            {powerMode && (
-              <span className="consigne__actions">
-                <button className="btn btn--nu btn--petit" onClick={() => setPowerMode(null)}>
-                  {fr.jeu.annulerPouvoir}
-                </button>
-              </span>
-            )}
-            {!youSubmitted && (
-              <span className="consigne__actions">
-                {proj.phase === 'pioche' && (
-                  <button
-                    className="btn btn--givre btn--petit"
-                    onClick={submitPioche}
-                    disabled={powerCards.length > 1 && !discardId}
-                  >
-                    {fr.consignes.validerPioche}
-                  </button>
-                )}
-                {proj.phase === 'question' && (
-                  <>
-                    {selectedIsSpeciale && !selectedSpecialeACible && (
-                      <button
-                        className="btn btn--petit"
-                        onClick={stageSpeciale}
-                        disabled={stagedSpeciales.length > 0}
-                      >
-                        {fr.consignes.poserSpeciale}
-                      </button>
-                    )}
-                    <button className="btn btn--givre btn--petit" onClick={submitQuestions}>
-                      {fr.consignes.validerQuestions(stagedPlays.length)}
-                    </button>
-                  </>
-                )}
-                {proj.phase === 'reponse' && (
-                  <>
-                    <button className="btn btn--petit" onClick={() => send('declaration', {})}>
-                      {fr.pass}
-                    </button>
-                    <button className="btn btn--primaire btn--petit" onClick={() => setDeclaring(true)}>
-                      {fr.declaration.button}
-                    </button>
-                  </>
-                )}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* centre : plateau + pense-bête */}
+      {/* centre : la table partagée + pense-bête (tiroir en Phase D) */}
       <div className="jeu__centre">
-        <section className="plateau-zone">
-          <div className="plateau__proprio">
-            <span className="plateau__proprio-nom">{viewedName}</span>
-            {viewedOwner !== me.userId && (
-              <button className="btn btn--nu btn--petit" onClick={() => setViewedBoard(me.userId)}>
-                {fr.jeu.voirMonPlateau}
-              </button>
-            )}
-          </div>
-          {proj.boardBySeat[viewedOwner] && (
-            <BoardSlots
-              board={proj.boardBySeat[viewedOwner]!}
-              ownerId={viewedOwner}
-              proj={proj}
-              onPickPlaced={powerPicksPlaced ? pickPlaced : undefined}
-            />
+        <section className="table-centre">
+          {(banner || notice || info) && (
+            <div className="table-centre__notices">
+              {banner && (
+                <div className="notice notice--erreur" role="alert">
+                  {banner}
+                </div>
+              )}
+              {notice && (
+                <div className="notice" role="status">
+                  {notice}
+                  <button className="btn btn--nu btn--petit" onClick={() => setNotice(null)}>
+                    ✕
+                  </button>
+                </div>
+              )}
+              {info && (
+                <div className="notice" role="status">
+                  {info}
+                  <button className="btn btn--nu btn--petit" onClick={() => onInfoDismiss?.()}>
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
           )}
+
+          <div className="table-centre__scene">
+            <DeckPile kind="attributs" count={proj.drawCounts.attributs} label={fr.jeu.attributs} />
+            <div className="table-centre__tour" aria-hidden="true">
+              <span className="libelle">{fr.tour}</span>
+              <strong>{proj.tour}</strong>
+            </div>
+            <DeckPile kind="actions" count={proj.drawCounts.actions} label={fr.jeu.actions} />
+          </div>
         </section>
 
         <aside className="pense-bete">
@@ -390,30 +450,32 @@ export function GameView({
         </aside>
       </div>
 
-      {/* dock : mon dieu, ma main, mon pouvoir */}
-      <div className="main-dock">
-        <div className="main-dock__interieur">
-          <div className="mon-dieu">
-            <span className="libelle main-dock__section-titre">{fr.yourGod}</span>
+      {/* bande basse : mon dock */}
+      <div className="dock surface-levee">
+        <div className="dock__interieur">
+          <div className="dock__zone dock__zone--dieu">
+            <span className="libelle dock__titre">{fr.yourGod}</span>
             <MyGodCard god={me.god} />
           </div>
 
-          <div>
-            <span className="libelle main-dock__section-titre">
-              {fr.jeu.maMain} — {handCards.attributs.length + handCards.actions.length}
+          <div className="dock__zone dock__zone--main">
+            <span className="libelle dock__titre">
+              {fr.jeu.maMain} — {hand.length}
             </span>
-            <div className="ma-main">
-              {[...handCards.attributs, ...handCards.actions].map((card) => {
+            <div className="main-ev" style={{ '--n': hand.length } as CSSProperties}>
+              {hand.map((card, idx) => {
+                const i = idx - (hand.length - 1) / 2;
                 const staged = stagedCardIds.has(card.id);
                 const target = targetNameOf(card.id);
                 return (
                   <button
                     key={card.id}
                     className={[
-                      'carte-main',
-                      selectedCardId === card.id ? 'carte-main--choisie' : '',
-                      staged ? 'carte-main--posee' : '',
+                      'main-ev__carte',
+                      selectedCardId === card.id ? 'main-ev__carte--choisie' : '',
+                      staged ? 'main-ev__carte--posee' : '',
                     ].join(' ')}
+                    style={{ '--i': i, '--abs-i': Math.abs(i), '--z': 10 + idx } as CSSProperties}
                     disabled={proj.phase !== 'question' || youSubmitted || !alive}
                     onClick={() => {
                       if (staged) unstage(card.id);
@@ -421,47 +483,113 @@ export function GameView({
                     }}
                     title={describeQuestionCard(card)}
                   >
-                    <CardImage
-                      src={questionCardSrc(card)}
-                      alt={describeQuestionCard(card)}
-                      typeLabel={card.type === 'attribut' ? 'Attribut' : 'Action'}
-                      bodyLabel={describeQuestionCard(card)}
-                      bandColor={questionCardBand(card)}
-                      className={card.type === 'attribut' ? 'teinte-attribut' : 'teinte-action'}
+                    <GameCard
+                      size="md"
+                      face={{
+                        src: questionCardSrc(card),
+                        alt: describeQuestionCard(card),
+                        typeLabel: card.type === 'attribut' ? 'Attribut' : 'Action',
+                        bodyLabel: describeQuestionCard(card),
+                        bandColor: questionCardBand(card),
+                        tint: card.type === 'attribut' ? 'teinte-attribut' : 'teinte-action',
+                      }}
                     />
-                    <span className="carte-main__note">
-                      {staged && target ? `→ ${target} · ${fr.consignes.retirer}` : ''}
-                    </span>
+                    {staged && target && (
+                      <span className="main-ev__note">→ {target}</span>
+                    )}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          <div className="mon-pouvoir">
-            <span className="libelle main-dock__section-titre">{fr.jeu.pouvoir}</span>
+          {(receivedQuestions.length > 0 || mySpecial || stagedSpecialeSansCibleCard || specialeZoneLegale) && (
+            <div className="dock__zone dock__zone--recu">
+              {receivedQuestions.length > 0 && (
+                <>
+                  <span className="libelle dock__titre">{fr.jeu.contreVous}</span>
+                  <div className="pose-ev">
+                    {receivedQuestions.map((q) => {
+                      const desc = q.placed.card ? describeQuestionCard(q.placed.card) : fr.jeu.faceCachee;
+                      const titre = `${desc} — ${fr.jeu.poseePar(q.placerName)}`;
+                      return powerPicksPlaced && canPickPlaced(q.placed) ? (
+                        <button
+                          key={`${q.placerId}:${q.stackIndex}`}
+                          className="pose-ev__item pose-ev__item--choisissable"
+                          onClick={() => pickPlaced(q.placerId, q.placed.targetSeat, q.stackIndex, q.placed)}
+                          title={titre}
+                        >
+                          <PlacedMiniCard placed={q.placed} />
+                        </button>
+                      ) : (
+                        <span key={`${q.placerId}:${q.stackIndex}`} className="pose-ev__item">
+                          <PlacedMiniCard placed={q.placed} title={titre} />
+                        </span>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              {(mySpecial || stagedSpecialeSansCibleCard || specialeZoneLegale) && (
+                <>
+                  <span className="libelle dock__titre">{fr.jeu.emplacementSpecial}</span>
+                  <div className={`zone-speciale ${specialeZoneLegale ? 'zone-speciale--legale' : ''}`}>
+                    {mySpecial &&
+                      (mySpecial.card ? (
+                        <PlacedMiniCard placed={mySpecial} title={describeQuestionCard(mySpecial.card)} />
+                      ) : (
+                        <PlacedMiniCard placed={mySpecial} title={fr.jeu.faceCachee} />
+                      ))}
+                    {stagedSpecialeSansCibleCard && (
+                      <button
+                        className="pose-ev__item pose-ev__item--fantome"
+                        onClick={() => unstage(stagedSpecialeSansCibleCard.id)}
+                        title={`${describeQuestionCard(stagedSpecialeSansCibleCard)} — ${fr.consignes.retirer}`}
+                      >
+                        <PlacedMiniCard
+                          placed={{ card: stagedSpecialeSansCibleCard, cardKind: 'action', targetSeat: -1 }}
+                        />
+                        <span className="pose-ev__fantome-note">{fr.jeu.aValider}</span>
+                      </button>
+                    )}
+                    {specialeZoneLegale && !mySpecial && !stagedSpecialeSansCibleCard && (
+                      <button className="pose-ev__deposer" onClick={stageSpeciale}>
+                        {fr.consignes.poserSpeciale}
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="dock__zone dock__zone--pouvoir">
+            <span className="libelle dock__titre">{fr.jeu.pouvoir}</span>
             {powerCards.map((pow) => {
               const def = data.POWERS[pow.effectKey];
-              const activable =
-                def?.kind === 'active' && alive && !over && proj.status === 'enCours';
+              const activable = def?.kind === 'active' && alive && !over && proj.status === 'enCours';
+              const arme = powerMode === pow.effectKey;
               return (
-                <div key={pow.id} className="mon-pouvoir__carte">
-                  <CardImage
-                    src={pouvoirCardSrc(pow.effectKey)}
-                    alt={def?.label ?? fr.jeu.pouvoir}
-                    typeLabel={fr.jeu.pouvoir}
-                    bodyLabel={def?.label ?? pow.effectKey.replace(/_/g, ' ')}
-                    className="teinte-pouvoir"
+                <div key={pow.id} className={`pouvoir-slot ${arme ? 'pouvoir-slot--arme' : ''}`}>
+                  <GameCard
+                    size="md"
+                    face={{
+                      src: pouvoirCardSrc(pow.effectKey),
+                      alt: def?.label ?? fr.jeu.pouvoir,
+                      typeLabel: fr.jeu.pouvoir,
+                      bodyLabel: def?.label ?? pow.effectKey.replace(/_/g, ' '),
+                      tint: 'teinte-pouvoir',
+                    }}
                   />
                   {activable && (
                     <button
-                      className="btn btn--petit mon-pouvoir__utiliser"
+                      className="btn btn--petit pouvoir-slot__utiliser"
                       onClick={() => {
                         if (pow.effectKey === 'deduction') send('power', { effectKey: 'deduction' });
-                        else setPowerMode(pow.effectKey);
+                        else setPowerMode(arme ? null : pow.effectKey);
                       }}
                     >
-                      {powerMode === pow.effectKey ? fr.jeu.annulerPouvoir : fr.jeu.utiliser}
+                      {arme ? fr.jeu.annulerPouvoir : fr.jeu.utiliser}
                     </button>
                   )}
                 </div>
@@ -483,12 +611,15 @@ export function GameView({
                   className={`choix-carte ${discardId === pow.id ? 'choix-carte--choisi' : ''}`}
                   onClick={() => setDiscardId((cur) => (cur === pow.id ? null : pow.id))}
                 >
-                  <CardImage
-                    src={pouvoirCardSrc(pow.effectKey)}
-                    alt={data.POWERS[pow.effectKey]?.label ?? pow.effectKey}
-                    typeLabel={fr.jeu.pouvoir}
-                    bodyLabel={data.POWERS[pow.effectKey]?.label ?? pow.effectKey.replace(/_/g, ' ')}
-                    className="teinte-pouvoir"
+                  <GameCard
+                    size="lg"
+                    face={{
+                      src: pouvoirCardSrc(pow.effectKey),
+                      alt: data.POWERS[pow.effectKey]?.label ?? pow.effectKey,
+                      typeLabel: fr.jeu.pouvoir,
+                      bodyLabel: data.POWERS[pow.effectKey]?.label ?? pow.effectKey.replace(/_/g, ' '),
+                      tint: 'teinte-pouvoir',
+                    }}
                   />
                   <span className="choix-carte__note">
                     {discardId === pow.id ? 'défausser celui-ci' : ''}
@@ -592,11 +723,7 @@ export function GameView({
                       '—',
                   )}
             </p>
-            {proj.winner && (
-              <WinnerGod
-                godId={proj.winner === me.userId ? me.god : null}
-              />
-            )}
+            {proj.winner && <WinnerGod godId={proj.winner === me.userId ? me.god : null} />}
             <button className="btn btn--givre" onClick={onExit}>
               {fr.fin.retour}
             </button>
@@ -607,37 +734,79 @@ export function GameView({
   );
 }
 
-/** Own god card: face-down by default, revealed on hover/focus or tap-toggle (touch). */
+/** La pioche : pile visiblement empilée de versos (3–4 couches décalées) + compte. */
+function DeckPile({
+  kind,
+  count,
+  label,
+}: {
+  kind: 'attributs' | 'actions';
+  count: number;
+  label: string;
+}) {
+  const layers = count === 0 ? 0 : Math.min(4, 1 + Math.floor(count / 10));
+  return (
+    <div className="pioche-pile" title={fr.jeu.cartesRestantes(count)}>
+      <div className={`pioche-pile__couches ${layers === 0 ? 'pioche-pile__couches--vide' : ''}`}>
+        {Array.from({ length: layers }, (_, k) => (
+          <span key={k} className="pioche-pile__couche" style={{ '--k': k } as CSSProperties}>
+            <GameCard size="sm" back={kind} />
+          </span>
+        ))}
+        {layers === 0 && <span className="pioche-pile__creux">·</span>}
+      </div>
+      <span className="libelle pioche-pile__libelle">
+        {label} · {count}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Mon dieu : face cachée par défaut ; le retournement 3D se tient tant qu'on maintient —
+ * survol (pointeur fin), appui maintenu (tactile), Espace/Entrée maintenu (clavier).
+ */
 function MyGodCard({ god }: { god: GodId }) {
-  const [revealed, setRevealed] = useState(false);
+  const [held, setHeld] = useState(false);
   return (
     <>
       <button
-        className="mon-dieu__scene"
-        data-revele={revealed}
-        onClick={() => setRevealed((r) => !r)}
+        className="dock-dieu"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          setHeld(true);
+        }}
+        onPointerUp={() => setHeld(false)}
+        onPointerCancel={() => setHeld(false)}
+        onPointerEnter={(e) => {
+          if (e.pointerType === 'mouse') setHeld(true);
+        }}
+        onPointerLeave={() => setHeld(false)}
+        onKeyDown={(e) => {
+          if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            setHeld(true);
+          }
+        }}
+        onKeyUp={() => setHeld(false)}
+        onBlur={() => setHeld(false)}
+        onContextMenu={(e) => e.preventDefault()}
         aria-label={`${fr.yourGod} — ${GODS[god].label}`}
       >
-        <span className="mon-dieu__dos">
-          <CardImage
-            src={cardBackSrc('personnages')}
-            alt=""
-            typeLabel="Personnage"
-            bodyLabel="? ? ?"
-            className="teinte-personnage"
-          />
-        </span>
-        <span className="mon-dieu__face">
-          <CardImage
-            src={godCardSrc(god)}
-            alt={GODS[god].label}
-            typeLabel="Personnage"
-            bodyLabel={GODS[god].label}
-            className="teinte-personnage"
-          />
-        </span>
+        <GameCard
+          size="md"
+          back="personnages"
+          revealed={held}
+          face={{
+            src: godCardSrc(god),
+            alt: GODS[god].label,
+            typeLabel: 'Personnage',
+            bodyLabel: GODS[god].label,
+            tint: 'teinte-personnage',
+          }}
+        />
       </button>
-      <span className="mon-dieu__hint">{fr.jeu.monDieuHint}</span>
+      <span className="dock-dieu__hint">{fr.jeu.monDieuHint}</span>
     </>
   );
 }
@@ -646,12 +815,16 @@ function MyGodCard({ god }: { god: GodId }) {
 function WinnerGod({ godId }: { godId: GodId | null }) {
   if (!godId) return null;
   return (
-    <div style={{ width: 130, margin: '0 auto 22px' }}>
-      <CardImage
-        src={godCardSrc(godId)}
-        alt={GODS[godId].label}
-        typeLabel="Personnage"
-        bodyLabel={GODS[godId].label}
+    <div className="fin__dieu">
+      <GameCard
+        size="lg"
+        face={{
+          src: godCardSrc(godId),
+          alt: GODS[godId].label,
+          typeLabel: 'Personnage',
+          bodyLabel: GODS[godId].label,
+          tint: 'teinte-personnage',
+        }}
       />
     </div>
   );

@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Room } from 'colyseus.js';
 import type { PlayerProjection, PrivateReveal } from '@pantheons/engine';
 import { GODS, data } from '@pantheons/engine';
-import { describeQuestionCard } from '../components/BoardSlots.js';
+import { describeQuestionCard } from '../components/card-text.js';
 import { fr } from '../i18n/fr.js';
 import { navigate } from '../router.js';
 import { depositForTeardown, peekActiveRoom } from '../net/active-room.js';
