@@ -43,8 +43,35 @@
      par object-fit: contain). L'ancien 5/7 supposé rognait les faces. */
   --carte-ratio: 520 / 804;
 
-  --dur-vite: 140ms;
+  --dur-vite: 120ms;
   --dur: 240ms;
+  --dur-lent: 420ms;
+  /* sortie expo (entrées, lifts) / pop back-out (réservé aux cartes qui « sautent ») */
+  --ease-sortie: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---- profondeur (Visual V2) : l'ombre fait la profondeur, le filet fait le bord.
+     Rampe à 4 crans (noir-marine très transparent, grands flous superposés) ; toute
+     surface levée s'éclaire d'un liseret 1px en haut (lumière au-dessus de la table). */
+  --ombre-1: 0 1px 2px rgba(10, 14, 35, 0.4), 0 3px 9px rgba(10, 14, 35, 0.3);
+  --ombre-2: 0 2px 4px rgba(10, 14, 35, 0.45), 0 9px 22px rgba(10, 14, 35, 0.35);
+  --ombre-3: 0 4px 8px rgba(10, 14, 35, 0.5), 0 18px 42px rgba(10, 14, 35, 0.42);
+  --ombre-4: 0 8px 16px rgba(10, 14, 35, 0.55), 0 30px 68px rgba(10, 14, 35, 0.5);
+  --liseret-haut: inset 0 1px 0 rgba(237, 248, 249, 0.14);
+  --encre-bord: rgba(16, 22, 48, 0.9);
+
+  /* rayons (petite gamme, proportionnée aux tailles de carte) */
+  --rayon-1: 5px;
+  --rayon-2: 8px;
+  --rayon-3: 12px;
+
+  /* tailles de la primitive carte (xs cellule / sm siège / md main / lg héros) */
+  --carte-xs: 44px;
+  --carte-sm: 76px;
+  --carte-md: 116px;
+  --carte-lg: 172px;
+
+  --grain-opacite: 0.035;
 }
 
 * {
@@ -59,13 +86,28 @@ body {
 }
 
 body {
-  background: linear-gradient(135deg, var(--nuit-sombre) 0%, var(--nuit) 45%, var(--nuit-clair) 100%);
+  /* La table éclairée dans une pièce sombre : spot radial (marine plus clair en
+     haut-centre → marine profond aux bords) + vignette. */
+  background:
+    radial-gradient(120% 85% at 50% 28%, transparent 52%, rgba(10, 14, 35, 0.5) 100%),
+    radial-gradient(115% 90% at 50% 16%, var(--nuit-clair) 0%, var(--nuit) 46%, var(--nuit-3) 100%);
   background-attachment: fixed;
   color: var(--texte);
   font-family: var(--fonte);
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Grain très léger sur toute la scène — unifie l'art plat et la lumière de table. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  pointer-events: none;
+  opacity: var(--grain-opacite);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 #root {
@@ -204,7 +246,8 @@ button {
 }
 
 :focus-visible {
-  outline: 2px solid var(--turquoise);
+  /* anneau de focus dans l'accent divin — parité clavier/souris sur tout l'interactif */
+  outline: 2px solid var(--chartreuse);
   outline-offset: 2px;
 }
 
@@ -1478,6 +1521,144 @@ button {
   margin: 14px 0 26px;
 }
 
+/* ================================================== VISUAL V2 — PRIMITIVE CARTE */
+
+/*
+ * .carte-jeu — la carte physique (composant GameCard). Quatre tailles, coins arrondis,
+ * chrome d'encre + liseret haut, élévation, retournement 3D. L'art reste l'image finale
+ * intacte (Décision 5) : le rayon ne rogne que la marge blanche imprimée des faces.
+ */
+.carte-jeu {
+  position: relative;
+  width: var(--cj-larg, var(--carte-md));
+  perspective: 1200px;
+}
+
+.carte-jeu--xs {
+  --cj-larg: var(--carte-xs);
+  --cj-rayon: var(--rayon-1);
+  --cj-ombre: var(--ombre-1);
+}
+
+.carte-jeu--sm {
+  --cj-larg: var(--carte-sm);
+  --cj-rayon: var(--rayon-1);
+  --cj-ombre: var(--ombre-1);
+}
+
+.carte-jeu--md {
+  --cj-larg: var(--carte-md);
+  --cj-rayon: var(--rayon-2);
+  --cj-ombre: var(--ombre-2);
+}
+
+.carte-jeu--lg {
+  --cj-larg: var(--carte-lg);
+  --cj-rayon: var(--rayon-3);
+  --cj-ombre: var(--ombre-3);
+}
+
+.carte-jeu__volet {
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--carte-ratio);
+  transform-style: preserve-3d;
+  transition: transform var(--dur-lent) var(--ease-sortie);
+}
+
+.carte-jeu--revele .carte-jeu__volet {
+  transform: rotateY(180deg);
+}
+
+.carte-jeu__face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border: 1px solid var(--encre-bord);
+  border-radius: var(--cj-rayon, var(--rayon-2));
+  overflow: hidden;
+  background: var(--nuit-3);
+  box-shadow: var(--cj-ombre, var(--ombre-2)), var(--liseret-haut);
+}
+
+.carte-jeu__face--recto {
+  transform: rotateY(180deg);
+}
+
+/* L'image remplit la face ; le cadre partage le ratio des faces 520×804, et `cover`
+   sur les pouvoirs 733×1040 ne consomme que leur marge blanche (aucun art perdu). */
+.carte-jeu .carte,
+.carte-jeu .carte-tuile {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border: none;
+  object-fit: cover;
+}
+
+.carte-jeu__plaque {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 5px 6px 6px;
+  background: linear-gradient(to top, rgba(20, 27, 58, 0.94) 0%, rgba(20, 27, 58, 0.6) 72%, transparent 100%);
+  color: var(--givre);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  transition: color var(--dur-vite) ease;
+}
+
+/*
+ * .carte-scene — enveloppe interactive d'une carte (bouton nu). Survol ET focus clavier
+ * reçoivent le même traitement : lift transform-only + un cran d'élévation.
+ */
+.carte-scene {
+  display: inline-block;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--rayon-2);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.carte-scene .carte-jeu {
+  transition: transform var(--dur) var(--ease-sortie);
+}
+
+.carte-scene:hover:not(:disabled) .carte-jeu,
+.carte-scene:focus-visible .carte-jeu {
+  transform: translateY(-4px) scale(1.03);
+}
+
+.carte-scene:hover:not(:disabled) .carte-jeu__face,
+.carte-scene:focus-visible .carte-jeu__face {
+  box-shadow: var(--ombre-3), var(--liseret-haut);
+}
+
+.carte-scene:hover:not(:disabled) .carte-jeu__plaque,
+.carte-scene:focus-visible .carte-jeu__plaque {
+  color: var(--blanc);
+}
+
+.carte-scene:disabled {
+  cursor: default;
+}
+
+/* surface levée générique (mat de table, dock, tiroir) : ombre + liseret haut */
+.surface-levee {
+  background: var(--nuit-2);
+  border: 1px solid var(--encre-bord);
+  border-radius: var(--rayon-2);
+  box-shadow: var(--ombre-2), var(--liseret-haut);
+}
+
 /* ---- responsive -------------------------------------------------------------- */
 
 @media (max-width: 980px) {
@@ -1516,6 +1697,14 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* garde-fou dur : les durées s'effondrent au niveau des jetons ET globalement ;
+     les changements d'état restent instantanés, jamais supprimés */
+  :root {
+    --dur-vite: 0.01ms;
+    --dur: 0.01ms;
+    --dur-lent: 0.01ms;
+  }
+
   * {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
