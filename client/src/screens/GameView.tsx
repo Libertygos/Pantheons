@@ -18,8 +18,25 @@ import { SeatPlaque, PlacedMiniCard, type SeatQuestion } from '../components/Sea
 import { GameCard } from '../components/GameCard.js';
 import { PenseBeteGrid } from '../components/PenseBeteGrid.js';
 import { describeQuestionCard, questionCardBand } from '../components/card-text.js';
+import { usePenseBete } from '../state/pense-bete.js';
 import { godCardSrc, godPortraitSrc, penseBeteSrc, pouvoirCardSrc, questionCardSrc } from '../assets.js';
 import { fr } from '../i18n/fr.js';
+
+/**
+ * Accents d'identité par siège (1..7) : la rangée du pense-bête et le badge « N possibles »
+ * de la plaque partagent la même teinte — la conclusion du tiroir reste lisible à la table.
+ */
+const SEAT_TINTS = [
+  '--turquoise',
+  '--vert',
+  '--chartreuse',
+  '--pouvoir-clair',
+  '--vermillon',
+  '--saumon',
+  '--givre',
+] as const;
+
+const seatTint = (seat: number): string => SEAT_TINTS[seat % SEAT_TINTS.length]!;
 
 /** Spéciales dont la face exige une cible (« Choisissez un joueur » / « d'un autre joueur »). */
 const SPECIALES_A_CIBLE = new Set(['action_special_1', 'action_special_5', 'action_special_6']);
@@ -59,8 +76,22 @@ export function GameView({
   const [declaring, setDeclaring] = useState(false);
   const [guesses, setGuesses] = useState<Record<string, GodId>>({});
   const [showHelp, setShowHelp] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const [discardId, setDiscardId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const notesCloseRef = useRef<HTMLButtonElement | null>(null);
+  const penseBete = usePenseBete(proj.roomId);
+
+  // Tiroir : ESC ferme, l'ouverture donne le focus au bouton de fermeture.
+  useEffect(() => {
+    if (!showNotes) return;
+    notesCloseRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowNotes(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showNotes]);
 
   // Reset staging when the phase or turn moves on.
   const phaseKey = `${proj.tour}:${proj.phase}`;
@@ -343,7 +374,13 @@ export function GameView({
 
   return (
     <div className="jeu">
-      <GameTopBar tour={proj.tour} onHelp={() => setShowHelp(true)} onExit={onExit} />
+      <GameTopBar
+        tour={proj.tour}
+        notesOpen={showNotes}
+        onNotes={() => setShowNotes((v) => !v)}
+        onHelp={() => setShowHelp(true)}
+        onExit={onExit}
+      />
 
       {/* bande haute : l'arc des sièges */}
       <div className="places-arc">
@@ -380,6 +417,8 @@ export function GameView({
               arcIndex={idx - (nOpp - 1) / 2}
               isMeneur={proj.meneur === opp.userId}
               submitted={proj.barrier.submitted.includes(opp.userId)}
+              possibles={penseBete.remaining(opp.userId)}
+              tint={seatTint(seat)}
               questions={questionsAgainst(opp.userId)}
               stagedGhosts={extras}
               zoneLegale={zoneLegale}
@@ -399,56 +438,90 @@ export function GameView({
         {trackerActions}
       </PhaseTracker>
 
-      {/* centre : la table partagée + pense-bête (tiroir en Phase D) */}
-      <div className="jeu__centre">
-        <section className="table-centre">
-          {(banner || notice || info) && (
-            <div className="table-centre__notices">
-              {banner && (
-                <div className="notice notice--erreur" role="alert">
-                  {banner}
-                </div>
-              )}
-              {notice && (
-                <div className="notice" role="status">
-                  {notice}
-                  <button className="btn btn--nu btn--petit" onClick={() => setNotice(null)}>
-                    ✕
-                  </button>
-                </div>
-              )}
-              {info && (
-                <div className="notice" role="status">
-                  {info}
-                  <button className="btn btn--nu btn--petit" onClick={() => onInfoDismiss?.()}>
-                    ✕
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="table-centre__scene">
-            <DeckPile kind="attributs" count={proj.drawCounts.attributs} label={fr.jeu.attributs} />
-            <div className="table-centre__tour" aria-hidden="true">
-              <span className="libelle">{fr.tour}</span>
-              <strong>{proj.tour}</strong>
-            </div>
-            <DeckPile kind="actions" count={proj.drawCounts.actions} label={fr.jeu.actions} />
+      {/* centre : la table partagée */}
+      <section className="table-centre">
+        {(banner || notice || info) && (
+          <div className="table-centre__notices">
+            {banner && (
+              <div className="notice notice--erreur" role="alert">
+                {banner}
+              </div>
+            )}
+            {notice && (
+              <div className="notice" role="status">
+                {notice}
+                <button className="btn btn--nu btn--petit" onClick={() => setNotice(null)}>
+                  ✕
+                </button>
+              </div>
+            )}
+            {info && (
+              <div className="notice" role="status">
+                {info}
+                <button className="btn btn--nu btn--petit" onClick={() => onInfoDismiss?.()}>
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
-        </section>
+        )}
 
-        <aside className="pense-bete">
+        <div className="table-centre__scene">
+          <DeckPile kind="attributs" count={proj.drawCounts.attributs} label={fr.jeu.attributs} />
+          <div className="table-centre__tour" aria-hidden="true">
+            <span className="libelle">{fr.tour}</span>
+            <strong>{proj.tour}</strong>
+          </div>
+          <DeckPile kind="actions" count={proj.drawCounts.actions} label={fr.jeu.actions} />
+        </div>
+      </section>
+
+      {/* tiroir pense-bête : glisse sur la table, la table s'assombrit derrière */}
+      <div
+        className={`tiroir-voile ${showNotes ? 'tiroir-voile--visible' : ''}`}
+        onClick={() => setShowNotes(false)}
+        aria-hidden="true"
+      />
+      <aside
+        id="tiroir-pense-bete"
+        className={`tiroir ${showNotes ? 'tiroir--ouvert' : ''}`}
+        role="dialog"
+        aria-label={fr.penseBete.title}
+      >
+        <div className="tiroir__entete">
+          <h3 className="titre-affiche tiroir__titre">{fr.penseBete.title}</h3>
+          <button
+            ref={notesCloseRef}
+            className="btn btn--nu btn--petit"
+            onClick={() => setShowNotes(false)}
+            aria-label={fr.penseBete.fermer}
+          >
+            ✕
+          </button>
+        </div>
+        <p className="pense-bete__note">{fr.penseBete.note}</p>
+        <div className="tiroir__corps">
           <PenseBeteGrid
-            roomId={proj.roomId}
-            opponents={proj.opponents.map((o) => ({
-              userId: o.userId,
-              displayName: o.displayName,
-              alive: o.alive,
-            }))}
+            rows={proj.seatOrder
+              .filter((uid) => uid !== me.userId)
+              .map((uid) => {
+                const o = proj.opponents.find((x) => x.userId === uid);
+                return o
+                  ? {
+                      userId: o.userId,
+                      displayName: o.displayName,
+                      alive: o.alive,
+                      tint: seatTint(seatOf(o.userId)),
+                    }
+                  : null;
+              })
+              .filter((r): r is NonNullable<typeof r> => r !== null)}
+            get={penseBete.get}
+            toggle={penseBete.toggle}
+            remaining={penseBete.remaining}
           />
-        </aside>
-      </div>
+        </div>
+      </aside>
 
       {/* bande basse : mon dock */}
       <div className="dock surface-levee">

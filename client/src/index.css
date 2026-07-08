@@ -1339,20 +1339,13 @@ button.pose-ev__item {
   flex-wrap: wrap;
 }
 
-/* zone centrale : la table partagée (spot) + pense-bête */
-.jeu__centre {
+/* zone centrale : la table partagée (spot) */
+.table-centre {
   flex: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0;
+  min-width: 0;
   max-width: 1280px;
   width: 100%;
   margin: 0 auto;
-  align-items: stretch;
-}
-
-.table-centre {
-  min-width: 0;
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
@@ -1671,23 +1664,67 @@ button.pose-ev__item {
   width: 100%;
 }
 
-/* pense-bête */
-.pense-bete {
-  width: 380px;
-  max-width: 42vw;
-  border-left: 1px solid var(--filet);
-  padding: 16px 18px 24px;
-  position: sticky;
+/* ---- pense-bête v2 (§7) : tiroir de droite + grille tri-état ---- */
+
+/* le badge « N possibles » sur la plaque — la conclusion du tiroir, visible à la table */
+.place__possibles {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 1px 7px;
+  border: 1px solid var(--teinte-place, var(--filet));
+  border-radius: 999px;
+  color: var(--teinte-place, var(--texte-faible));
+  white-space: nowrap;
+}
+
+.tiroir-voile {
+  position: fixed;
+  inset: 0;
+  z-index: 56;
+  background: rgba(20, 27, 58, 0.55);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--dur) ease,
+    visibility 0s var(--dur);
+}
+
+.tiroir-voile--visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity var(--dur) ease;
+}
+
+.tiroir {
+  position: fixed;
   top: 0;
-  align-self: start;
+  right: 0;
+  bottom: 0;
+  z-index: 57;
+  width: min(680px, 94vw);
+  padding: 16px 20px 24px;
+  background: var(--nuit-2);
+  border-left: 1px solid var(--encre-bord);
+  box-shadow: var(--ombre-4), var(--liseret-haut);
+  display: flex;
+  flex-direction: column;
+  /* glisse depuis le bord droit (transform-only) ; fermé = hors tabulation et hors AT */
+  transform: translateX(calc(100% + 40px));
+  visibility: hidden;
+  transition:
+    transform var(--dur-lent) var(--ease-sortie),
+    visibility 0s var(--dur-lent);
 }
 
-.pense-bete--replie {
-  width: auto;
-  border-left: none;
+.tiroir--ouvert {
+  transform: none;
+  visibility: visible;
+  transition: transform var(--dur-lent) var(--ease-sortie);
 }
 
-.pense-bete__titre-rang {
+.tiroir__entete {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1695,9 +1732,15 @@ button.pose-ev__item {
   margin-bottom: 4px;
 }
 
-.pense-bete__titre {
+.tiroir__titre {
   font-size: 13px;
   letter-spacing: 0.18em;
+}
+
+.tiroir__corps {
+  overflow: auto;
+  flex: 1;
+  padding-bottom: 8px;
 }
 
 .pense-bete__note {
@@ -1706,7 +1749,9 @@ button.pose-ev__item {
   margin: 0 0 12px;
 }
 
+/* la grille garde le papier du pense-bête : cellules givre sur filets blancs */
 .pb-grille {
+  min-width: 640px;
   border: 2px solid var(--blanc);
   background: var(--blanc);
   display: grid;
@@ -1715,7 +1760,7 @@ button.pose-ev__item {
 
 .pb-grille__rang {
   display: grid;
-  grid-template-columns: 92px repeat(12, 1fr);
+  grid-template-columns: 96px repeat(12, minmax(44px, 1fr));
   gap: 1px;
 }
 
@@ -1723,27 +1768,31 @@ button.pose-ev__item {
   background: var(--nuit);
 }
 
-.pb-grille__dieu-tete {
+/* tuile-portrait d'en-tête : le chrome carte (arrondi, encre, ombre) au ratio du portrait */
+.pb-dieu {
   background: var(--nuit);
-  padding: 0;
-  border: none;
   cursor: help;
   aspect-ratio: 179 / 213;
   overflow: hidden;
+  display: block;
 }
 
-.pb-grille__dieu-tete img {
+.pb-dieu img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: var(--rayon-1);
+  border: 1px solid var(--encre-bord);
+  box-shadow: var(--ombre-1);
 }
 
 .pb-grille__adv {
   background: var(--nuit);
   color: var(--givre);
   font-size: 10px;
-  padding: 4px 6px;
+  padding: 4px 6px 4px 8px;
+  border-left: 3px solid var(--teinte-rang, var(--filet));
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -1757,10 +1806,12 @@ button.pose-ev__item {
   cursor: pointer;
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--encre-sur-clair);
   aspect-ratio: 1;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   transition: background var(--dur-vite) ease;
 }
@@ -1769,20 +1820,24 @@ button.pose-ev__item {
   background: var(--blanc);
 }
 
+/* exclu : ✕ et la cellule s'éteint */
 .pb-case--exclu {
   color: var(--vermillon);
   background: var(--givre-2);
+  opacity: 0.72;
 }
 
-.pb-case--suspect {
+/* retenu : ★ + anneau chartreuse */
+.pb-case--retenu {
   color: var(--encre-sur-clair);
   background: var(--chartreuse);
+  box-shadow: inset 0 0 0 2px var(--encre-sur-clair);
 }
 
 .pb-restants {
   font-size: 10px;
   color: var(--texte-faible);
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 /* superposition (modales : déclaration, défausse pouvoir, aide, fin) */
@@ -2078,18 +2133,6 @@ button.pose-ev__item {
 /* ---- responsive -------------------------------------------------------------- */
 
 @media (max-width: 980px) {
-  .jeu__centre {
-    grid-template-columns: 1fr;
-  }
-
-  .pense-bete {
-    width: 100%;
-    max-width: none;
-    border-left: none;
-    border-top: 1px solid var(--filet);
-    position: static;
-  }
-
   .dock__interieur {
     grid-template-columns: 1fr 1fr;
   }

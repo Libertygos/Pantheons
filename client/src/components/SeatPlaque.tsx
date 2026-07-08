@@ -62,6 +62,8 @@ export function SeatPlaque({
   arcIndex,
   isMeneur,
   submitted,
+  possibles,
+  tint,
   questions,
   stagedGhosts,
   zoneLegale,
@@ -79,6 +81,10 @@ export function SeatPlaque({
   arcIndex: number;
   isMeneur: boolean;
   submitted: boolean;
+  /** Conclusion du pense-bête : dieux encore possibles pour ce siège (badge vivant). */
+  possibles: number;
+  /** Accent d'identité de siège (var CSS) — le même que sa rangée du pense-bête. */
+  tint: string;
   questions: SeatQuestion[];
   /** Prévisualisations locales : cartes de MA main mises en attente sur ce siège. */
   stagedGhosts: ReactNode;
@@ -121,6 +127,15 @@ export function SeatPlaque({
           {opp.hasSpecialCard && (
             <span className="jeton-stat jeton-stat--speciale" title={fr.jeu.statLong.speciale} aria-label={fr.jeu.statLong.speciale}>
               {fr.jeu.statCourt.speciale} ✓
+            </span>
+          )}
+          {opp.alive && (
+            <span
+              className="place__possibles"
+              style={{ '--teinte-place': `var(${tint})` } as CSSProperties}
+              title={`${fr.penseBete.title} — ${fr.penseBete.restants(possibles)}`}
+            >
+              {fr.penseBete.restants(possibles)}
             </span>
           )}
         </span>

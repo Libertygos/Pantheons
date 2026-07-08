@@ -177,7 +177,10 @@ export const fr = {
   penseBete: {
     title: 'Pense-bête',
     note: 'Vos notes personnelles — jamais partagées, jamais envoyées.',
+    ouvrir: 'Ouvrir le pense-bête',
+    fermer: 'Fermer le pense-bête',
     restants: (n: number) => `${n} possibles`,
+    etats: { inconnu: 'inconnu', exclu: 'exclu', suspect: 'retenu' } as Record<string, string>,
     axes: { genre: 'Genre', couleurYeux: 'Yeux', pantheon: 'Panthéon' },
   },
 
