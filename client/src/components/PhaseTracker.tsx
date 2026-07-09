@@ -3,7 +3,9 @@
  * jaune : trois étapes PIOCHE → QUESTION → RÉPONSE, l'étape active en givre, une ligne
  * de consigne, les actions primaires attachées à l'étape active (children), et les
  * coches « prêt » PAR SIÈGE (le jeu simultané est la mécanique-titre : on montre QUI a
- * soumis, pas juste un compte).
+ * soumis, pas juste un compte). QoL §4 : les coches portent des états explicites —
+ * fait (✓ teinté, micro-pop à l'arrivée) / en attente (· sur filet pointillé) — pilotés
+ * par barrier.submitted, la même autorité serveur que le chip « Validé » du joueur.
  */
 import { Fragment, type ReactNode } from 'react';
 import type { PlayerProjection } from '@pantheons/engine';
@@ -53,7 +55,7 @@ export function PhaseTracker({
               return (
                 <span
                   key={x.userId}
-                  className={`pret-tique ${ok ? 'pret-tique--ok' : ''}`}
+                  className={`pret-tique ${ok ? 'pret-tique--ok' : 'pret-tique--attente'}`}
                   title={`${nom} — ${ok ? fr.lobby.ready : fr.lobby.notReady}`}
                   aria-label={`${nom} — ${ok ? fr.lobby.ready : fr.lobby.notReady}`}
                 >

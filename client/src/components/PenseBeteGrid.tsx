@@ -1,22 +1,32 @@
 /**
- * Pense-bête v2 (Visual V2 §7) — la grille de déduction, outil de premier rang.
- * Colonnes : les 12 dieux en tuiles-portraits (≥ 44px, chrome carte : arrondi, encre,
- * élévation). Rangées : vos adversaires, en-tête teinté à l'identité de leur siège (le
- * même accent que le badge « N possibles » de leur plaque). Cellules : bascules TRI-ÉTAT
- * inconnu → exclu (✕, la cellule s'éteint) → retenu (★ + anneau), état annoncé
- * (aria-pressed + libellé), navigation clavier complète (Tab + flèches).
+ * Pense-bête v2 (Visual V2 §7 + QoL §2) — la grille de déduction, outil de premier rang.
+ * Colonne de tête « Réponses » : les réponses PUBLIQUES données par ce joueur ce tour-ci
+ * (mini-carte — face si visible pour ce spectateur, sinon le verso de catégorie — plus
+ * pastille ✓ OUI / ✗ NON : icône + couleur, jamais la couleur seule), vidée à chaque tour.
+ * Puis les adversaires en rangées (en-tête teinté à l'identité de leur siège) et les 12
+ * dieux en tuiles-portraits (loupe d'inspection au survol/focus : la carte Personnage en
+ * grand). Cellules : bascules TRI-ÉTAT inconnu → exclu (✕) → retenu (★ + anneau), état
+ * annoncé (aria-pressed + libellé), navigation clavier complète (Tab + flèches).
  *
  * Présentationnel : les marques vivent dans usePenseBete (state/pense-bete.ts) — jamais
- * envoyées, persistance sessionStorage identique v1.
+ * envoyées ; les réponses viennent de la projection déjà reçue (answeredOui public).
  */
 import { useRef } from 'react';
-import { ALL_GODS, GODS, type GodId } from '@pantheons/engine';
+import { ALL_GODS, GODS, type God, type GodId, type PlacedCardView } from '@pantheons/engine';
 import type { Mark } from '../state/pense-bete.js';
-import { godPortraitSrc } from '../assets.js';
+import { cardBackSrc, godPortraitSrc, questionCardSrc } from '../assets.js';
+import { describeQuestionCard, godCardFace } from './card-text.js';
+import { useCardInspect } from './card-inspect.js';
 import { fr } from '../i18n/fr.js';
 
 const GLYPH: Record<Mark, string> = { inconnu: '', exclu: '✕', suspect: '★' };
 const PRESSED: Record<Mark, boolean | 'mixed'> = { inconnu: false, exclu: true, suspect: 'mixed' };
+
+/** Une réponse publique de ce tour : la carte posée telle que vue par ce spectateur. */
+export interface PenseBeteAnswer {
+  key: string;
+  placed: PlacedCardView;
+}
 
 export interface PenseBeteRow {
   userId: string;
@@ -24,6 +34,44 @@ export interface PenseBeteRow {
   alive: boolean;
   /** Accent d'identité de siège (var CSS), partagé avec le badge de la plaque. */
   tint: string;
+  /** Réponses données ce tour-ci, la plus récente d'abord (vide entre les tours). */
+  answers: PenseBeteAnswer[];
+}
+
+/** Tuile-portrait d'en-tête, avec la loupe : la vraie carte Personnage en grand. */
+function DieuEntete({ god }: { god: God }) {
+  const ref = useCardInspect<HTMLSpanElement>({ face: godCardFace(god.id) });
+  return (
+    <span
+      ref={ref}
+      className="pb-dieu"
+      title={`${god.label} — ${fr.penseBete.axes.genre} ${god.genre}, ${fr.penseBete.axes.couleurYeux} ${god.couleurYeux}, ${god.pantheon}`}
+    >
+      <img src={godPortraitSrc(god.id)} alt={god.label} />
+    </span>
+  );
+}
+
+/** Mini réponse : vignette de la carte (face ou verso de catégorie) + pastille OUI/NON. */
+function MiniReponse({ placed }: { placed: PlacedCardView }) {
+  const desc = placed.card ? describeQuestionCard(placed.card) : fr.jeu.faceCachee;
+  const oui = placed.answeredOui === true;
+  return (
+    <span className="pb-reponse" title={`${desc} — ${oui ? fr.oui : fr.non}`}>
+      <img
+        className="pb-reponse__carte"
+        src={
+          placed.card
+            ? questionCardSrc(placed.card)
+            : cardBackSrc(placed.cardKind === 'attribut' ? 'attributs' : 'actions')
+        }
+        alt={desc}
+      />
+      <span className={`pb-reponse__chip ${oui ? 'pb-reponse__chip--oui' : 'pb-reponse__chip--non'}`}>
+        {oui ? `✓ ${fr.oui}` : `✗ ${fr.non}`}
+      </span>
+    </span>
+  );
 }
 
 export function PenseBeteGrid({
@@ -64,20 +112,28 @@ export function PenseBeteGrid({
     <div>
       <div className="pb-grille" ref={gridRef} onKeyDown={handleKeyDown}>
         <div className="pb-grille__rang">
+          <span className="pb-grille__entete-reponses libelle">{fr.penseBete.reponses}</span>
           <span className="pb-grille__coin" />
           {ALL_GODS.map((god) => (
-            <span
-              key={god.id}
-              className="pb-dieu"
-              title={`${god.label} — ${fr.penseBete.axes.genre} ${god.genre}, ${fr.penseBete.axes.couleurYeux} ${god.couleurYeux}, ${god.pantheon}`}
-            >
-              <img src={godPortraitSrc(god.id)} alt={god.label} />
-            </span>
+            <DieuEntete key={god.id} god={god} />
           ))}
         </div>
 
         {rows.map((opp, r) => (
           <div className="pb-grille__rang" key={opp.userId}>
+            <span className="pb-reponses">
+              {opp.answers.length === 0 ? (
+                <span
+                  className="pb-reponses__vide"
+                  title={fr.penseBete.aucuneReponse}
+                  aria-label={fr.penseBete.aucuneReponse}
+                >
+                  —
+                </span>
+              ) : (
+                opp.answers.map((a) => <MiniReponse key={a.key} placed={a.placed} />)
+              )}
+            </span>
             <span
               className="pb-grille__adv"
               style={{ '--teinte-rang': `var(${opp.tint})` } as React.CSSProperties}

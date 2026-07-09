@@ -42,6 +42,9 @@ export function RoomScreen({
   const [proj, setProj] = useState<PlayerProjection | null>(null);
   const [over, setOver] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+  /** Incrémenté à CHAQUE rejet serveur — signal de retour à l'état actionnable (QoL §4),
+   *  même quand le message d'erreur est identique au précédent (le texte seul ne suffit pas). */
+  const [rejectNonce, setRejectNonce] = useState(0);
   const [info, setInfo] = useState<string | null>(null);
   const [seatId, setSeatId] = useState(0);
   const roomRef = useRef<Room | null>(null);
@@ -83,6 +86,15 @@ export function RoomScreen({
       }
     });
     room.onMessage('gameOver', () => setOver(true));
+    // Réponse au REQUEST_STATE de milieu de partie (QoL §4) : le serveur ne diffuse pas de
+    // projection sur les soumissions pioche/déclaration — le client RE-DEMANDE son état
+    // (unicast, même projection filtrée que 'state', mêmes garanties never-send).
+    room.onMessage('RECONNECT_OK', (ok: ReconnectOk) => {
+      if (!ok?.state) return;
+      projRef.current = ok.state;
+      setProj(ok.state);
+      setOver(ok.state.status === 'terminee');
+    });
     // Public power activations (physical equivalence: activating a power is visible).
     room.onMessage('event', (e: { type?: string; by?: string; effectKey?: string }) => {
       if (e?.type === 'powerActivated' && e.by && e.effectKey) {
@@ -104,7 +116,10 @@ export function RoomScreen({
       }
     });
     room.onMessage('CONN_STATUS', () => {});
-    room.onMessage('error', (m: { message: string }) => setBanner(m.message));
+    room.onMessage('error', (m: { message: string }) => {
+      setBanner(m.message);
+      setRejectNonce((n) => n + 1);
+    });
     room.onMessage('MATCH_ABORTED', (m: { message?: string }) => {
       // §5.5: back to the same room's fresh lobby with a notice.
       const resume = loadResume();
@@ -260,6 +275,7 @@ export function RoomScreen({
         proj={proj}
         send={(t, p) => roomRef.current?.send(t, p)}
         banner={banner}
+        rejectNonce={rejectNonce}
         info={info}
         onInfoDismiss={() => setInfo(null)}
         over={over}

@@ -87,6 +87,12 @@
   --lueur-divine: 229, 235, 46;
   /* halo des cibles légales (composants rgb de la turquoise) */
   --cible-rgb: 104, 203, 192;
+  /* succès / confirmation (composants rgb du vert) */
+  --succes-rgb: 129, 185, 63;
+
+  /* largeur du tiroir pense-bête — partagée par le tiroir, sa poignée et le reflux
+     de la table en mode flottant (colonne Réponses + grille sans défilement à 1440px) */
+  --tiroir-larg: min(780px, 94vw);
 }
 
 * {
@@ -1576,19 +1582,21 @@ button.pose-ev__item {
   border-radius: var(--rayon-2);
 }
 
-.main-ev__carte:hover:not(:disabled),
+/* le lift au survol/focus vaut AUSSI pour une carte verrouillée (aria-disabled) : hors de
+   la phase question, la main reste consultable — c'est le point d'ancrage de la loupe */
+.main-ev__carte:hover,
 .main-ev__carte:focus-visible {
   z-index: 60;
   transform: translateX(calc(var(--i) * var(--main-ecart))) rotate(0deg) translateY(-22px)
     scale(1.06);
 }
 
-.main-ev__carte:hover:not(:disabled) + .main-ev__carte,
+.main-ev__carte:hover + .main-ev__carte,
 .main-ev__carte:focus-visible + .main-ev__carte {
   --ev-decale: calc(var(--main-ecart) / 2);
 }
 
-.main-ev__carte:has(+ .main-ev__carte:hover:not(:disabled)),
+.main-ev__carte:has(+ .main-ev__carte:hover),
 .main-ev__carte:has(+ .main-ev__carte:focus-visible) {
   --ev-decale: calc(var(--main-ecart) / -2);
 }
@@ -1610,7 +1618,7 @@ button.pose-ev__item {
   opacity: 0.38;
 }
 
-.main-ev__carte:disabled {
+.main-ev__carte[aria-disabled='true'] {
   cursor: default;
 }
 
@@ -1703,7 +1711,7 @@ button.pose-ev__item {
   right: 0;
   bottom: 0;
   z-index: 57;
-  width: min(680px, 94vw);
+  width: var(--tiroir-larg);
   padding: 16px 20px 24px;
   background: var(--nuit-2);
   border-left: 1px solid var(--encre-bord);
@@ -1749,9 +1757,11 @@ button.pose-ev__item {
   margin: 0 0 12px;
 }
 
-/* la grille garde le papier du pense-bête : cellules givre sur filets blancs */
+/* la grille garde le papier du pense-bête : cellules givre sur filets blancs.
+   Elle ÉPOUSE le tiroir (width 100%) — colonnes Réponses + adversaire dimensionnées pour
+   qu'à 1440px de viewport rien ne défile horizontalement (QoL §2). */
 .pb-grille {
-  min-width: 640px;
+  width: 100%;
   border: 2px solid var(--blanc);
   background: var(--blanc);
   display: grid;
@@ -1760,7 +1770,7 @@ button.pose-ev__item {
 
 .pb-grille__rang {
   display: grid;
-  grid-template-columns: 96px repeat(12, minmax(44px, 1fr));
+  grid-template-columns: 92px 78px repeat(12, minmax(44px, 1fr));
   gap: 1px;
 }
 
@@ -2255,8 +2265,274 @@ button.pose-ev__item {
 .main-ev__carte:hover .carte-jeu,
 .main-ev__carte:focus-visible .carte-jeu,
 .main-ev__carte--choisie .carte-jeu,
-.main-ev__carte:disabled .carte-jeu {
+.main-ev__carte[aria-disabled='true'] .carte-jeu {
   animation-play-state: paused;
+}
+
+/* ======================================================== VISUAL V2 — QOL PATCH */
+
+/*
+ * §1 — la loupe d'inspection : la même carte re-rendue en grand, dans un portail fixe
+ * au-dessus de tout (tiroir 57, voile modale 40, vols 900). Hauteur ≈ min(480px, 55vh),
+ * ratio préservé (la largeur est posée en inline par la couche). pointer-events: none :
+ * une loupe, pas une surface — zéro reflow, zéro vol de pointeur.
+ */
+.inspect-flottant {
+  position: fixed;
+  z-index: 950;
+  pointer-events: none;
+  animation: inspect-entree var(--dur-vite) var(--ease-sortie) both;
+}
+
+@keyframes inspect-entree {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.inspect-flottant .carte-jeu {
+  width: 100%;
+  --cj-rayon: var(--rayon-3);
+  --cj-ombre: var(--ombre-4);
+}
+
+/* la tuile de secours (face manquante) reste lisible au format loupe */
+.inspect-flottant .carte-tuile__type {
+  font-size: 14px;
+}
+
+.inspect-flottant .carte-tuile__corps {
+  font-size: 19px;
+}
+
+.inspect-flottant .carte-jeu__plaque {
+  font-size: 14px;
+  padding: 10px 12px 12px;
+}
+
+/* appui sur le dieu du dock : la carte s'enfonce d'un cheveu pendant la révélation */
+.dock-dieu:active .carte-jeu {
+  transform: translateY(1px);
+}
+
+/*
+ * §3 — la poignée du pense-bête : onglet vertical soudé au bord droit, toujours visible,
+ * accentué turquoise (langage de l'interactif). Tiroir ouvert, elle glisse d'une largeur
+ * de tiroir (translateX only, même tempo que lui) et chevauche son bord gauche — ouvrir
+ * et fermer sont le même contrôle spatial. Au-dessus du voile modal (56) et du tiroir (57).
+ */
+.tiroir-poignee {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  z-index: 58;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 7px 14px;
+  background: var(--nuit-2);
+  color: var(--turquoise);
+  border: 1px solid var(--turquoise);
+  border-right: none;
+  border-radius: var(--rayon-2) 0 0 var(--rayon-2);
+  box-shadow: var(--ombre-2), var(--liseret-haut);
+  cursor: pointer;
+  font-family: var(--fonte);
+  transform: translateY(-50%);
+  transition:
+    transform var(--dur-lent) var(--ease-sortie),
+    background var(--dur-vite) ease;
+}
+
+.tiroir-poignee:hover {
+  background: var(--nuit-clair);
+}
+
+.tiroir-poignee--ouvert {
+  transform: translateY(-50%) translateX(calc(-1 * var(--tiroir-larg)));
+}
+
+.tiroir-poignee__texte {
+  writing-mode: vertical-rl;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* un seul battement d'attention quand la phase réponse commence — la propriété `scale`
+   se compose avec le transform de position, transform-only par construction */
+.tiroir-poignee--pulse {
+  animation: poignee-pulse 700ms var(--ease-pop);
+}
+
+@keyframes poignee-pulse {
+  35% {
+    scale: 1.1;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+/*
+ * §2 — tiroir flottant (auto-ouverture de la phase réponse) : pas de voile, et sur écran
+ * large la table se réserve la place du tiroir (reflux d'état, instantané — on n'anime
+ * jamais le layout) pour que consigne, actions et sièges restent visibles ET cliquables.
+ * L'arc des sièges défile s'il déborde de la largeur restante.
+ */
+@media (min-width: 1200px) {
+  .jeu--tiroir-flottant {
+    padding-right: var(--tiroir-larg);
+  }
+}
+
+.jeu--tiroir-flottant .places-arc {
+  justify-content: flex-start;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+/* §2 — colonne « Réponses » en tête de rangée : les réponses publiques données par CE
+   joueur ce tour-ci — mini-carte (face si visible pour ce spectateur, sinon verso de
+   catégorie) + pastille ✓ OUI / ✗ NON (icône + couleur, jamais la couleur seule). */
+.pb-grille__entete-reponses {
+  background: var(--nuit);
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  font-size: 9px;
+}
+
+.pb-reponses {
+  background: var(--nuit);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 6px;
+  min-height: 44px;
+}
+
+.pb-reponses__vide {
+  color: rgba(237, 248, 249, 0.3);
+  font-size: 11px;
+}
+
+.pb-reponse {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pb-reponse__carte {
+  width: 19px;
+  aspect-ratio: var(--carte-ratio);
+  object-fit: cover;
+  display: block;
+  border: 1px solid var(--encre-bord);
+  border-radius: 2px;
+}
+
+.pb-reponse__chip {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: var(--blanc);
+  white-space: nowrap;
+}
+
+.pb-reponse__chip--oui {
+  background: var(--vert);
+}
+
+.pb-reponse__chip--non {
+  background: var(--vermillon);
+}
+
+/*
+ * §4 — cycle d'une action de phase. Envoyé : le bouton s'enfonce (translateY 1px + ombre
+ * rentrée — jamais un simple gris) et, passé ~200ms sans ack, un spinner s'y loge.
+ * Confirmé : le chip « Validé / Passé ✓ » se pose avec un pop back-out ~200ms.
+ */
+.btn--envoi:disabled {
+  opacity: 1;
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 3px rgba(10, 14, 35, 0.35);
+  cursor: progress;
+}
+
+.btn__spinner {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spinner-tour 800ms linear infinite;
+}
+
+@keyframes spinner-tour {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.fait-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--vert);
+  border: 1px solid var(--vert);
+  border-radius: 999px;
+  background: rgba(var(--succes-rgb), 0.12);
+  animation: fait-chip-entree 200ms var(--ease-pop) both;
+}
+
+@keyframes fait-chip-entree {
+  from {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+
+.fait-chip__coche {
+  display: inline-grid;
+  place-items: center;
+  animation: fait-chip-entree 260ms var(--ease-pop) 60ms both;
+}
+
+/* §4 — coches « prêt » du traqueur : états explicites fait / en attente, micro-pop à
+   l'arrivée de chaque coche (la vôtre au même instant que le chip — même barrier). */
+.pret-tique--attente {
+  border-style: dashed;
+}
+
+.pret-tique--ok {
+  background: rgba(var(--succes-rgb), 0.14);
+}
+
+.pret-tique--ok .pret-tique__coche {
+  display: inline-block;
+  animation: coche-pop 240ms var(--ease-pop) both;
+}
+
+@keyframes coche-pop {
+  from {
+    transform: scale(1.5);
+    opacity: 0;
+  }
 }
 
 /* ---- responsive -------------------------------------------------------------- */
@@ -2355,5 +2631,16 @@ button.pose-ev__item {
   /* pas de chaloupe : la main reste posée (les vols sont déjà coupés côté JS) */
   .main-ev .carte-jeu {
     animation: none;
+  }
+
+  /* QoL : la loupe et le chip confirmé apparaissent instantanément (durées effondrées) ;
+     la poignée ne pulse pas du tout ; le SPINNER continue de tourner — il porte un état
+     (requête en cours), pas une décoration. */
+  .tiroir-poignee--pulse {
+    animation: none;
+  }
+
+  .btn__spinner {
+    animation-duration: 800ms !important;
   }
 }

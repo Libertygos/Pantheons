@@ -115,7 +115,6 @@ export const fr = {
       pouvoirs: (n: number) => `${n} pouvoir${n > 1 ? 's' : ''}`,
       speciale: 'Une Spéciale est posée sur son emplacement',
     },
-    enAttente: (n: number, total: number) => `En attente des autres joueurs (${n}/${total})`,
     aide: 'Aide',
     quitter: 'Quitter',
     elimine: 'Éliminé',
@@ -151,6 +150,22 @@ export const fr = {
     retirer: 'Retirer',
   },
 
+  /** États « action de phase envoyée / confirmée » (QoL §4). */
+  fait: {
+    valide: 'Validé',
+    passe: 'Passé',
+    pioche: 'Pioche validée',
+    questions: (n?: number) =>
+      n === undefined
+        ? 'Questions validées'
+        : n === 0
+          ? 'Tour passé sans question'
+          : `${n} question${n > 1 ? 's' : ''} validée${n > 1 ? 's' : ''}`,
+    reponsePassee: 'Vous avez passé',
+    declaration: 'Déclaration envoyée',
+    enAttenteDe: (noms: string) => `en attente de ${noms}…`,
+  },
+
   declaration: {
     button: 'Déclarer « Panthéons »',
     title: 'Déclaration « Panthéons »',
@@ -179,6 +194,8 @@ export const fr = {
     note: 'Vos notes personnelles — jamais partagées, jamais envoyées.',
     ouvrir: 'Ouvrir le pense-bête',
     fermer: 'Fermer le pense-bête',
+    reponses: 'Réponses',
+    aucuneReponse: 'Aucune réponse ce tour',
     restants: (n: number) => `${n} possibles`,
     etats: { inconnu: 'inconnu', exclu: 'exclu', suspect: 'retenu' } as Record<string, string>,
     axes: { genre: 'Genre', couleurYeux: 'Yeux', pantheon: 'Panthéon' },

@@ -11,8 +11,14 @@
  *
  * Interactivité : la carte est inerte ; on l'enveloppe dans un bouton `.carte-scene`
  * (lift + élévation au survol ET au focus clavier, cible ≥ 44px).
+ *
+ * Inspection (QoL §1) : toute face VISIBLE porte d'office la loupe partagée (survol ≥ 180ms
+ * pointeur fin / focus clavier → prévisualisation grand format via <CardInspectLayer>).
+ * `inspect={false}` la débranche (vols transients, dieu du dock, la loupe elle-même) ;
+ * une carte face cachée n'a jamais de loupe — rien à agrandir, rien à divulguer.
  */
 import { CardImage } from './CardImage.js';
+import { useCardInspect } from './card-inspect.js';
 import { cardBackSrc } from '../assets.js';
 import { fr } from '../i18n/fr.js';
 
@@ -80,6 +86,7 @@ export function GameCard({
   revealed = false,
   namePlate,
   className,
+  inspect = true,
 }: {
   size?: GameCardSize;
   /** Face visible. Absente = carte face cachée (fournir `back` seul). */
@@ -91,8 +98,14 @@ export function GameCard({
   /** Plaque de nom optionnelle au pied de la face. */
   namePlate?: string;
   className?: string;
+  /** Loupe d'inspection au survol/focus (défaut : active dès qu'une face est visible). */
+  inspect?: boolean;
 }) {
   const flippable = Boolean(face && back);
+  const faceVisible = Boolean(face) && (!flippable || revealed);
+  const inspectRef = useCardInspect<HTMLDivElement>(
+    inspect && faceVisible && face ? { face, namePlate } : null,
+  );
   const classes = [
     'carte-jeu',
     `carte-jeu--${size}`,
@@ -104,7 +117,7 @@ export function GameCard({
     .join(' ');
 
   return (
-    <div className={classes}>
+    <div className={classes} ref={inspectRef}>
       <div className="carte-jeu__volet">
         {/* Face par défaut : le dos si la carte se retourne, sinon la seule face fournie. */}
         <div className="carte-jeu__face">

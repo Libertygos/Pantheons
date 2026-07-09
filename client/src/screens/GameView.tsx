@@ -4,7 +4,10 @@
  * reçues (la table montre « qui s'est fait demander quoi »). Au centre, la table partagée :
  * traqueur de phase (consigne + actions + coches prêt par siège), pioches empilées,
  * indicateur de tour, événements transients. En bas, mon dock : VOTRE DIEU (face cachée,
- * appui maintenu = retournement 3D), MA MAIN en éventail, CONTRE VOUS / SPÉCIALE, POUVOIR.
+ * appui maintenu = révélation en grand via la loupe), MA MAIN en éventail, CONTRE VOUS /
+ * SPÉCIALE, POUVOIR. QoL : loupe d'inspection sur toute face visible (CardInspectLayer),
+ * tiroir pense-bête auto-ouvert en mode flottant à la phase réponse + poignée au bord
+ * droit, cycle envoyé → confirmé sur les actions de phase (autorité : barrier serveur).
  *
  * Cards are final images displayed as-is; all interaction is chrome around them.
  * Un éliminé reste face cachée (la projection n'envoie jamais son dieu — never-send).
@@ -17,7 +20,9 @@ import { PhaseTracker } from '../components/PhaseTracker.js';
 import { SeatPlaque, PlacedMiniCard, type SeatQuestion } from '../components/SeatPlaque.js';
 import { GameCard } from '../components/GameCard.js';
 import { PenseBeteGrid } from '../components/PenseBeteGrid.js';
-import { describeQuestionCard, questionCardBand } from '../components/card-text.js';
+import { CardInspectLayer } from '../components/CardInspectLayer.js';
+import { hideInspect, showInspect, useCardInspect } from '../components/card-inspect.js';
+import { describeQuestionCard, godCardFace, questionCardBand } from '../components/card-text.js';
 import { usePenseBete } from '../state/pense-bete.js';
 import { godCardSrc, godPortraitSrc, penseBeteSrc, pouvoirCardSrc, questionCardSrc } from '../assets.js';
 import { fr } from '../i18n/fr.js';
@@ -102,10 +107,18 @@ function makeFlight(
   };
 }
 
+/** Action de phase envoyée, en attente de l'ack serveur (QoL §4 — seul état client-local). */
+interface SentAction {
+  kind: 'valide' | 'passe' | 'declaration';
+  /** Nombre de questions validées (phase question), pour la consigne au passé. */
+  n?: number;
+}
+
 export function GameView({
   proj,
   send,
   banner,
+  rejectNonce = 0,
   info,
   onInfoDismiss,
   over,
@@ -114,6 +127,8 @@ export function GameView({
   proj: PlayerProjection;
   send: (type: string, payload: unknown) => void;
   banner: string | null;
+  /** Compteur de rejets serveur — chaque incrément rend l'action de phase à nouveau actionnable. */
+  rejectNonce?: number;
   /** Révélations privées / activations publiques relayées par RoomScreen. */
   info?: string | null;
   onInfoDismiss?: () => void;
@@ -129,9 +144,15 @@ export function GameView({
   const [guesses, setGuesses] = useState<Record<string, GodId>>({});
   const [showHelp, setShowHelp] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  /** Tiroir modal (ouverture manuelle : voile + focus) ou flottant (auto-ouverture réponse). */
+  const [notesModal, setNotesModal] = useState(true);
+  const [handlePulse, setHandlePulse] = useState(false);
   const [discardId, setDiscardId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [flights, setFlights] = useState<Flight[]>([]);
+  /** QoL §4 : action de phase partie au serveur — Pending tant que youSubmitted est faux. */
+  const [sent, setSent] = useState<SentAction | null>(null);
+  const [sentSlow, setSentSlow] = useState(false);
   const notesCloseRef = useRef<HTMLButtonElement | null>(null);
   const penseBete = usePenseBete(proj.roomId);
 
@@ -139,16 +160,39 @@ export function GameView({
   const volMain = new Set(flights.filter((f) => f.hide === 'main').map((f) => f.cardId));
   const volFantome = new Set(flights.filter((f) => f.hide === 'fantome').map((f) => f.cardId));
 
-  // Tiroir : ESC ferme, l'ouverture donne le focus au bouton de fermeture.
+  // Tiroir : ESC ferme ; en mode MODAL seulement, l'ouverture donne le focus au bouton de
+  // fermeture (l'auto-ouverture de la phase réponse ne vole jamais le focus du jeu).
   useEffect(() => {
     if (!showNotes) return;
-    notesCloseRef.current?.focus();
+    if (notesModal) notesCloseRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setShowNotes(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [showNotes]);
+  }, [showNotes, notesModal]);
+
+  // QoL §2 : au DÉBUT de la phase réponse, le tiroir s'ouvre seul en mode flottant (pas de
+  // voile, la table reste jouable). Une seule fois par tour : le refermer vaut pour toute
+  // la phase, jusqu'à la réponse du tour suivant.
+  const autoOpenedTour = useRef(0);
+  useEffect(() => {
+    if (over || !proj.self.alive) return;
+    if (proj.phase !== 'reponse' || proj.status !== 'enCours') return;
+    if (autoOpenedTour.current === proj.tour) return;
+    autoOpenedTour.current = proj.tour;
+    setShowNotes(true);
+    setNotesModal(false);
+    setHandlePulse(true);
+  }, [proj.phase, proj.status, proj.tour, proj.self.alive, over]);
+
+  // Le battement d'attention de la poignée s'éteint de lui-même (déterministe, y compris
+  // sous reduced-motion où l'animation CSS est coupée).
+  useEffect(() => {
+    if (!handlePulse) return;
+    const t = window.setTimeout(() => setHandlePulse(false), 900);
+    return () => window.clearTimeout(t);
+  }, [handlePulse]);
 
   // Reset staging when the phase or turn moves on.
   const phaseKey = `${proj.tour}:${proj.phase}`;
@@ -163,8 +207,15 @@ export function GameView({
       setDeclaring(false);
       setGuesses({});
       setDiscardId(null);
+      setSent(null);
     }
   }, [phaseKey]);
+
+  // QoL §4 : un rejet serveur rend l'action actionnable — la notice d'erreur existante
+  // (banner) porte l'explication.
+  useEffect(() => {
+    setSent(null);
+  }, [rejectNonce]);
 
   // Surface new eliminations (declaration failed — god stays hidden).
   const prevEliminated = useRef<string[]>(proj.eliminated);
@@ -186,7 +237,30 @@ export function GameView({
   const youSubmitted = proj.barrier.youSubmitted;
   const handCards = me.handCards ?? { attributs: [], actions: [] };
   const powerCards = me.powerCards ?? [];
-  const liveTotal = [me, ...proj.opponents].filter((x) => x.alive && x.connected).length;
+
+  // QoL §4 : Pending = envoyé mais pas encore confirmé par la projection ; passé ~200ms,
+  // un spinner s'ajoute au bouton enfoncé (jamais un simple gris).
+  const pendingSent = sent !== null && !youSubmitted;
+  useEffect(() => {
+    if (!pendingSent) {
+      setSentSlow(false);
+      return;
+    }
+    const t = window.setTimeout(() => setSentSlow(true), 200);
+    return () => window.clearTimeout(t);
+  }, [pendingSent]);
+
+  // QoL §4 — les coches adverses : pendant pioche et réponse, les soumissions des autres
+  // n'arrivent qu'au changement de phase (le serveur ne diffuse que sur question/pouvoir) ;
+  // tant qu'il manque des coches, on sonde légèrement l'état via le même REQUEST_STATE.
+  const liveConnected = [me, ...proj.opponents].filter((x) => x.alive && x.connected);
+  const allIn = liveConnected.every((x) => proj.barrier.submitted.includes(x.userId));
+  useEffect(() => {
+    if (over || proj.status !== 'enCours' || proj.phase === 'question' || allIn) return;
+    const t = window.setInterval(() => send('REQUEST_STATE', {}), 2500);
+    return () => window.clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [over, proj.status, proj.phase, proj.tour, allIn]);
 
   const rules = proj.questionRules;
   const selectedCard =
@@ -246,13 +320,33 @@ export function GameView({
     setSelectedCardId(null);
   };
 
+  /**
+   * QoL §4 — l'ack : le serveur ne pousse une projection que sur question/pouvoir et aux
+   * changements de phase ; pour pioche et déclaration, on RE-DEMANDE l'état juste après
+   * l'envoi (REQUEST_STATE → RECONNECT_OK unicast, protocole existant — traité dans
+   * l'ordre par le serveur, la réponse reflète donc la soumission).
+   */
+  const askRefresh = () => send('REQUEST_STATE', {});
+
   const submitPioche = () => {
-    if (powerCards.length > 1 && !discardId) return;
+    if (pendingSent || (powerCards.length > 1 && !discardId)) return;
+    setSent({ kind: 'valide' });
     send('pioche', powerCards.length > 1 ? { discardPowerId: discardId } : {});
+    askRefresh();
   };
 
   const submitQuestions = () => {
+    if (pendingSent) return;
+    const n = stagedPlays.length;
+    setSent({ kind: n === 0 && stagedSpeciales.length === 0 ? 'passe' : 'valide', n });
     send('question', { intent: { plays: stagedPlays }, specialePlays: stagedSpeciales });
+  };
+
+  const passReponse = () => {
+    if (pendingSent) return;
+    setSent({ kind: 'passe' });
+    send('declaration', {});
+    askRefresh();
   };
 
   /** Sabotage / Espionnage : choisir une carte posée n'importe où sur la table. */
@@ -332,8 +426,10 @@ export function GameView({
   const declarationComplete = liveOpponents.every((o) => guesses[o.userId]);
 
   const submitDeclaration = () => {
-    if (!declarationComplete) return;
+    if (!declarationComplete || pendingSent) return;
+    setSent({ kind: 'declaration' });
     send('declaration', { guesses });
+    askRefresh();
     setDeclaring(false);
   };
 
@@ -351,6 +447,24 @@ export function GameView({
   };
 
   // ---- consigne du traqueur (absorbe l'ancienne bannière jaune) --------------------
+  // QoL §4 : une fois confirmé, la consigne passe au passé et NOMME les joueurs encore
+  // attendus — la même source (barrier.submitted) que les coches du traqueur.
+  const pendingNames = proj.seatOrder
+    .map((uid) => (uid === me.userId ? me : proj.opponents.find((o) => o.userId === uid)))
+    .filter((x): x is NonNullable<typeof x> =>
+      Boolean(x && x.alive && x.connected && !proj.barrier.submitted.includes(x.userId)),
+    )
+    .map((x) => x.displayName);
+
+  const faitLine =
+    sent?.kind === 'declaration'
+      ? fr.fait.declaration
+      : proj.phase === 'pioche'
+        ? fr.fait.pioche
+        : proj.phase === 'question'
+          ? fr.fait.questions(sent?.n)
+          : fr.fait.reponsePassee;
+
   const instruction =
     over || !alive
       ? null
@@ -359,7 +473,9 @@ export function GameView({
           ? fr.jeu.choisirCiblePouvoir(data.POWERS[powerMode]?.label ?? powerMode)
           : fr.jeu.choisirCartePosee(data.POWERS[powerMode]?.label ?? powerMode)
         : youSubmitted
-          ? fr.jeu.enAttente(proj.barrier.submitted.length, liveTotal)
+          ? pendingNames.length > 0
+            ? `${faitLine} — ${fr.fait.enAttenteDe(pendingNames.join(', '))}`
+            : faitLine
           : proj.phase === 'pioche'
             ? powerCards.length > 1
               ? fr.consignes.piocheDefausse
@@ -374,40 +490,81 @@ export function GameView({
                     : fr.consignes.question
               : fr.consignes.reponse;
 
+  // Libellé du chip confirmé : le passé de CE qui a été fait (repli par phase après un
+  // rechargement, où `sent` n'existe plus).
+  const chipLabel = sent
+    ? sent.kind === 'passe'
+      ? fr.fait.passe
+      : fr.fait.valide
+    : proj.phase === 'reponse'
+      ? fr.fait.passe
+      : fr.fait.valide;
+
+  const spinner = sentSlow ? <span className="btn__spinner" aria-hidden="true" /> : null;
+
   const trackerActions =
     over || !alive ? null : powerMode ? (
       <button className="btn btn--nu btn--petit" onClick={() => setPowerMode(null)}>
         {fr.jeu.annulerPouvoir}
       </button>
-    ) : youSubmitted ? null : (
+    ) : youSubmitted ? (
+      <span className="fait-chip" role="status">
+        <span className="fait-chip__coche" aria-hidden="true">
+          ✓
+        </span>
+        {chipLabel}
+      </span>
+    ) : (
       <>
         {proj.phase === 'pioche' && (
           <button
-            className="btn btn--givre btn--petit"
+            className={`btn btn--givre btn--petit ${pendingSent ? 'btn--envoi' : ''}`}
             onClick={submitPioche}
-            disabled={powerCards.length > 1 && !discardId}
+            disabled={pendingSent || (powerCards.length > 1 && !discardId)}
           >
+            {spinner}
             {fr.consignes.validerPioche}
           </button>
         )}
         {proj.phase === 'question' && (
           <>
             {selectedIsSpeciale && !selectedSpecialeACible && (
-              <button className="btn btn--petit" onClick={stageSpeciale} disabled={stagedSpeciales.length > 0}>
+              <button
+                className="btn btn--petit"
+                onClick={stageSpeciale}
+                disabled={pendingSent || stagedSpeciales.length > 0}
+              >
                 {fr.consignes.poserSpeciale}
               </button>
             )}
-            <button className="btn btn--givre btn--petit" onClick={submitQuestions}>
+            <button
+              className={`btn btn--givre btn--petit ${pendingSent ? 'btn--envoi' : ''}`}
+              onClick={submitQuestions}
+              disabled={pendingSent}
+            >
+              {spinner}
               {fr.consignes.validerQuestions(stagedPlays.length)}
             </button>
           </>
         )}
         {proj.phase === 'reponse' && (
           <>
-            <button className="btn btn--petit" onClick={() => send('declaration', {})}>
+            <button
+              className={`btn btn--petit ${pendingSent && sent?.kind === 'passe' ? 'btn--envoi' : ''}`}
+              onClick={passReponse}
+              disabled={pendingSent}
+            >
+              {sent?.kind === 'passe' && spinner}
               {fr.pass}
             </button>
-            <button className="btn btn--primaire btn--petit" onClick={() => setDeclaring(true)}>
+            <button
+              className={`btn btn--primaire btn--petit ${
+                pendingSent && sent?.kind === 'declaration' ? 'btn--envoi' : ''
+              }`}
+              onClick={() => setDeclaring(true)}
+              disabled={pendingSent}
+            >
+              {sent?.kind === 'declaration' && spinner}
               {fr.declaration.button}
             </button>
           </>
@@ -475,15 +632,19 @@ export function GameView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stagedIdsKey]);
 
+  // Ouverture manuelle par la poignée : mode modal (voile + focus), comportement historique.
+  const toggleNotes = () => {
+    if (showNotes) {
+      setShowNotes(false);
+    } else {
+      setNotesModal(true);
+      setShowNotes(true);
+    }
+  };
+
   return (
-    <div className="jeu">
-      <GameTopBar
-        tour={proj.tour}
-        notesOpen={showNotes}
-        onNotes={() => setShowNotes((v) => !v)}
-        onHelp={() => setShowHelp(true)}
-        onExit={onExit}
-      />
+    <div className={`jeu ${showNotes && !notesModal ? 'jeu--tiroir-flottant' : ''}`}>
+      <GameTopBar tour={proj.tour} onHelp={() => setShowHelp(true)} onExit={onExit} />
 
       {/* bande haute : l'arc des sièges */}
       <div className="places-arc">
@@ -579,9 +740,10 @@ export function GameView({
         </div>
       </section>
 
-      {/* tiroir pense-bête : glisse sur la table, la table s'assombrit derrière */}
+      {/* tiroir pense-bête : glisse sur la table ; le voile n'assombrit qu'en mode manuel
+          (modal) — l'auto-ouverture de la réponse laisse la table entièrement jouable */}
       <div
-        className={`tiroir-voile ${showNotes ? 'tiroir-voile--visible' : ''}`}
+        className={`tiroir-voile ${showNotes && notesModal ? 'tiroir-voile--visible' : ''}`}
         onClick={() => setShowNotes(false)}
         aria-hidden="true"
       />
@@ -615,6 +777,13 @@ export function GameView({
                       displayName: o.displayName,
                       alive: o.alive,
                       tint: seatTint(seatOf(o.userId)),
+                      // QoL §2 : les réponses publiques de CE tour (answeredOui est public ;
+                      // la face reste celle que la projection montre à CE spectateur), les
+                      // plateaux étant vidés par le moteur à chaque fin de tour.
+                      answers: questionsAgainst(o.userId)
+                        .filter((q) => q.placed.answeredOui !== undefined)
+                        .map((q) => ({ key: `${q.placerId}:${q.stackIndex}`, placed: q.placed }))
+                        .reverse(),
                     }
                   : null;
               })
@@ -625,6 +794,26 @@ export function GameView({
           />
         </div>
       </aside>
+
+      {/* QoL §3 : la poignée du pense-bête — l'onglet vertical au bord droit, TOUJOURS
+          visible ; tiroir ouvert, elle chevauche son bord gauche (même contrôle spatial). */}
+      <button
+        className={[
+          'tiroir-poignee',
+          showNotes ? 'tiroir-poignee--ouvert' : '',
+          handlePulse ? 'tiroir-poignee--pulse' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        onClick={toggleNotes}
+        aria-expanded={showNotes}
+        aria-controls="tiroir-pense-bete"
+        aria-label={showNotes ? fr.penseBete.fermer : fr.penseBete.ouvrir}
+        title={fr.penseBete.title}
+      >
+        <NotebookIcon />
+        <span className="tiroir-poignee__texte">{fr.penseBete.title}</span>
+      </button>
 
       {/* bande basse : mon dock */}
       <div className="dock surface-levee">
@@ -643,6 +832,10 @@ export function GameView({
                 const i = idx - (hand.length - 1) / 2;
                 const staged = stagedCardIds.has(card.id);
                 const target = targetNameOf(card.id);
+                // Verrouillée = injouable, PAS inerte : aria-disabled (et non disabled)
+                // garde le survol et le focus clavier — la loupe d'inspection (QoL §1)
+                // doit rester lisible à toutes les phases.
+                const locked = proj.phase !== 'question' || youSubmitted || !alive;
                 return (
                   <button
                     key={card.id}
@@ -660,8 +853,9 @@ export function GameView({
                         visibility: volMain.has(card.id) ? 'hidden' : undefined,
                       } as CSSProperties
                     }
-                    disabled={proj.phase !== 'question' || youSubmitted || !alive}
+                    aria-disabled={locked || undefined}
                     onClick={() => {
+                      if (locked) return;
                       if (staged) unstage(card.id);
                       else setSelectedCardId((cur) => (cur === card.id ? null : card.id));
                     }}
@@ -818,7 +1012,12 @@ export function GameView({
               ))}
             </div>
             <div className="modale__pied">
-              <button className="btn btn--givre" onClick={submitPioche} disabled={!discardId}>
+              <button
+                className={`btn btn--givre ${pendingSent ? 'btn--envoi' : ''}`}
+                onClick={submitPioche}
+                disabled={pendingSent || !discardId}
+              >
+                {spinner}
                 {fr.consignes.validerPioche}
               </button>
             </div>
@@ -842,14 +1041,12 @@ export function GameView({
                 </div>
                 <div className="decl-dieux">
                   {ALL_GODS.map((god) => (
-                    <button
+                    <DeclDieu
                       key={god.id}
-                      className={`decl-dieu ${guesses[opp.userId] === god.id ? 'decl-dieu--choisi' : ''}`}
-                      onClick={() => setGuesses((g) => ({ ...g, [opp.userId]: god.id }))}
-                      title={god.label}
-                    >
-                      <img src={godPortraitSrc(god.id)} alt={god.label} />
-                    </button>
+                      godId={god.id}
+                      chosen={guesses[opp.userId] === god.id}
+                      onPick={() => setGuesses((g) => ({ ...g, [opp.userId]: god.id }))}
+                    />
                   ))}
                 </div>
               </div>
@@ -859,10 +1056,11 @@ export function GameView({
                 {fr.declaration.cancel}
               </button>
               <button
-                className="btn btn--primaire"
+                className={`btn btn--primaire ${pendingSent ? 'btn--envoi' : ''}`}
                 onClick={submitDeclaration}
-                disabled={!declarationComplete}
+                disabled={pendingSent || !declarationComplete}
               >
+                {sent?.kind === 'declaration' && spinner}
                 {fr.declaration.confirm}
               </button>
             </div>
@@ -921,6 +1119,7 @@ export function GameView({
           {f.face ? (
             <GameCard
               size="sm"
+              inspect={false}
               face={{
                 src: questionCardSrc(f.face),
                 alt: '',
@@ -962,7 +1161,54 @@ export function GameView({
           </div>
         </div>
       )}
+
+      {/* QoL §1 : la loupe d'inspection — portail unique, une prévisualisation à la fois */}
+      <CardInspectLayer />
     </div>
+  );
+}
+
+/** Choix de dieu de la déclaration, avec la loupe : la vraie carte Personnage en grand. */
+function DeclDieu({
+  godId,
+  chosen,
+  onPick,
+}: {
+  godId: GodId;
+  chosen: boolean;
+  onPick: () => void;
+}) {
+  const ref = useCardInspect<HTMLButtonElement>({ face: godCardFace(godId) });
+  return (
+    <button
+      ref={ref}
+      className={`decl-dieu ${chosen ? 'decl-dieu--choisi' : ''}`}
+      onClick={onPick}
+      title={GODS[godId].label}
+    >
+      <img src={godPortraitSrc(godId)} alt={GODS[godId].label} />
+    </button>
+  );
+}
+
+/** Carnet filaire — même langage de trait que les pictos des trois temps. */
+function NotebookIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 32 32"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="7" y="4.5" width="19" height="23" rx="2" />
+      <path d="M12 4.5v23" />
+      <path d="M16.5 11h5.5M16.5 16h5.5M16.5 21h3.5" />
+    </svg>
   );
 }
 
@@ -998,14 +1244,26 @@ function DeckPile({
 }
 
 /**
- * Mon dieu : face cachée par défaut ; le retournement 3D se tient tant qu'on maintient —
- * survol (pointeur fin), appui maintenu (tactile), Espace/Entrée maintenu (clavier).
+ * Mon dieu : face cachée en permanence sur la table ; MAINTENIR POUR RÉVÉLER affiche la
+ * face révélée en GRAND (la loupe d'inspection, QoL §1) le temps de l'appui — pointeur
+ * maintenu (souris/tactile) ou Espace/Entrée maintenu (clavier). Le survol seul ne montre
+ * rien. L'identité (face, libellés) n'est montée dans le DOM QUE pendant l'appui.
  */
 function MyGodCard({ god }: { god: GodId }) {
   const [held, setHeld] = useState(false);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const el = btnRef.current;
+    if (!held || !el) return;
+    showInspect({ anchor: el, face: godCardFace(god) });
+    return () => hideInspect(el);
+  }, [held, god]);
+
   return (
     <>
       <button
+        ref={btnRef}
         className="dock-dieu"
         onPointerDown={(e) => {
           e.preventDefault();
@@ -1013,9 +1271,6 @@ function MyGodCard({ god }: { god: GodId }) {
         }}
         onPointerUp={() => setHeld(false)}
         onPointerCancel={() => setHeld(false)}
-        onPointerEnter={(e) => {
-          if (e.pointerType === 'mouse') setHeld(true);
-        }}
         onPointerLeave={() => setHeld(false)}
         onKeyDown={(e) => {
           if (e.key === ' ' || e.key === 'Enter') {
@@ -1026,20 +1281,9 @@ function MyGodCard({ god }: { god: GodId }) {
         onKeyUp={() => setHeld(false)}
         onBlur={() => setHeld(false)}
         onContextMenu={(e) => e.preventDefault()}
-        aria-label={`${fr.yourGod} — ${GODS[god].label}`}
+        aria-label={fr.yourGod}
       >
-        <GameCard
-          size="md"
-          back="personnages"
-          revealed={held}
-          face={{
-            src: godCardSrc(god),
-            alt: GODS[god].label,
-            typeLabel: 'Personnage',
-            bodyLabel: GODS[god].label,
-            tint: 'teinte-personnage',
-          }}
-        />
+        <GameCard size="md" back="personnages" inspect={false} />
       </button>
       <span className="dock-dieu__hint">{fr.jeu.monDieuHint}</span>
     </>
