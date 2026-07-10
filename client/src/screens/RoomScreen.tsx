@@ -86,9 +86,8 @@ export function RoomScreen({
       }
     });
     room.onMessage('gameOver', () => setOver(true));
-    // Réponse au REQUEST_STATE de milieu de partie (QoL §4) : le serveur ne diffuse pas de
-    // projection sur les soumissions pioche/déclaration — le client RE-DEMANDE son état
-    // (unicast, même projection filtrée que 'state', mêmes garanties never-send).
+    // Réponse au REQUEST_STATE de milieu de partie (reconnexion) : unicast portant la même
+    // projection filtrée que 'state', mêmes garanties never-send.
     room.onMessage('RECONNECT_OK', (ok: ReconnectOk) => {
       if (!ok?.state) return;
       projRef.current = ok.state;

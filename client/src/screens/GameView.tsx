@@ -250,18 +250,6 @@ export function GameView({
     return () => window.clearTimeout(t);
   }, [pendingSent]);
 
-  // QoL §4 — les coches adverses : pendant pioche et réponse, les soumissions des autres
-  // n'arrivent qu'au changement de phase (le serveur ne diffuse que sur question/pouvoir) ;
-  // tant qu'il manque des coches, on sonde légèrement l'état via le même REQUEST_STATE.
-  const liveConnected = [me, ...proj.opponents].filter((x) => x.alive && x.connected);
-  const allIn = liveConnected.every((x) => proj.barrier.submitted.includes(x.userId));
-  useEffect(() => {
-    if (over || proj.status !== 'enCours' || proj.phase === 'question' || allIn) return;
-    const t = window.setInterval(() => send('REQUEST_STATE', {}), 2500);
-    return () => window.clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [over, proj.status, proj.phase, proj.tour, allIn]);
-
   const rules = proj.questionRules;
   const selectedCard =
     [...handCards.attributs, ...handCards.actions].find((c) => c.id === selectedCardId) ?? null;
@@ -320,19 +308,10 @@ export function GameView({
     setSelectedCardId(null);
   };
 
-  /**
-   * QoL §4 — l'ack : le serveur ne pousse une projection que sur question/pouvoir et aux
-   * changements de phase ; pour pioche et déclaration, on RE-DEMANDE l'état juste après
-   * l'envoi (REQUEST_STATE → RECONNECT_OK unicast, protocole existant — traité dans
-   * l'ordre par le serveur, la réponse reflète donc la soumission).
-   */
-  const askRefresh = () => send('REQUEST_STATE', {});
-
   const submitPioche = () => {
     if (pendingSent || (powerCards.length > 1 && !discardId)) return;
     setSent({ kind: 'valide' });
     send('pioche', powerCards.length > 1 ? { discardPowerId: discardId } : {});
-    askRefresh();
   };
 
   const submitQuestions = () => {
@@ -346,7 +325,6 @@ export function GameView({
     if (pendingSent) return;
     setSent({ kind: 'passe' });
     send('declaration', {});
-    askRefresh();
   };
 
   /** Sabotage / Espionnage : choisir une carte posée n'importe où sur la table. */
@@ -429,7 +407,6 @@ export function GameView({
     if (!declarationComplete || pendingSent) return;
     setSent({ kind: 'declaration' });
     send('declaration', { guesses });
-    askRefresh();
     setDeclaring(false);
   };
 

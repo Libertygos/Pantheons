@@ -119,7 +119,12 @@ export class PantheonsRoom extends Room {
     this.onMessage('REQUEST_STATE', (client) => this.guard(client, (uid) => this.sendResumeState(client, uid)));
 
     // Match surface: submissions to the simultaneous-phase barrier.
-    this.onMessage('pioche', (client, msg) => this.guard(client, (uid) => this.controller?.submitPioche(uid, msg)));
+    this.onMessage('pioche', (client, msg) =>
+      this.guard(client, (uid) => {
+        this.controller?.submitPioche(uid, msg);
+        this.broadcastProjections();
+      }),
+    );
     this.onMessage('question', (client, msg) =>
       this.guard(client, (uid) => {
         // specialePlays carries placement choices; legacy specialeCardIds still accepted.
@@ -130,7 +135,10 @@ export class PantheonsRoom extends Room {
       }),
     );
     this.onMessage('declaration', (client, msg) =>
-      this.guard(client, (uid) => this.controller?.submitDeclaration(uid, msg)),
+      this.guard(client, (uid) => {
+        this.controller?.submitDeclaration(uid, msg);
+        this.broadcastProjections();
+      }),
     );
     // Explicit power activations (Sabotage / Refus royal / Clonage / Déduction /
     // Espionnage / Exécution). Public event via onPhaseEvent; private payloads unicast.
