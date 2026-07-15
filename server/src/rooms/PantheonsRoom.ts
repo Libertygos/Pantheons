@@ -28,6 +28,7 @@ import { MatchController, type PhaseEvent } from './barrier.js';
 import { generateRoomCode, normalizeRoomCode } from './room-code.js';
 import { isCodeTaken, registerRoom, unregisterRoom, type RoomPhase } from './room-registry.js';
 import { verifySession } from '../auth/session.js';
+import { reportMatch } from '../http/matchReport.js';
 import {
   recordPlayerConnected,
   recordPlayerDisconnected,
@@ -94,6 +95,10 @@ export class PantheonsRoom extends Room {
   private index: CardIndex | null = null;
   private started = false;
   private sessionSecret = process.env.SESSION_JWT_SECRET ?? '';
+  /** Facts for the platform match report, frozen at startMatch (the room locks). */
+  private matchStartedAt: Date | null = null;
+  private matchPlayerIds: string[] = [];
+  private matchReported = false;
 
   // ---- lifecycle ------------------------------------------------------------
 
@@ -432,6 +437,8 @@ export class PantheonsRoom extends Room {
       (userId, reveal) => this.clientByUser.get(userId)?.send('reveal', reveal),
     );
     this.started = true;
+    this.matchStartedAt = new Date();
+    this.matchPlayerIds = seatInputs.map((s) => s.userId);
     this.lock(); // no new joiners mid-match (reconnects still allowed)
     // The start signal is the first per-seat projection ('state'), wog-room.md §4.3.
     this.broadcastProjections();
@@ -496,7 +503,19 @@ export class PantheonsRoom extends Room {
   private onPhaseEvent(e: PhaseEvent): void {
     this.broadcast('event', e);
     this.broadcastProjections();
-    if (e.type === 'gameOver') this.broadcast('gameOver', { winner: e.winner });
+    if (e.type === 'gameOver') {
+      this.broadcast('gameOver', { winner: e.winner });
+      // Completed matches only — an abandoned room (dispose without gameOver)
+      // is not a played game for the platform stats.
+      if (!this.matchReported && this.matchStartedAt) {
+        this.matchReported = true;
+        void reportMatch({
+          playerAccountIds: this.matchPlayerIds,
+          startedAt: this.matchStartedAt,
+          endedAt: new Date(),
+        });
+      }
+    }
   }
 
   private pushProjection(userId: string): void {

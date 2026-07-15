@@ -1,55 +1,49 @@
-# Progress — Fix serveur broadcast pioche/déclaration (session du 2026-07-10)
+# Progress — Remontée des parties vers la plateforme gosgames (session du 2026-07-15)
 
 ## État : TERMINÉ et poussé sur main
 
-Suivi n°1 du patch Visual V2 QoL (`d00063b`) : le fix serveur recommandé est appliqué et le
-contournement client (sondage) retiré.
+Volet Pantheons du contrat gosgames TICKET-102 : à la fin de chaque partie, le serveur
+remonte le résultat brut à la plateforme (`POST /api/internal/matches`) pour alimenter
+les stats admin et la table `matches`.
 
 ## Ce qui a été fait
 
-### Fix serveur (`server/src/rooms/PantheonsRoom.ts`)
-- Les handlers `pioche` et `declaration` appellent désormais `this.broadcastProjections()`
-  après la soumission, à l'image des handlers `question` et `power`. Les projections
-  par-siège sont donc poussées en COURS de phase pour toutes les soumissions — plus
-  seulement aux changements de phase.
-- L'appel reste DANS le callback de `guard` : une soumission rejetée (throw) n'émet rien,
-  l'expéditeur reçoit l'unicast `error` comme avant.
+### Nouveau module `server/src/http/matchReport.ts`
+- `reportMatch({ playerAccountIds, startedAt, endedAt })` → POST
+  `{GOSGAMES_INTERNAL_URL}/api/internal/matches`, header `X-Internal-Token` =
+  `INTERNAL_SERVICE_TOKEN` (le MÊME jeton partagé que l'endpoint de suppression entrant —
+  un seul jeton de service plateforme↔jeu).
+- Le corps suit le contrat TICKET-102 : `{ gameSlug: 'pantheons', playerAccountIds,
+  startedAt, endedAt }` (ISO). La plateforme calcule elle-même `playerCount` et
+  `isTestMatch` (2 joueurs + un admin) — on n'envoie que des faits bruts.
+- **Best-effort par construction** : sans `GOSGAMES_INTERNAL_URL`/jeton (dev local) c'est
+  un no-op silencieux ; un POST refusé ou un réseau en panne se contente de logger.
+  La remontée de stats ne doit jamais casser le flux de jeu.
 
-### Nettoyage client (devenu inutile)
-- `GameView.tsx` : suppression du sondage (`setInterval` REQUEST_STATE 2,5s pendant
-  pioche/réponse) et de `askRefresh()` + ses trois appels (submitPioche, passReponse,
-  submitDeclaration). Les coches et chips sont désormais pilotés uniquement par les
-  projections diffusées.
-- `RoomScreen.tsx` : le handler `RECONNECT_OK` persistant RESTE (il sert la reconnexion
-  mi-partie) ; seul son commentaire a été actualisé.
+### Câblage `server/src/rooms/PantheonsRoom.ts`
+- `startMatch()` fige les faits : `matchStartedAt = new Date()` et `matchPlayerIds`
+  (les sièges sont verrouillés par `lock()`, la composition ne bouge plus).
+- `onPhaseEvent` : sur `gameOver`, remontée unique (garde `matchReported`).
+- **Arbitrage** : seules les parties TERMINÉES (`gameOver`) sont remontées. Une room
+  abandonnée (dispose sans gameOver) n'est pas « une partie jouée » pour les stats.
 
-## Vérification (partie réelle, 2 joueurs — recette consignée dans `.claude/skills/verify/SKILL.md`)
+### Tests (`matchReport.test.ts`, node:test, fetch mocké)
+- Contrat exact (URL, header, corps ISO), no-op sans config, aucune exception sur
+  400/panne réseau. 20/20 tests serveur verts, typecheck OK.
 
-Stack réelle (Postgres local + serveur + SPA buildée), hôte navigateur (Playwright) +
-second joueur colyseus.js headless. Observé en jeu :
-- Chip « ✓ Validé » de l'hôte 67ms après Valider la pioche (l'hôte soumet en premier —
-  la confirmation vient bien du nouveau broadcast, plus d'askRefresh).
-- Coche adverse mi-phase : ~6–8ms après la soumission bot (déclaration tour 1, pioche
-  tour 2) — contre ~2,5s avec l'ancien sondage.
-- Chip « ✓ Passé » + consigne « Vous avez passé — en attente de BotB… » 77ms après le
-  Passer de l'hôte en réponse (bot en attente).
-- 2 tours complets, 0 trame REQUEST_STATE émise par la page, 0 erreur console.
-- Sonde : double envoi `pioche` par le bot → accepté silencieusement (pas d'erreur), pas
-  de crash, la partie continue. PRÉ-EXISTANT (voir suivis).
-- Typecheck + build + tests (39 engine + 17 server) verts.
+## Déploiement (repo homelab, même session)
+- `infra/pantheons/deployment.yaml` : env `INTERNAL_SERVICE_TOKEN` (secret existant
+  `gosgames-internal-token`, namespace gosgames) + `GOSGAMES_INTERNAL_URL` pointant sur
+  le Service gosgames interne au cluster.
 
-## Reste à faire (suivis optionnels)
+## Suivis hérités de la session précédente (2026-07-10, toujours ouverts)
 
-1. **Garde de resoumission côté barrière** (pré-existant, non introduit ici) : un second
-   message `pioche` du même joueur pendant la même phase ré-exécute `applyPioche` et
-   re-pioche 2 attributs (observé : bot à 6 attributs au tour 2). L'UI verrouille le
-   bouton donc injouable au clavier/souris, mais un client modifié peut gonfler sa main.
-   Fix simple : dans `barrier.ts`, ignorer (ou rejeter) une soumission si
+1. **Garde de resoumission côté barrière** (pré-existant) : un second message `pioche`
+   du même joueur pendant la même phase ré-exécute `applyPioche` et re-pioche 2
+   attributs. L'UI verrouille le bouton, mais un client modifié peut gonfler sa main.
+   Fix simple : dans `barrier.ts`, ignorer une soumission si
    `state.barrier.submitted.includes(userId)`.
-2. Bump `versions.md` (1.2.1) si une release est taguée — comme pour `d00063b`, ce commit
-   part sans bump.
-3. Toujours non observés en direct : le spinner à 200ms et le battement de la poignée
-   (fenêtres trop courtes en partie à 2 ; mécanisme testé par code).
-4. Mineur (présentation, patch QoL précédent) : à 1440px avec le tiroir ouvert, la
-   poignée « PENSE-BÊTE » chevauche légèrement le chip « ✓ Passé » et les coches du
-   traqueur (voir capture t2-reponse-host-chip de la session).
+2. Bump `versions.md` (1.2.1) si une release est taguée.
+3. Non observés en direct : spinner à 200ms, battement de la poignée (testés par code).
+4. Mineur (présentation) : à 1440px tiroir ouvert, la poignée « PENSE-BÊTE » chevauche
+   le chip « ✓ Passé ».
