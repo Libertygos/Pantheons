@@ -2663,6 +2663,66 @@ button.pose-ev__item {
   }
 }
 
+/* téléphones : cartes et éventail réduits, grille du dock resserrée, la déclaration
+   passe ses 12 dieux sur deux rangées — tout reste consultable par défilement */
+@media (max-width: 600px) {
+  :root {
+    --carte-md: 96px;
+    --carte-lg: 148px;
+    --main-ecart: 34px;
+  }
+
+  .places-arc {
+    gap: 10px;
+    padding: 12px 10px 4px;
+  }
+
+  .place {
+    min-width: 150px;
+  }
+
+  .dock {
+    padding: 10px 12px 12px;
+  }
+
+  .dock__interieur {
+    gap: 14px;
+  }
+
+  .main-ev {
+    height: 180px;
+  }
+
+  .voile {
+    padding: 12px;
+  }
+
+  .modale {
+    padding: 18px 16px 20px;
+  }
+
+  .decl-dieux {
+    grid-template-columns: repeat(6, minmax(34px, 1fr));
+  }
+
+  .table-centre__scene {
+    gap: 20px;
+  }
+}
+
+/* écrans tactiles : cibles de doigt confortables sans toucher au layout desktop */
+@media (pointer: coarse) {
+  .btn-aide {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  .btn--petit {
+    min-height: 38px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* garde-fou dur : les durées s'effondrent au niveau des jetons ET globalement ;
      les changements d'état restent instantanés, jamais supprimés */
