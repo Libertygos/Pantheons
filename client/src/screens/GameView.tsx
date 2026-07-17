@@ -21,6 +21,7 @@ import { SeatPlaque, PlacedMiniCard, type SeatQuestion } from '../components/Sea
 import { GameCard } from '../components/GameCard.js';
 import { PenseBeteGrid } from '../components/PenseBeteGrid.js';
 import { CardInspectLayer } from '../components/CardInspectLayer.js';
+import { AideZone } from '../components/AideZone.js';
 import { hideInspect, showInspect, useCardInspect } from '../components/card-inspect.js';
 import { describeQuestionCard, godCardFace, questionCardBand } from '../components/card-text.js';
 import { usePenseBete } from '../state/pense-bete.js';
@@ -625,6 +626,7 @@ export function GameView({
 
       {/* bande haute : l'arc des sièges */}
       <div className="places-arc">
+        <AideZone sujet="sieges" className="btn-aide--arc" />
         {seatedOpponents.map((opp, idx) => {
           const seat = seatOf(opp.userId);
           const isTargeted =
@@ -681,6 +683,7 @@ export function GameView({
 
       {/* centre : la table partagée */}
       <section className="table-centre">
+        <AideZone sujet="table" className="btn-aide--table" />
         {(banner || notice || info) && (
           <div className="table-centre__notices">
             {banner && (
@@ -796,13 +799,15 @@ export function GameView({
       <div className="dock surface-levee">
         <div className="dock__interieur">
           <div className="dock__zone dock__zone--dieu">
-            <span className="libelle dock__titre">{fr.yourGod}</span>
+            <span className="libelle dock__titre">
+              {fr.yourGod} <AideZone sujet="dieu" />
+            </span>
             <MyGodCard god={me.god} />
           </div>
 
           <div className="dock__zone dock__zone--main">
             <span className="libelle dock__titre">
-              {fr.jeu.maMain} — {hand.length}
+              {fr.jeu.maMain} — {hand.length} <AideZone sujet="main" />
             </span>
             <div className="main-ev" style={{ '--n': hand.length } as CSSProperties}>
               {hand.map((card, idx) => {
@@ -862,7 +867,9 @@ export function GameView({
             <div className="dock__zone dock__zone--recu">
               {receivedQuestions.length > 0 && (
                 <>
-                  <span className="libelle dock__titre">{fr.jeu.contreVous}</span>
+                  <span className="libelle dock__titre">
+                    {fr.jeu.contreVous} <AideZone sujet="contreVous" />
+                  </span>
                   <div className="pose-ev">
                     {receivedQuestions.map((q) => {
                       const desc = q.placed.card ? describeQuestionCard(q.placed.card) : fr.jeu.faceCachee;
@@ -925,7 +932,9 @@ export function GameView({
           )}
 
           <div className="dock__zone dock__zone--pouvoir">
-            <span className="libelle dock__titre">{fr.jeu.pouvoir}</span>
+            <span className="libelle dock__titre">
+              {fr.jeu.pouvoir} <AideZone sujet="pouvoir" />
+            </span>
             {powerCards.map((pow) => {
               const def = data.POWERS[pow.effectKey];
               const activable = def?.kind === 'active' && alive && !over && proj.status === 'enCours';

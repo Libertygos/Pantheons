@@ -189,6 +189,61 @@ export const fr = {
     ],
   },
 
+  /** Aide contextuelle : un « ? » par zone de la table (même dispositif que les autres jeux). */
+  aideZones: {
+    bouton: 'Aide',
+    zones: {
+      sieges: {
+        titre: 'Les sièges adverses',
+        corps: [
+          'Chaque plaque est un adversaire : son nom, le badge Meneur, sa coche « prêt » et le nombre de dieux encore possibles d’après votre pense-bête.',
+          'Sous la plaque : les questions qu’il a reçues ce tour — de tous les joueurs — avec la réponse publique (✓ oui / ✗ non) une fois donnée.',
+          'Phase Question : choisissez une carte en main puis cliquez un siège pour la lui poser — jusqu’à 2 questions, jamais deux au même joueur (certains pouvoirs changent ces limites).',
+          'Chaque « oui » fait piocher une carte Action au joueur interrogé. Un éliminé garde son dieu caché jusqu’au bout.',
+        ],
+      },
+      table: {
+        titre: 'La table : pioches et phases',
+        corps: [
+          'La pioche Attributs fournit vos 2 cartes de chaque phase Pioche ; la pioche Actions alimente les joueurs qui répondent « oui » à une question.',
+          'Le traqueur au-dessus montre la phase en cours (Pioche → Question → Réponse), la consigne du moment et qui a déjà validé.',
+          'Les trois phases sont simultanées : tout le monde joue en même temps, et la table avance quand chaque joueur a validé.',
+        ],
+      },
+      dieu: {
+        titre: 'Votre dieu',
+        corps: [
+          'Votre identité secrète : l’un des 12 dieux, défini par trois attributs — genre, couleur des yeux, panthéon.',
+          'Maintenez la carte (doigt, souris, ou Espace/Entrée) pour la révéler en grand. Personne d’autre ne la voit — même si vous êtes éliminé.',
+        ],
+      },
+      main: {
+        titre: 'Ma main',
+        corps: [
+          'Vos cartes Attribut et Action. En phase Question, sélectionnez-en une puis cliquez un adversaire pour la poser.',
+          'Les Attributs interrogent le dieu (genre, yeux, panthéon). Les Actions déclenchent leur effet sur un « oui » ou sur un « non » ; les Spéciales se posent sur votre emplacement dédié — ou visent un joueur.',
+          'Jusqu’à 2 questions par tour, jamais deux au même joueur (sauf pouvoir). Cliquez une carte posée pour la reprendre avant de valider.',
+        ],
+      },
+      contreVous: {
+        titre: 'Contre vous',
+        corps: [
+          'Les questions posées contre vous ce tour. Vous y répondez automatiquement, sans mentir : la réponse (oui/non) devient publique sur la table.',
+          'Chaque « oui » vous fait piocher une carte Action — l’effet peut jouer pour ou contre vous.',
+          'L’emplacement Spéciale accueille vos cartes Spéciales sans cible, le temps de leur effet.',
+        ],
+      },
+      pouvoir: {
+        titre: 'Votre pouvoir',
+        corps: [
+          'Vous détenez exactement un pouvoir après la pioche — deux en main, il faut en défausser un.',
+          'Un pouvoir passif s’applique tout seul ; un pouvoir actif s’active avec « Utiliser » puis, selon le cas, une cible (adversaire ou carte posée).',
+          'Chaque pouvoir tord une règle : limites de questions, espionnage, sabotage… Sa carte en détaille l’effet — la loupe l’agrandit.',
+        ],
+      },
+    },
+  },
+
   penseBete: {
     title: 'Pense-bête',
     note: 'Vos notes personnelles — jamais partagées, jamais envoyées.',

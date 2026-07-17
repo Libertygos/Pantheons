@@ -1850,6 +1850,68 @@ button.pose-ev__item {
   margin-top: 10px;
 }
 
+/* ---- aide par zone : un « ? » discret sur chaque zone de la table ---- */
+
+.btn-aide {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--filet-fort);
+  background: rgba(16, 22, 48, 0.55);
+  color: var(--texte-faible);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color var(--dur) ease,
+    border-color var(--dur) ease;
+}
+
+.btn-aide:hover,
+.btn-aide:focus-visible {
+  color: var(--texte);
+  border-color: var(--blanc);
+}
+
+.dock__titre .btn-aide {
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.places-arc {
+  position: relative;
+}
+
+.btn-aide--arc {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  z-index: 5;
+}
+
+.table-centre {
+  position: relative;
+}
+
+.btn-aide--table {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  z-index: 5;
+}
+
+.modale--aide {
+  max-width: 560px;
+}
+
+.modale--aide .modale__texte {
+  margin: 10px 0 0;
+}
+
 /* superposition (modales : déclaration, défausse pouvoir, aide, fin) */
 .voile {
   position: fixed;
