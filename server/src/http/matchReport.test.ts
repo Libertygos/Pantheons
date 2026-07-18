@@ -42,6 +42,28 @@ test('reportMatch: POSTs the TICKET-102 contract with the internal token', async
   });
 });
 
+test('reportMatch: forwards winnerAccountIds when provided, omits when absent/empty', async () => {
+  process.env.GOSGAMES_INTERNAL_URL = 'http://gosgames';
+  process.env.INTERNAL_SERVICE_TOKEN = 'secret';
+  const calls = captureFetch();
+
+  await reportMatch({
+    playerAccountIds: ['u1', 'u2'],
+    startedAt: new Date('2026-07-15T10:00:00Z'),
+    endedAt: new Date('2026-07-15T10:52:00Z'),
+    winnerAccountIds: ['u2'],
+  });
+  assert.deepEqual(JSON.parse(calls[0]!.init.body as string).winnerAccountIds, ['u2']);
+
+  await reportMatch({
+    playerAccountIds: ['u1', 'u2'],
+    startedAt: new Date('2026-07-15T10:00:00Z'),
+    endedAt: new Date('2026-07-15T10:52:00Z'),
+    winnerAccountIds: [],
+  });
+  assert.equal('winnerAccountIds' in JSON.parse(calls[1]!.init.body as string), false);
+});
+
 test('reportMatch: silent no-op when GOSGAMES_INTERNAL_URL / token are absent', async () => {
   const calls = captureFetch();
   await reportMatch({ playerAccountIds: ['u1'], startedAt: new Date(), endedAt: new Date() });

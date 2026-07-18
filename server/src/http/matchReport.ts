@@ -13,6 +13,8 @@ export interface MatchReport {
   playerAccountIds: string[];
   startedAt: Date;
   endedAt: Date;
+  /** Platform account id(s) of the winner(s); omit when there is no winner. */
+  winnerAccountIds?: string[];
 }
 
 const GAME_SLUG = 'pantheons';
@@ -31,6 +33,9 @@ export async function reportMatch(report: MatchReport): Promise<void> {
         playerAccountIds: report.playerAccountIds,
         startedAt: report.startedAt.toISOString(),
         endedAt: report.endedAt.toISOString(),
+        ...(report.winnerAccountIds && report.winnerAccountIds.length > 0
+          ? { winnerAccountIds: report.winnerAccountIds }
+          : {}),
       }),
     });
     if (!res.ok) {

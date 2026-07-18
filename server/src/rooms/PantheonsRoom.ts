@@ -509,10 +509,16 @@ export class PantheonsRoom extends Room {
       // is not a played game for the platform stats.
       if (!this.matchReported && this.matchStartedAt) {
         this.matchReported = true;
+        // e.winner is already a platform account id; the platform only accepts
+        // a winner who is a participant, so guard with matchPlayerIds.
+        const winner = e.winner;
         void reportMatch({
           playerAccountIds: this.matchPlayerIds,
           startedAt: this.matchStartedAt,
           endedAt: new Date(),
+          ...(winner && this.matchPlayerIds.includes(winner)
+            ? { winnerAccountIds: [winner] }
+            : {}),
         });
       }
     }
