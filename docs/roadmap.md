@@ -4,7 +4,7 @@
 > séquencées, dépendances notées, **non ticketées** tant que l'exécution de Phase 1 n'a pas
 > stabilisé le modèle d'état.
 
-## Phase 1 — Fondation jouable (ticketée : voir `phase-1-tickets.md`)
+## Phase 1 — Fondation jouable (livrée — tickets exécutés puis retirés du dépôt)
 
 Objectif : une partie 4–7 joueurs complète, server-authoritative, sur assets statiques,
 avec la discipline never-send et les contrats tenant en place.

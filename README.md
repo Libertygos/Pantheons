@@ -16,7 +16,7 @@ packages/engine   Pure rules/state — no I/O (Decision 2). Gods, cards, phase r
 server            Colyseus rooms + Express. Handoff verify (aud=pantheons), session S-JWT,
                   deletion endpoint, simultaneous-phase barrier, lobby (min4/max7). Drizzle/PG.
 client            Vite/React. Static-PNG display (cards, board, pense-bête), FR chrome.
-docs              rules.md · glossary.md · game-state-model.md · roadmap.md · phase-1-tickets.md
+docs              rules.md · glossary.md · game-state-model.md · roadmap.md · card-catalog.md
 ```
 
 ## Develop
