@@ -44,6 +44,12 @@ export const fr = {
     aborted: 'Partie interrompue : plusieurs joueurs déconnectés.',
     duplicateTitle: 'Déjà ouvert ailleurs',
     duplicateBody: 'Ce salon est déjà ouvert dans un autre onglet ou appareil.',
+    // Fin de session imposée : reprise du compte sur un autre appareil (409 superseded)
+    // ou clôture demandée par la plateforme (login_all_games.md §D).
+    sessionEndedTitle: 'Session terminée',
+    sessionEndedBody:
+      'Vous avez commencé à jouer sur un autre appareil. Cette session a été fermée.',
+    sessionEndedAction: 'Retour à gosgames',
     errors: {
       BAD_CODE: 'Code invalide.',
       ROOM_FULL: 'Salon complet.',

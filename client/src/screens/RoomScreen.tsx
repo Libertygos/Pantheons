@@ -21,7 +21,10 @@ import { RoomLobby } from './RoomLobby.js';
 import { GameView } from './GameView.js';
 import type { Session } from '../auth/handoff.js';
 
-type View = 'connecting' | 'lobby' | 'game' | 'duplicate';
+type View = 'connecting' | 'lobby' | 'game' | 'duplicate' | 'ended';
+
+/** Platform home for the "Retour à gosgames" exit action (login_all_games.md §D). */
+const PLATFORM_HOME = 'https://www.gosgames.com';
 
 interface ReconnectOk extends RoomWelcome {
   state: PlayerProjection;
@@ -58,6 +61,9 @@ export function RoomScreen({
   const seatRef = useRef(0);
   const startedRef = useRef(false);
   const intentionalRef = useRef(false);
+  /** Latched when the platform ends this session (409 superseded / remote-end): the ensuing
+   *  socket close must show the standard exit (D), never the "reconnecting" banner. */
+  const endedRef = useRef(false);
   const viewRef = useRef<View>('connecting');
   viewRef.current = view;
 
@@ -128,8 +134,20 @@ export function RoomScreen({
       setBanner(m?.message ?? fr.room.aborted);
       setView('lobby');
     });
+    // Platform-forced session end (login_all_games.md §D): the account took over on another
+    // device (409 superseded) or the platform remotely ended this session. Show the standard
+    // exit — never a raw socket error. The server disconnects us right after; endedRef makes
+    // the ensuing onLeave a no-op (no "reconnecting" banner).
+    room.onMessage('SESSION_ENDED', () => {
+      endedRef.current = true;
+      intentionalRef.current = true; // suppress the reconnect-grace teardown on unmount
+      clearResume();
+      roomRef.current = null;
+      setView('ended');
+    });
     room.onLeave(() => {
       roomRef.current = null;
+      if (endedRef.current) return; // §D: the exit screen is already shown
       if (!intentionalRef.current) setBanner(fr.disconnected);
     });
 
@@ -256,6 +274,25 @@ export function RoomScreen({
         <div>
           <h2 className="titre-affiche">{fr.room.duplicateTitle}</h2>
           <p style={{ color: 'var(--texte-faible)' }}>{fr.room.duplicateBody}</p>
+        </div>
+      </div>
+    );
+  }
+  if (view === 'ended') {
+    // §D: forced session end (played elsewhere / remote-end). Standard exit + return action.
+    return (
+      <div className="plein-centre">
+        <div>
+          <h2 className="titre-affiche">{fr.room.sessionEndedTitle}</h2>
+          <p style={{ color: 'var(--texte-faible)' }}>{fr.room.sessionEndedBody}</p>
+          <button
+            type="button"
+            className="btn btn--primaire"
+            style={{ marginTop: '1rem' }}
+            onClick={() => window.location.assign(PLATFORM_HOME)}
+          >
+            {fr.room.sessionEndedAction}
+          </button>
         </div>
       </div>
     );

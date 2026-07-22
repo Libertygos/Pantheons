@@ -16,6 +16,8 @@ import { verifyHandoffToken } from './auth/handoff.js';
 import { issueSession } from './auth/session.js';
 import { ensureUser, pingDb, runMigrations } from './db/index.js';
 import { createDeletionRouter } from './routes/deletion.js';
+import { createSessionsRouter } from './routes/sessions.js';
+import { endSessions } from './rooms/session-directory.js';
 import { metricsText } from './http/metrics.js';
 
 const PORT = Number(process.env.PORT ?? 2567);
@@ -82,6 +84,11 @@ app.get('/api/rooms/:code/exists', (req, res) => {
 
 // Deletion endpoint (cluster-internal; gateway must not expose externally).
 app.use(createDeletionRouter(INTERNAL_TOKEN));
+
+// Remote-end endpoint (login_all_games.md §B; cluster-internal, same bearer token). The
+// platform calls this to end a session it superseded elsewhere; we tear down the live
+// local session(s) via the in-process session directory.
+app.use(createSessionsRouter(INTERNAL_TOKEN, endSessions));
 
 // Same-origin SPA (wog-room.md §0): the game server serves the built client so the
 // WebSocket and all /api/* calls share the page host. `/room/:code` deep links fall back

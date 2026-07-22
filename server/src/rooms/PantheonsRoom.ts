@@ -27,8 +27,10 @@ import {
 import { MatchController, type PhaseEvent } from './barrier.js';
 import { generateRoomCode, normalizeRoomCode } from './room-code.js';
 import { isCodeTaken, registerRoom, unregisterRoom, type RoomPhase } from './room-registry.js';
+import { type SessionEnder } from './session-directory.js';
 import { verifySession } from '../auth/session.js';
 import { reportMatch } from '../http/matchReport.js';
+import { PresenceManager } from './presence-manager.js';
 import {
   recordPlayerConnected,
   recordPlayerDisconnected,
@@ -80,7 +82,7 @@ function emptySlot(): SeatSlot {
   return { userId: null, displayName: '', ready: false, conn: 'CONNECTED' };
 }
 
-export class PantheonsRoom extends Room {
+export class PantheonsRoom extends Room implements SessionEnder {
   override maxClients = MAX_PLAYERS;
 
   private roomCode = '';
@@ -90,6 +92,19 @@ export class PantheonsRoom extends Room {
   private clientByUser = new Map<string, Client>();
   /** Pending reconnection grace windows, cancellable on abort (userId -> rejecter). */
   private graceByUser = new Map<string, { reject: () => void }>();
+  /**
+   * Active-game presence (login_all_games.md §A). One lease per account; the lease outlives
+   * an in-grace reconnect (the seat is held → the lease stays leased) and is released only
+   * when the seat truly goes away or the room disposes. One live lease per userId at all
+   * times (O5), so a re-bind on onJoin never double-starts.
+   */
+  private presenceMgr = new PresenceManager(
+    (userId) => this.sessionRef(userId),
+    this,
+    // 409 supersede: the account claimed the lease elsewhere → tear this session down with
+    // the standard exit and stop heartbeating (the lease is no longer ours: don't re-end).
+    (userId) => this.forceEndSession(userId, 'remote', /* releaseLease */ false),
+  );
 
   private controller: MatchController | null = null;
   private index: CardIndex | null = null;
@@ -159,6 +174,10 @@ export class PantheonsRoom extends Room {
     recordRoomClosed();
     for (const grace of this.graceByUser.values()) grace.reject();
     this.graceByUser.clear();
+    // Release any leases still held (login_all_games.md §A): the room is gone.
+    for (const userId of this.presenceMgr.liveUsers()) {
+      this.presenceMgr.release(userId, 'server_shutdown');
+    }
     unregisterRoom(this.roomCode);
   }
 
@@ -217,6 +236,12 @@ export class PantheonsRoom extends Room {
     this.slots[seatId] = { userId, displayName, ready: false, conn: 'CONNECTED' };
     this.accountToSeat.set(userId, seatId);
 
+    // Active-game presence (login_all_games.md §A): a genuinely fresh session established
+    // → claim the lease. An in-grace reconnect does NOT re-run onJoin, so the existing
+    // lease is left untouched (no second lease per account — O5). begin() is itself a
+    // no-op when a lease is already held (defense-in-depth).
+    this.presenceMgr.begin(userId);
+
     // The first connection becomes host (§6.1).
     const isFirst = this.hostSeat < 0;
     if (isFirst) this.hostSeat = seatId;
@@ -244,6 +269,7 @@ export class PantheonsRoom extends Room {
     // LOBBY branch. A consented leave frees the seat; an unconsented drop (refresh, tab
     // close) opens a 60 s grace window with the seat held (§5.1).
     if (consented) {
+      this.presenceMgr.release(userId, 'left'); // seat given up → release the lease
       this.freeSeat(userId);
       this.broadcastLobby();
       return;
@@ -255,7 +281,8 @@ export class PantheonsRoom extends Room {
     this.broadcastLobby();
     try {
       await this.openGrace(client, userId, LOBBY_RECONNECT_GRACE_S);
-      // Reconnected: same client instance is live again. onJoin does not re-run.
+      // Reconnected: same client instance is live again. onJoin does not re-run, so the
+      // presence lease was held throughout the grace and needs no re-start (O5).
       recordPlayerConnected();
       this.clientByUser.set(userId, client);
       const seat = this.accountToSeat.get(userId);
@@ -263,7 +290,8 @@ export class PantheonsRoom extends Room {
       client.send('JOIN_OK', { roomCode: this.roomCode, seatId: seat, hostSeat: this.hostSeat });
       this.broadcastLobby();
     } catch {
-      // Grace expired (or cancelled): free the seat — lobby seats are re-bindable.
+      // Grace expired (or cancelled): the seat is truly gone → release the lease.
+      this.presenceMgr.release(userId, 'timeout');
       this.freeSeat(userId);
       this.broadcastLobby();
     }
@@ -293,7 +321,12 @@ export class PantheonsRoom extends Room {
     this.controller!.onConnectivityChange();
     this.broadcastProjections();
 
-    if (consented || state.status === 'terminee') return;
+    if (consented || state.status === 'terminee') {
+      // A consented in-match leave gives up the seat for good → release the lease. On a
+      // terminated match the player has finished; the lease is released here too.
+      this.presenceMgr.release(userId, consented ? 'left' : 'timeout');
+      return;
+    }
     try {
       await this.openGrace(client, userId, MATCH_RECONNECT_GRACE_S);
       recordPlayerConnected();
@@ -312,7 +345,8 @@ export class PantheonsRoom extends Room {
       this.broadcastProjections();
     } catch {
       // Grace expired mid-match: the seat is gone for re-entry; the barrier keeps
-      // auto-passing it so play never blocks.
+      // auto-passing it so play never blocks. The lease is released — the player is gone.
+      this.presenceMgr.release(userId, 'timeout');
       this.controller?.onConnectivityChange();
     }
   }
@@ -341,6 +375,8 @@ export class PantheonsRoom extends Room {
         slot.ready = false;
         slot.conn = 'CONNECTED';
       } else {
+        // A dropped survivor is not coming back to this rebuilt lobby → release its lease.
+        this.presenceMgr.release(slot.userId, 'timeout');
         this.accountToSeat.delete(slot.userId);
         Object.assign(slot, emptySlot());
       }
@@ -546,5 +582,82 @@ export class PantheonsRoom extends Room {
     } catch (err) {
       client.send('error', { message: err instanceof Error ? err.message : 'Erreur' });
     }
+  }
+
+  // ---- active-game presence (login_all_games.md §A/§B) ------------------------
+
+  /**
+   * sessionRef contract: game-generated, stable for the session, `[A-Za-z0-9._:-]{1,128}`.
+   * `${roomId}:${userId}` is stable across an in-grace reconnect (roomId + userId are both
+   * constant for the seat) and unique per player-session.
+   */
+  private sessionRef(userId: string): string {
+    return `${this.roomId}:${userId}`;
+  }
+
+  /**
+   * Tear down the local session for a userId (409 superseded OR a platform remote-end),
+   * so the player sees the standard "playing elsewhere" exit — never a raw socket drop.
+   *
+   * `releaseLease` is false for a 409 supersede (the lease already belongs to the new
+   * session — we must NOT emit an `end` for it: the manager `drop`s it), true for a
+   * remote-end (§B: we tear down and `end` the lease). Idempotent: an already-gone userId
+   * is a noop.
+   */
+  private forceEndSession(userId: string, cause: 'remote', releaseLease: boolean): void {
+    const hadPresence = this.presenceMgr.has(userId);
+    // Stop heartbeating + release (remote-end) or drop without ending (supersede).
+    if (releaseLease) this.presenceMgr.release(userId, 'remote_end');
+    else this.presenceMgr.drop(userId);
+    if (!hadPresence && !this.clientByUser.has(userId)) return; // already gone → idempotent noop
+
+    const client = this.clientByUser.get(userId);
+    // Cancel any in-flight grace so the seat is not held after a remote end.
+    this.graceByUser.get(userId)?.reject();
+
+    // Show the standard exit (D) then disconnect: message first so the client can render
+    // the exit screen before the socket closes.
+    if (client) {
+      client.send('SESSION_ENDED', { cause });
+      // 4000 = consented-leave close code: the client treats this as an intentional end,
+      // not a "connection lost / reconnecting" banner.
+      client.leave(4000);
+    }
+
+    // Detach the seat so the account is fully released locally (no ghost lease, O5).
+    this.clientByUser.delete(userId);
+    if (this.started && this.controller) {
+      const p = this.controller.state.players[userId];
+      if (p) {
+        p.connected = false;
+        const seatId = this.accountToSeat.get(userId);
+        if (seatId !== undefined) this.slots[seatId]!.conn = 'DISCONNECTED';
+        this.broadcast('CONN_STATUS', { userId, conn: 'DISCONNECTED' });
+        this.controller.onConnectivityChange();
+        this.broadcastProjections();
+      }
+    } else {
+      this.freeSeat(userId);
+      this.broadcastLobby();
+    }
+  }
+
+  /**
+   * Platform → game remote-end (login_all_games.md §B). Tear down the identified live
+   * session(s) for `userId`. Returns the number of sessions ended (0 = already gone, still
+   * a 200 to the caller — idempotent). If `sessionRef` is given and matches exactly one
+   * live session, only that ends; a missing/unknown sessionRef with exactly one live
+   * session for the user ends that one; otherwise ALL live sessions for the user end.
+   */
+  endSessionsForUser(userId: string, _sessionRef?: string): number {
+    const isLive = this.presenceMgr.has(userId) || this.clientByUser.has(userId);
+    if (!isLive) return 0; // idempotent: already-gone sessionRef still 200
+
+    // This room holds at most one live session per userId (O5), so every §B branch — a
+    // matching sessionRef, a missing/unknown sessionRef with one live session, and the
+    // end-all case — collapses to "end this user's single live session here". sessionRef
+    // is therefore advisory (accepted, not required to match) for this game.
+    this.forceEndSession(userId, 'remote', /* releaseLease */ true);
+    return 1;
   }
 }
