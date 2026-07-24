@@ -915,6 +915,14 @@ button {
   color: var(--vert);
 }
 
+/* S5 : la porte de démarrage (min/max, conditions) — une ligne calme sous l'état */
+.lobby__gate {
+  text-align: center;
+  color: var(--texte-faible);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
 /* « Copié ! » : le bouton d'invitation confirme en vert, sur place */
 .btn--copie,
 .btn--copie:hover:not(:disabled) {
@@ -1342,6 +1350,72 @@ button.pose-ev__item {
 
 .traqueur__cadre {
   padding: 10px 16px 12px;
+}
+
+/* ---- S5 : astuce du premier tour — conseil congédiable sous le traqueur.
+   Turquoise (jamais chartreuse : réservée au divin) + filet pointillé : un ton
+   « guide » distinct des notices (info pleines) et des erreurs (vermillon). ---- */
+
+.astuce {
+  max-width: 1280px;
+  width: 100%;
+  margin: 10px auto 0;
+  padding: 0 18px;
+}
+
+.astuce__cadre {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px dashed var(--filet-fort);
+  border-left: 4px solid var(--turquoise);
+  background: var(--nuit-2);
+  padding: 8px 12px;
+}
+
+.astuce__etiquette {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--turquoise);
+  padding-top: 3px;
+}
+
+.astuce__texte {
+  flex: 1;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--texte);
+}
+
+.astuce__fermer {
+  flex: none;
+  align-self: center;
+}
+
+/* 390 : l'étiquette en colonne étranglait le texte — on empile : étiquette, paragraphe
+   pleine largeur, « Compris » aligné à droite dessous */
+@media (max-width: 600px) {
+  .astuce__cadre {
+    flex-wrap: wrap;
+  }
+
+  .astuce__etiquette {
+    flex-basis: 100%;
+    padding-top: 0;
+  }
+
+  .astuce__texte {
+    flex-basis: 100%;
+  }
+
+  .astuce__fermer {
+    margin-left: auto;
+    align-self: auto;
+  }
 }
 
 .traqueur__etapes {
@@ -2063,7 +2137,58 @@ button.pose-ev__item {
 .pb-restants {
   font-size: 11px;
   color: var(--texte-faible);
-  margin-top: 10px;
+  margin-top: 6px;
+}
+
+/* ---- S5 : légende des marques — la bascule tri-état expliquée dans le tiroir ---- */
+
+.pb-legende {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  font-size: 11px;
+  color: var(--texte-faible);
+  margin: 10px 0 0;
+}
+
+.pb-legende__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* échantillon : une mini-case dans le langage exact de la grille (mêmes couleurs) */
+.pb-legende__case {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  background: var(--givre);
+  border: 1px solid var(--blanc);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--encre-sur-clair);
+}
+
+.pb-legende__case--exclu {
+  color: var(--vermillon-sombre);
+  background: #cfd9da;
+}
+
+.pb-legende__case--retenu {
+  color: var(--encre-sur-clair);
+  background: var(--turquoise);
+  box-shadow: inset 0 0 0 1px var(--encre-sur-clair);
+}
+
+.pb-legende__fleche {
+  color: var(--texte-faible);
+}
+
+.pb-legende__possibles {
+  flex-basis: 100%;
 }
 
 /* ---- S3 : l'axe panthéon dans la grille — 4 bandeaux de 3 colonnes ---- */
@@ -2234,6 +2359,15 @@ button.pose-ev__item {
   z-index: 5;
 }
 
+/* S5 : le « ? » d'une modale (déclaration) — ancré au coin du cadre ; .modale est
+   relative pour lui servir d'ancre */
+.btn-aide--modale {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 5;
+}
+
 .modale--aide {
   max-width: 560px;
 }
@@ -2257,6 +2391,7 @@ button.pose-ev__item {
 }
 
 .modale {
+  position: relative; /* ancre du « ? » de modale (S5) */
   background: var(--nuit-2);
   border: 1px solid var(--encre-bord);
   border-radius: var(--rayon-2);
@@ -3050,9 +3185,12 @@ button.pose-ev__item {
   min-height: 44px;
 }
 
+/* S5 : l'état vide est une ligne informative (plus un « — » muet) — lisible (AA sur
+   nuit via texte-faible) mais discrète, et qui se plie à la colonne étroite */
 .pb-reponses__vide {
-  color: rgba(237, 248, 249, 0.3);
-  font-size: 11px;
+  color: var(--texte-faible);
+  font-size: 10px;
+  line-height: 1.35;
 }
 
 /* bouton nu : la vignette s'agrandit au clic comme au survol (loupe des dieux) */

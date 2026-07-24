@@ -31,6 +31,7 @@ import {
   questionCardTexte,
 } from '../components/card-text.js';
 import { usePenseBete, type Mark } from '../state/pense-bete.js';
+import { useAstuces, type AstucePhase } from '../state/onboarding.js';
 import { godCardSrc, godPortraitSrc, penseBeteSrc, pouvoirCardSrc, questionCardSrc } from '../assets.js';
 import { fr } from '../i18n/fr.js';
 
@@ -165,6 +166,7 @@ export function GameView({
   const [sentSlow, setSentSlow] = useState(false);
   const notesCloseRef = useRef<HTMLButtonElement | null>(null);
   const penseBete = usePenseBete(proj.roomId);
+  const astuces = useAstuces(proj.roomId);
 
   /** Éléments réels couverts par un vol en cours. */
   const volMain = new Set(flights.filter((f) => f.hide === 'main').map((f) => f.cardId));
@@ -742,6 +744,29 @@ export function GameView({
         {trackerActions}
       </PhaseTracker>
 
+      {/* S5 : astuce du premier tour — un conseil congédiable sous le traqueur, une fois
+          par phase, copie tirée de rules.md §5. Jamais bloquant, jamais lié à une identité
+          cachée ; le congédiement persiste avec le pense-bête (sessionStorage du salon). */}
+      {proj.tour === 1 &&
+        proj.status === 'enCours' &&
+        alive &&
+        !over &&
+        (proj.phase === 'pioche' || proj.phase === 'question' || proj.phase === 'reponse') &&
+        !astuces.dismissed(proj.phase as AstucePhase) && (
+          <div className="astuce">
+            <div className="astuce__cadre" role="note" aria-label={fr.astuces.titre}>
+              <span className="astuce__etiquette">{fr.astuces.titre}</span>
+              <p className="astuce__texte">{fr.astuces[proj.phase as AstucePhase]}</p>
+              <button
+                className="btn btn--nu btn--petit astuce__fermer"
+                onClick={() => astuces.dismiss(proj.phase as AstucePhase)}
+              >
+                {fr.astuces.fermer}
+              </button>
+            </div>
+          </div>
+        )}
+
       {/* centre : la table partagée */}
       <section className="table-centre">
         <AideZone sujet="table" className="btn-aide--table" />
@@ -1134,6 +1159,10 @@ export function GameView({
               <span />
               <span />
             </div>
+            {/* S5 : le temps fort a enfin son « ? » — la boîte d'aide se superpose à la
+                cérémonie (voile imbriqué, plus tard dans le DOM) et Escape la ferme seule
+                (capture + stop dans AideZone). */}
+            <AideZone sujet="declaration" className="btn-aide--modale" />
             <h2 className="titre-affiche modale__titre modale__titre--divin">
               {fr.declaration.title}
             </h2>

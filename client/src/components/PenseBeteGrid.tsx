@@ -288,13 +288,8 @@ export function PenseBeteGrid({
             </span>
             <span className="pb-reponses">
               {opp.answers.length === 0 ? (
-                <span
-                  className="pb-reponses__vide"
-                  title={fr.penseBete.aucuneReponse}
-                  aria-label={fr.penseBete.aucuneReponse}
-                >
-                  —
-                </span>
+                // S5 : l'état vide se lit en toutes lettres — plus un « — » muet.
+                <span className="pb-reponses__vide">{fr.penseBete.aucuneReponse}</span>
               ) : (
                 opp.answers.map((a) => <MiniReponse key={a.key} placed={a.placed} />)
               )}
@@ -322,6 +317,35 @@ export function PenseBeteGrid({
       </div>
         </div>
       </div>
+
+      {/* S5 : la légende des marques — la bascule tri-état et le badge « N possibles »,
+          enfin expliqués là où ils servent. Échantillons dans le langage des cases. */}
+      <p className="pb-legende">
+        <span className="pb-legende__intro">{fr.penseBete.legende}</span>
+        <span className="pb-legende__item">
+          <span className="pb-legende__case" aria-hidden="true" />
+          {fr.penseBete.etats.inconnu}
+        </span>
+        <span className="pb-legende__fleche" aria-hidden="true">
+          →
+        </span>
+        <span className="pb-legende__item">
+          <span className="pb-legende__case pb-legende__case--exclu" aria-hidden="true">
+            ✕
+          </span>
+          {fr.penseBete.etats.exclu}
+        </span>
+        <span className="pb-legende__fleche" aria-hidden="true">
+          →
+        </span>
+        <span className="pb-legende__item">
+          <span className="pb-legende__case pb-legende__case--retenu" aria-hidden="true">
+            ★
+          </span>
+          {fr.penseBete.etats.suspect}
+        </span>
+        <span className="pb-legende__possibles">{fr.penseBete.legendePossibles}</span>
+      </p>
 
       <div className="pb-restants">
         {rows

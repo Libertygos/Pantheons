@@ -174,6 +174,11 @@ await waitPhase(page, 'Pioche');
 await sleep(1600); // doorway animation
 await snap(page, '09-jeu-pioche');
 
+// S5: 09 shows the first-turn pioche hint — dismiss it (proves the control; 10 then
+// shows the strip gone; the question/réponse hints appear on their own phases).
+await page.locator('.astuce__fermer').click().catch(() => log('no astuce to dismiss'));
+await sleep(300);
+
 // Host validates pioche first (observe own confirmation), bot holds
 await page.locator('button:has-text("Valider la pioche")').click();
 await page.waitForSelector('.fait-chip', { timeout: 10000 });
@@ -208,6 +213,13 @@ if (await page.locator('.voile').count()) {
   await page.locator('.voile button:has-text("Fermer")').first().click().catch(() => {});
   await sleep(300);
 }
+
+// S5 (34): the rules modal (topbar « ? ») — its pense-bête image must fit at 390.
+await page.locator('.jeu__barre button[aria-label="Aide"]').click();
+await sleep(400);
+await snap(page, '34-aide-regles');
+await page.keyboard.press('Escape');
+await sleep(300);
 
 // Pense-bête drawer + tri-state marks
 await page.locator('button[aria-label="Ouvrir le pense-bête"]').click();
@@ -254,6 +266,18 @@ await snap(page, '18-jeu-reponse');
 await page.locator('button:has-text("Déclarer « Panthéons »")').click();
 await sleep(500);
 await snap(page, '19-declaration-modale');
+
+// S5 (35): the declaration window's new aide zone — its Escape closes the aide ONLY
+// (AideZone capture+stop), the ceremony stays underneath.
+await page.locator('.btn-aide--modale').click();
+await sleep(400);
+await snap(page, '35-aide-declaration');
+await page.keyboard.press('Escape');
+await sleep(300);
+if ((await page.locator('.modale--ceremonie').count()) === 0) {
+  throw new Error('S5 regression: Escape on the declaration aide closed the ceremony too');
+}
+
 await page.locator('button:has-text("Annuler")').click();
 await sleep(300);
 

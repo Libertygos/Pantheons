@@ -187,7 +187,12 @@ export function SeatPlaque({
           })}
           {stagedGhosts}
           {questions.length === 0 && !stagedGhosts && !zoneLegale && (
-            <span className="pose-ev__creux" aria-label={fr.jeu.emplacementVide}>
+            // S5 : le creux garde son « · » discret mais se laisse lire (title = aria).
+            <span
+              className="pose-ev__creux"
+              title={fr.jeu.emplacementVide}
+              aria-label={fr.jeu.emplacementVide}
+            >
               ·
             </span>
           )}

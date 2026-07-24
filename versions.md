@@ -1,3 +1,36 @@
+# Version 1.2.5
+
+## Deep polish S5 — accompagnement contextuel (présentation seule)
+
+Session polish S5 (2026-07-24, protocole `CONTINUE-POLISH.md`, dossier `polish/STATE.md`).
+Zéro diff moteur/serveur/protocole ; PNG intacts ; UI français seul ; aucune astuce ne
+dépend d'une identité cachée.
+
+1. **Astuces du premier tour.** Au tour 1, chaque phase (pioche / question / réponse)
+   affiche sous le traqueur un conseil d'une-deux phrases tiré de `rules.md` §5 —
+   bandeau turquoise pointillé, jamais bloquant, bouton « Compris » ; le congédiement
+   persiste comme le pense-bête (sessionStorage du salon) et plus rien ne s'affiche dès
+   le tour 2. À 390, le bandeau s'empile (étiquette, texte pleine largeur, bouton).
+2. **Légende du pense-bête.** La bascule tri-état est enfin expliquée dans le tiroir :
+   « Cliquez une case pour marquer un dieu : (vide) inconnu → ✕ exclu → ★ retenu »,
+   avec des échantillons aux couleurs exactes des cases, et la définition du badge
+   « N possibles » (dieux non encore exclus du siège).
+3. **La déclaration a son « ? ».** La modale de cérémonie porte une zone d'aide
+   (coin haut droit) : règle de la déclaration, résolution horaire des déclarants
+   multiples, reprise du jeu si personne ne réussit, rôle des marques locales —
+   c'était le seul temps fort sans aide contextuelle. Escape referme l'aide seule,
+   la cérémonie reste.
+4. **États vides parlants.** Dans le tiroir, « Aucune réponse ce tour » s'écrit en
+   toutes lettres (plus un « — » muet, contraste AA) ; le creux « · » d'une zone de
+   pose vide porte son infobulle « Emplacement vide » (title = aria).
+5. **La porte de démarrage du salon.** Une ligne visible de tous : « Une table réunit
+   de X à Y joueurs — la partie se lance quand tous les sièges sont occupés, prêts et
+   connectés. » (min/max du serveur — les salons de test admin gardent leur propre
+   minimum). L'ancien rappel réservé à l'hôte est absorbé.
+6. **Harnais.** `journey.mjs` capture deux nouveaux états : 34 (rappel des règles —
+   l'image du pense-bête tient à 390, vérifié) et 35 (aide de la déclaration, avec
+   assertion : Escape n'atteint jamais la cérémonie dessous).
+
 # Version 1.2.4
 
 ## Pense-bête entier — les 12 dieux toujours visibles (présentation seule)

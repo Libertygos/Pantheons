@@ -93,7 +93,9 @@ export const fr = {
     host: 'Hôte',
     leave: 'Quitter le salon',
     disconnectedSeat: 'Déconnecté…',
-    startHint: 'Tous les sièges doivent être occupés, prêts et connectés.',
+    /** S5 : la porte de démarrage en toutes lettres — min/max viennent du serveur. */
+    gate: (min: number, max: number) =>
+      `Une table réunit de ${min} à ${max} joueurs — la partie se lance quand tous les sièges sont occupés, prêts et connectés.`,
   },
 
   phases: {
@@ -166,6 +168,22 @@ export const fr = {
     reveleQuestion: (nom: string, q: string) => `Question ${d(nom)} espionnée : ${q}.`,
     /** Déclenchement d'une Spéciale — chrome autour du texte verbatim de la face. */
     declenchement: (phase: string) => `Déclenchement : phase de ${phase.toLowerCase()}.`,
+  },
+
+  /**
+   * S5 : astuces du premier tour — une par phase, congédiables (state/onboarding.ts).
+   * Copie tirée de docs/rules.md §5 ; règles générales identiques pour tous — jamais
+   * conditionnées à une identité cachée.
+   */
+  astuces: {
+    titre: 'Premier tour',
+    fermer: 'Compris',
+    pioche:
+      'Chaque tour commence par la pioche : gardez exactement un pouvoir (aucun : piochez-en un ; deux : défaussez-en un), puis recevez 2 cartes Attribut. Les trois phases sont simultanées — la table avance quand chacun a validé.',
+    question:
+      'Une question est une carte Attribut ou Action posée face cachée sur un adversaire : la table ne voit que la catégorie de la carte, puis la réponse. Jusqu’à 2 questions par tour, jamais deux au même joueur.',
+    reponse:
+      'En commençant par le meneur, chacun répond « oui » ou « non » d’après les attributs de son propre dieu — les réponses sont toujours véridiques. Chaque « oui » fait piocher une carte Action au joueur interrogé.',
   },
 
   consignes: {
@@ -288,6 +306,16 @@ export const fr = {
           'Chaque pouvoir tord une règle : limites de questions, espionnage, sabotage… Sa carte en détaille l’effet — la loupe l’agrandit.',
         ],
       },
+      /** S5 : la fenêtre de déclaration — le seul temps fort qui n'avait pas de « ? ». */
+      declaration: {
+        titre: 'La déclaration « Panthéons »',
+        corps: [
+          'À l’issue d’une phase Réponse, déclarez « Panthéons » : désignez le dieu de chaque adversaire vivant, puis confirmez — la partie se met en pause.',
+          'Tout juste : vous gagnez. Une seule erreur : vous êtes éliminé, votre dieu reste caché et les autres n’ont plus besoin de le deviner.',
+          'Si plusieurs joueurs déclarent dans la même fenêtre, on résout dans le sens horaire à partir du meneur ; si aucun ne réussit, le jeu reprend.',
+          'Les marques de votre pense-bête (✕ exclu, ★ retenu) et le badge « N possibles » guident votre choix — des notes locales, jamais partagées.',
+        ],
+      },
     },
   },
 
@@ -306,6 +334,9 @@ export const fr = {
     /** La table des dieux (S3) — le contenu du pense-bête physique, en chrome. */
     tableTitre: 'La table des dieux',
     tableNote: 'Les 12 identités possibles et leurs trois attributs.',
+    /** Légende des marques (S5) — la bascule tri-état et le badge, enfin expliqués. */
+    legende: 'Cliquez une case pour marquer un dieu :',
+    legendePossibles: '« N possibles » compte les dieux non encore exclus pour ce siège.',
   },
 
   fin: {

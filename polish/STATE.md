@@ -10,9 +10,8 @@
 >
 > Session 1 executed 2026-07-23. Sessions 2, 3 and 4 executed 2026-07-24, followed the
 > same day by **S4b**, a user-directed interstitial (pense-bête full-view rule — see §3
-> and the S4b log entry).
-> Status: **S1–S4 + S4b complete** — S5..S6 not started. Resume at S5's first unchecked
-> task.
+> and the S4b log entry), then **S5** (contextual onboarding) the same day.
+> Status: **S1–S5 complete** — S6 not started. Resume at S6's first unchecked task.
 
 ---
 
@@ -433,19 +432,39 @@ recorded in §3 (full-view rule); Q2's width cap superseded (§2).
 - Carry-forward → S6: re-judge the folded pense-bête and the 840px drawer at 7 players
   (6 rows), and re-verify the full-view rule there (12 columns must still fit).
 
-### S5 — Contextual onboarding (spec-grounded, no hidden-info leaks)
+### S5 — Contextual onboarding (spec-grounded, no hidden-info leaks) ✅ (2026-07-24)
 
-- [ ] First-turn one-shot hints per phase (pioche/question/réponse), copy drawn strictly
-      from `docs/rules.md` §5; dismiss-forever persisted alongside pense-bête state;
-      never conditioned on or mentioning any hidden identity.
-- [ ] Pense-bête legend: explain · / ✕ / ★ and the « N possibles » badge in the drawer.
-- [ ] Aide zones: add declaration-window zone (the one moment with no « ? » today);
-      verify the aide modal's pense-bête image fits at 390.
-- [ ] Empty states: « Ma main » during pioche, empty question zones, « Aucune réponse ce
-      tour » — one short informative line each (already partly present).
-- [ ] First-visit lobby: one-line explanation of the start gate (min 4 / max 7 — admin
-      2p test rooms excepted server-side).
-- [ ] Re-screenshot first-game flow → `polish/screenshots/s5/`; versions.md entry.
+- [x] **First-turn hints:** `.astuce` strip under the PhaseTracker, tour 1 only, one per
+      phase (pioche/question/réponse), copy condensed strictly from `rules.md` §5 (face-
+      cachée rule, ≤2-questions rule, meneur order, oui→Action draw, simultaneity);
+      turquoise dashed dress (chartreuse stays reserved), « Compris » dismisses; dismissal
+      persisted like the pense-bête (`pantheons.astuces.<roomId>`, sessionStorage, new
+      `state/onboarding.ts`). Never rendered when eliminated/over; nothing at tour ≥ 2
+      (verified: s5/20). Iteration 1 caught a 390 defect (label column strangled the
+      text) → stacked layout ≤600px, re-shot clean (s5/09--390).
+- [x] **Pense-bête legend:** under the grid — sample cells in the grid's exact colors,
+      « (vide) inconnu → ✕ exclu → ★ retenu », plus the « N possibles » definition
+      (non-excluded gods per seat). Reuses `fr.penseBete.etats` labels (s5/15).
+- [x] **Declaration aide zone:** `fr.aideZones.zones.declaration` (rules §7: pause,
+      win/elimination, clockwise multi-declarant resolution, resume-if-none, local-marks
+      note) + `AideZone` in the ceremony modal corner (`.btn-aide--modale`; `.modale` is
+      now `position: relative`). Nested-voile layering works (later in DOM, same z 70);
+      journey asserts Escape closes the aide ONLY — ceremony survives (s5/35). Aide-modal
+      pense-bête image verified to fit at 390 (new state 34, `journey.mjs`).
+- [x] **Empty states:** drawer « Aucune réponse ce tour » now visible text at AA contrast
+      (`--texte-faible`, was a mute « — » at 0.3 alpha); seat-zone « · » creux gains its
+      `title` (= aria). « Ma main » pioche lines already shipped in S2 — verified still
+      correct (s5/09).
+- [x] **Lobby start gate:** `fr.lobby.gate(min, max)` visible to ALL players (« Une table
+      réunit de X à Y joueurs — … occupés, prêts et connectés. ») — min/max from
+      LOBBY_STATE, so admin test rooms truthfully show their server-side minimum
+      (s5/05 shows 2..7 in the admin room). The host-only `startHint` duplicate retired.
+      Rendered always, not first-visit-only: one quiet 11px line, dismissal machinery
+      judged overkill (reasoning recorded here).
+- [x] Journeys re-run (twice: iteration + final) into `polish/screenshots/s5/` (01..25 +
+      34 aide-regles + 35 aide-declaration, both viewports); versions.md **1.2.5**
+      (mirror rule — s5 screenshots show the 1.2.4 stamp, taken before the bump,
+      cosmetic, same as S2..S4). Tests green (engine 39, server 48).
 
 ### S6 — Bug fixes & final review
 
@@ -469,6 +488,31 @@ recorded in §3 (full-view rule); Q2's width cap superseded (§2).
 ---
 
 ## 6. Session log
+
+### S5 — 2026-07-24 — Contextual onboarding ✅
+
+- Shipped the S1-planned onboarding: first-turn per-phase hints (rules.md §5 copy,
+  dismissable, sessionStorage like the pense-bête — new `client/src/state/onboarding.ts`),
+  the pense-bête marks legend, the declaration aide zone (the last « ? »-less moment),
+  visible empty-state text in the drawer, and the lobby start-gate line for everyone.
+  Presentation-only: no engine/server/protocol diff; PNG untouched; UI stays French; no
+  hint reads or mentions hidden identity (all copy is generic rules text).
+- Iteration loop caught one real defect via screenshots: at 390 the hint strip's label
+  column strangled the text into a ragged ~150px column — stacked layout below 600px,
+  re-shot clean. The aide modal's pense-bête image fits at 390 (verified, new state 34).
+- Harness updates (committed): `journey.mjs` gains state 34 (rules modal — 390 fit
+  evidence), state 35 (declaration aide open, with a hard assertion that Escape closes
+  the aide only and never the ceremony), and dismisses the pioche hint after state 09
+  (proves the control; state 10 shows the strip gone). Numbering note: 32/33 remain
+  s4b's loupe-evidence namespace; S5 uses 34/35.
+- New fr.ts strings (astuces.*, penseBete.legende/legendePossibles,
+  aideZones.zones.declaration, lobby.gate) carry the NBSP typography (scripted pass over
+  the added lines + full-file guillemet-spacing check: clean). `lobby.startHint` retired
+  with its host-only line (absorbed by the gate line).
+- `pnpm test` green (engine 39/39, server 48/48); versions.md → **1.2.5** (mirror rule).
+- Carry-forwards → S6 (unchanged): chartreuse seat-tint ruling; loser-fin capture; B6
+  6-opponent re-check; 7-player pass now also re-judges the hint strip and legend at 6
+  rows/opponents.
 
 ### S4b — 2026-07-24 — Interstitial: pense-bête full view (user directive) ✅
 

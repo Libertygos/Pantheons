@@ -133,6 +133,9 @@ export function RoomLobby({
       <p className={`lobby__hint ${lobby.canStart ? 'lobby__hint--pret' : ''}`}>
         {lobby.canStart ? fr.lobby.readyToStart : fr.lobby.waiting(occupied, lobby.minSeats)}
       </p>
+      {/* S5 : la porte de démarrage expliquée à tous, une ligne — min/max du serveur
+          (les salons de test admin ont leur propre minimum côté serveur). */}
+      <p className="lobby__gate">{fr.lobby.gate(lobby.minSeats, lobby.maxSeats)}</p>
 
       <div className="lobby__controles">
         <button
@@ -170,7 +173,8 @@ export function RoomLobby({
           {fr.lobby.leave}
         </button>
       </div>
-      {isHost && !lobby.canStart && <p className="lobby__hint">{fr.lobby.startHint}</p>}
+      {/* S5 : l'ancien rappel réservé à l'hôte est absorbé par la ligne .lobby__gate,
+          visible de tous — une seule source pour la porte de démarrage. */}
     </div>
   );
 }
