@@ -148,6 +148,10 @@ export function SeatPlaque({
     <div className={`place ${!opp.alive ? 'place--elimine' : ''}`} style={style}>
       {isMeneur && <span className="place__etiquette">{fr.meneur}</span>}
       {!opp.alive && <span className="place__etiquette place__etiquette--elimine">{fr.jeu.elimine}</span>}
+      {/* B13 : la déconnexion en toutes lettres — le point 2px ne portait pas l'état */}
+      {opp.alive && !opp.connected && (
+        <span className="place__etiquette place__etiquette--deco">{fr.jeu.deconnecteCourt}</span>
+      )}
 
       {plaqueLegale ? (
         <button className="place__plaque place__plaque--legale" onClick={onPlaque}>

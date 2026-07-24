@@ -955,6 +955,33 @@ button {
   color: var(--texte-faible);
 }
 
+/* B17 : votre statut de meneur — chartreuse, son usage réservé (meneur, CTA, déclaration) */
+.jeu__meneur {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--chartreuse);
+  color: var(--encre-sur-clair);
+  box-shadow: var(--ombre-1);
+  white-space: nowrap;
+}
+
+/* B12 : l'« Éliminé » persistant de la barre — le jumeau du chip du dock */
+.jeu__elimine {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--vermillon);
+  color: var(--vermillon);
+  white-space: nowrap;
+}
+
 .jeu__barre-droite {
   margin-left: auto;
   display: inline-flex;
@@ -1120,6 +1147,16 @@ button.place__plaque--legale:focus-visible {
 .place__etiquette--elimine {
   background: var(--vermillon);
   color: var(--blanc);
+}
+
+/* B13 : « Déconnecté » en clair — état transitoire, langage neutre (pas le vermillon
+   de l'élimination) ; côté gauche pour cohabiter avec MENEUR / ÉLIMINÉ à droite */
+.place__etiquette--deco {
+  right: auto;
+  left: 8px;
+  background: var(--nuit-3);
+  color: var(--givre-2);
+  border: 1px solid var(--filet-fort);
 }
 
 /* la zone de pose sous le siège : les questions contre ce joueur */
@@ -1394,6 +1431,25 @@ button.pose-ev__item {
   color: var(--givre);
 }
 
+/* B13 : l'avis de table sous la consigne — déconnexions en toutes lettres, sans compte
+   à rebours (le timeout de barrière attend ⟨INPUT WoG⟩ ; la barrière n'attend pas
+   les absents — auto-passe serveur) */
+.traqueur__avis {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--filet);
+  display: grid;
+  gap: 4px;
+}
+
+.traqueur__deco {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--texte-faible);
+}
+
 .traqueur__actions {
   margin-left: auto;
   display: flex;
@@ -1608,6 +1664,19 @@ button.pose-ev__item {
 }
 
 /* main vide : une ligne qui explique, jamais une bande morte (390 pioche) */
+/* B12 : le rappel persistant côté dock — même langage que l'étiquette de plaque */
+.dock__elimine {
+  width: fit-content;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--vermillon);
+  color: var(--blanc);
+}
+
 .main-vide {
   margin: 0;
   min-height: 84px;
@@ -2215,7 +2284,32 @@ button.pose-ev__item {
   flex-wrap: wrap;
 }
 
-/* sélecteur de déclaration : une rangée par adversaire, 12 têtes */
+/* ---- S4 : l'habit des temps forts — déclaration et fin ne ressemblent plus aux
+   modales utilitaires (aide, défausse) : bande signature en tête, lueur divine
+   discrète sur le cadre, titre chartreuse (déclaration = son usage réservé). ---- */
+
+.modale--ceremonie {
+  border-color: rgba(229, 235, 46, 0.3);
+  box-shadow:
+    0 0 0 1px rgba(var(--lueur-divine), 0.16),
+    0 0 52px rgba(var(--lueur-divine), 0.1),
+    var(--ombre-4),
+    var(--liseret-haut);
+}
+
+.modale__titre--divin {
+  color: var(--chartreuse);
+}
+
+/* la tri-bande en tête de modale, en pleine largeur (annule le padding du cadre) */
+.modale__bande {
+  margin: -26px -28px 20px;
+  border-radius: var(--rayon-2) var(--rayon-2) 0 0;
+  overflow: hidden;
+}
+
+/* sélecteur de déclaration : une rangée par adversaire, 12 dieux NOMMÉS (S4) —
+   portrait + nom, marques du pense-bête en surimpression, badge « N possibles » */
 .decl-rang {
   border-top: 1px solid var(--filet);
   padding: 14px 0;
@@ -2227,11 +2321,13 @@ button.pose-ev__item {
   font-size: 14px;
   margin-bottom: 10px;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .decl-rang__choix {
+  margin-left: auto;
   color: var(--chartreuse);
   font-size: 12px;
   letter-spacing: 0.1em;
@@ -2240,37 +2336,121 @@ button.pose-ev__item {
 
 .decl-dieux {
   display: grid;
-  grid-template-columns: repeat(12, minmax(34px, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 8px 4px;
 }
 
 .decl-dieu {
+  display: grid;
+  gap: 4px;
   padding: 0;
-  border: 2px solid transparent;
-  background: var(--nuit);
+  border: none;
+  background: none;
   cursor: pointer;
-  overflow: hidden;
-  aspect-ratio: 179 / 213;
-  transition:
-    border-color var(--dur-vite) ease,
-    transform var(--dur-vite) ease;
+  min-width: 0;
+  font-family: var(--fonte);
 }
 
-.decl-dieu img {
+.decl-dieu__portrait {
+  position: relative;
+  display: block;
+  aspect-ratio: 179 / 213;
+  border: 2px solid transparent;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--nuit);
+  transition:
+    border-color var(--dur-vite) ease,
+    transform var(--dur-vite) ease,
+    opacity var(--dur-vite) ease;
+}
+
+.decl-dieu__portrait img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.decl-dieu:hover {
+.decl-dieu:hover .decl-dieu__portrait,
+.decl-dieu:focus-visible .decl-dieu__portrait {
   transform: scale(1.06);
   border-color: var(--filet-fort);
 }
 
-.decl-dieu--choisi {
+/* le nom sous le portrait — 10px mono ; il peut peindre sur la GOUTTIÈRE (pas de clip :
+   un nom tronqué est pire qu'un empiètement d'1–2px sur l'espace vide, « Aphrodite ») */
+.decl-dieu__nom {
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--texte-faible);
+  text-align: center;
+  white-space: nowrap;
+  justify-self: center;
+}
+
+/* état choisi FORT : anneau chartreuse + lueur + coche + nom allumé (1px ne suffisait pas) */
+.decl-dieu--choisi .decl-dieu__portrait {
   border-color: var(--chartreuse);
-  box-shadow: 0 0 0 1px var(--chartreuse);
+  box-shadow:
+    0 0 0 1px var(--chartreuse),
+    0 0 14px rgba(var(--lueur-divine), 0.35);
+}
+
+.decl-dieu--choisi .decl-dieu__nom {
+  color: var(--chartreuse);
+  font-weight: 700;
+}
+
+.decl-dieu__coche,
+.decl-dieu__marque {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 50%;
+}
+
+.decl-dieu__coche {
+  background: var(--chartreuse);
+  color: var(--encre-sur-clair);
+}
+
+/* les marques du pense-bête guident la déclaration — mêmes glyphes que la grille */
+.decl-dieu__marque {
+  background: rgba(16, 22, 48, 0.85);
+}
+
+.decl-dieu__marque--exclu {
+  color: var(--vermillon);
+}
+
+.decl-dieu__marque--suspect {
+  color: var(--turquoise);
+}
+
+.decl-dieu--exclu .decl-dieu__portrait {
+  opacity: 0.35;
+  filter: grayscale(0.7);
+}
+
+.decl-dieu--exclu .decl-dieu__nom {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.decl-dieu--retenu .decl-dieu__portrait {
+  border-color: var(--turquoise);
+}
+
+.decl-dieu--retenu .decl-dieu__nom {
+  color: var(--turquoise);
 }
 
 /* choix de pouvoir à défausser */
@@ -2303,25 +2483,136 @@ button.pose-ev__item {
   text-transform: uppercase;
 }
 
-/* fin de partie */
+/* fin de partie — séquence étagée (S4) : bande → titre → verdict → carte → retour.
+   Chaque étage est transform + opacity ; reduced-motion effondre durées ET délais. */
 .fin {
   text-align: center;
   padding: 10px 0 4px;
 }
 
+.fin__bande {
+  margin: -10px 0 18px;
+  border-radius: var(--rayon-2) var(--rayon-2) 0 0;
+  overflow: hidden;
+}
+
+.fin__bande > span {
+  transform-origin: left center;
+  animation: bande-balaye 460ms var(--ease-sortie) both;
+}
+
+.fin__bande > span:nth-child(2) {
+  animation-delay: 130ms;
+}
+
+.fin__bande > span:nth-child(3) {
+  animation-delay: 260ms;
+}
+
+@keyframes bande-balaye {
+  from {
+    transform: scaleX(0);
+  }
+}
+
 .fin__titre {
   font-size: clamp(26px, 4vw, 40px);
   letter-spacing: 0.2em;
+  animation: fin-etage 520ms var(--ease-sortie) 360ms both;
 }
 
 .fin__texte {
   color: var(--texte-faible);
   margin: 14px 0 26px;
+  animation: fin-etage 520ms var(--ease-sortie) 640ms both;
 }
 
 .fin__dieu {
   width: fit-content;
   margin: 0 auto 22px;
+}
+
+/* le miroir du perdant : le verso du vainqueur — son dieu reste secret (projection) */
+.fin__note {
+  color: var(--texte-faible);
+  font-size: 12px;
+  margin: 10px 0 0;
+  animation: fin-etage 520ms var(--ease-sortie) 1240ms both;
+}
+
+.fin__retour {
+  animation: fin-etage 520ms var(--ease-sortie) 1320ms both;
+}
+
+@keyframes fin-etage {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* ---- S4 : le temps fort d'une élimination — plein écran, langage vermillon (B12).
+   Remplace l'ancienne bannière d'info qui banalisait le moment. ---- */
+
+.voile--elimine {
+  /* plus profond que le voile standard (0.82) : le texte de table ne bave pas sous
+     le corps du beat (jugé sur s4/24) ; vignette vermillon aux bords */
+  background:
+    radial-gradient(120% 100% at 50% 50%, transparent 40%, rgba(251, 69, 55, 0.14) 100%),
+    rgba(16, 20, 44, 0.96);
+}
+
+.beat-elimine {
+  max-width: 520px;
+  text-align: center;
+  padding: 20px 8px;
+}
+
+.beat-elimine__sceau {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 18px;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--vermillon);
+  border: 2px solid var(--vermillon);
+  border-radius: 50%;
+  animation: sceau-tampon 500ms var(--ease-pop) both;
+}
+
+.beat-elimine__titre {
+  font-size: clamp(22px, 4vw, 34px);
+  letter-spacing: 0.18em;
+  color: var(--vermillon);
+  animation: sceau-tampon 500ms var(--ease-pop) 120ms both;
+}
+
+.beat-elimine__texte {
+  color: var(--texte);
+  font-size: 14px;
+  margin: 16px 0 0;
+  animation: fin-etage 500ms var(--ease-sortie) 340ms both;
+}
+
+.beat-elimine .btn {
+  margin-top: 26px;
+  animation: fin-etage 500ms var(--ease-sortie) 520ms both;
+}
+
+/* l'encrage d'un tampon : large et de travers, puis posé */
+@keyframes sceau-tampon {
+  from {
+    transform: scale(1.7) rotate(-6deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.96) rotate(0.5deg);
+  }
+  to {
+    transform: none;
+  }
 }
 
 /* ================================================== VISUAL V2 — PRIMITIVE CARTE */
@@ -2534,8 +2825,10 @@ button.pose-ev__item {
   perspective: 900px;
 }
 
+/* S4 : la carte attend son étage (titre 360ms → verdict 640ms → carte) — même
+   quart-de-tour pour la face du vainqueur (soi) et le verso secret (les autres) */
 .fin__dieu .carte-jeu {
-  animation: dieu-revele var(--dur-lent) var(--ease-pop) 180ms both;
+  animation: dieu-revele var(--dur-lent) var(--ease-pop) 920ms both;
 }
 
 @keyframes dieu-revele {
@@ -2637,6 +2930,18 @@ button.pose-ev__item {
 /* appui sur le dieu du dock : la carte s'enfonce d'un cheveu pendant la révélation */
 .dock-dieu:active .carte-jeu {
   transform: translateY(1px);
+}
+
+/* S4 (Q4) : le voile de révélation — pendant l'appui maintenu, la table s'assombrit
+   légèrement sous la loupe (950) : la carte tenue ne s'offre plus à un regard
+   par-dessus l'épaule sur une scène pleinement éclairée. Au-dessus des vols (900). */
+.revele-voile {
+  position: fixed;
+  inset: 0;
+  z-index: 940;
+  pointer-events: none;
+  background: rgba(10, 14, 35, 0.6);
+  animation: voile-entree var(--dur-vite) ease both;
 }
 
 /*
@@ -3044,7 +3349,11 @@ button.pose-ev__item {
   }
 
   .decl-dieux {
-    grid-template-columns: repeat(6, minmax(34px, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .modale__bande {
+    margin: -18px -16px 16px;
   }
 
   .table-centre__scene {
@@ -3077,6 +3386,9 @@ button.pose-ev__item {
   * {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+    /* S4 : les séquences étagées (fin, beat d'élimination) n'imposent aucune attente
+       aveugle — délais effondrés avec les durées, l'état final s'affiche d'un coup */
+    animation-delay: 0s !important;
   }
 
   /* pas de vie au repos : l'éventail reste posé */

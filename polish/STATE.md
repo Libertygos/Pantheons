@@ -8,8 +8,8 @@
 > **Mode: full runtime mode.** The project runs end to end in this environment (S1 ran the
 > real stack and drove real games). No paper-audit pivot was needed.
 >
-> Session 1 executed 2026-07-23. Sessions 2 and 3 executed 2026-07-24.
-> Status: **S1–S3 complete** — S4..S6 not started. Resume at S4's first unchecked task.
+> Session 1 executed 2026-07-23. Sessions 2, 3 and 4 executed 2026-07-24.
+> Status: **S1–S4 complete** — S5..S6 not started. Resume at S5's first unchecked task.
 
 ---
 
@@ -77,6 +77,10 @@ Notes baked into the scripts (learned the hard way):
 20 tour 2 pioche · 21 déclaration choisie · 22 fin victoire · 23 adversaire déconnecté ·
 24 déclaration ratée · 25 après élimination · 26 salon complet 4j · 27 pioche 4j ·
 28 question 4j · 29 réponse 4j · 30 pense-bête 4j — each at `--1280` and `--390`.
+Since S4, `journey4p` also captures **31 déclaration 4j** (3 ceremony rows, marks +
+« N possibles ») — `s4/` holds 62 files (01..31 × 2 viewports); 24 is now the
+elimination beat and 25 the persistent eliminated state (the script dismisses the beat
+via its « Continuer » between the two).
 
 Not yet captured (do during the relevant session): two-power discard modal, power
 activation targeting, Spéciale placement, private `reveal` banner, duplicate-tab view,
@@ -242,12 +246,12 @@ Status: ✅ fixed (session) · open otherwise.
 | B9 | 🟨 | ✅ S2 — `canStart` flips the status line to « Tout le monde est prêt — l'hôte peut lancer la partie. » in vert (s2/08). | `RoomLobby.tsx` | S2 |
 | B10 | 🟨 | ✅ S2 — background moved to a `position: fixed` `body::before` layer; `background-attachment: fixed` removed. Journey scripts pin it absolute for captures. | `index.css` | S2 |
 | B11 | ⬜ | ENGINE (deferred, do not fix in polish): after a failed declaration in a 2-player game the match continues with a single alive player — no auto-end (24, 25). Needs a design ruling. | `engine` declaration/win | log only |
-| B12 | 🟨 | Eliminated **self** state: one dismissible banner, then nothing — no persistent « Éliminé » marker in the dock/topbar; UI still looks playable (24, 25). | `GameView.tsx` | S4 |
-| B13 | 🟨 | In-match disconnect = 2px red dot on the plaque only; the barrier silently stalls with no message (23--1280). | `GameView` / `SeatPlaque` | S4 |
+| B12 | 🟨 | ✅ S4 — elimination is a full-screen vermillon beat (✕ seal, explicit body, « Continuer »), then a PERSISTENT state: « Éliminé » chips in topbar + dock, spectator consigne in the tracker (s4/24, s4/25). | `GameView.tsx` | S4 |
+| B13 | 🟨 | ✅ S4 — disconnect shown in words: « Déconnecté » etiquette on the plaque + tracker line « Déconnexion d'Ophélie — reconnexion en attente, la partie continue sans l'attendre. » (accurate: the server barrier auto-passes absentees). No invented countdown (s4/23--1280). | `GameView` / `SeatPlaque` / `PhaseTracker` | S4 |
 | B14 | 🟨 | ✅ S3 — root cause was the 62%-alpha text OVERLAPPING the bright card fan (contrast collapsed over the white card bottoms). Tagline now opaque (0.92), z-stacked above the fan, text-shadowed (s3/01). | `index.css` | S3 |
 | B15 | 🟨 | ✅ S2 — `joinTitle` rendered as a visible label above the code boxes; form `aria-labelledby` (s2/01). | `LandingScreen.tsx` | S2 |
 | B16 | ⬜ | ✅ S2 — Escape layering: loupe (capture+stop, unchanged) → modal (déclaration/aide via GameView handler; AideZone closes itself capture+stop) → drawer. The pouvoir-discard modal deliberately has NO Escape (required phase action). Verified in automation. | `GameView` / `AideZone` | S2 |
-| B17 | 🟨 | Self-meneur invisible: MENEUR badge exists only on opponent plaques — when *you* are meneur nothing shows it (09 vs 20). | `GameView` / `GameTopBar` | S4 |
+| B17 | 🟨 | ✅ S4 — chartreuse chip « Meneur : vous » in the topbar (reserved-use compliant); wraps cleanly at 390 (s4/09--390). | `GameView` / `GameTopBar` | S4 |
 | B18 | 🟨 | ✅ S2 — grid scrolls inside the drawer with a sticky name column (reordered first), fixed 48px god tracks, and edge-fade cues driven by scroll position (s2/15--390, sticky verified scrolled). | `PenseBeteGrid` | S2 |
 
 ---
@@ -337,26 +341,46 @@ and trim states).
       (engine 39, server 48). Note: s3 screenshots show the 1.2.1 footer stamp — taken
       before the bump, cosmetic (same as S2).
 
-### S4 — Atmosphere, reveal moments & feedback
+### S4 — Atmosphere, reveal moments & feedback ✅ (2026-07-24)
 
-- [ ] **Declaration ceremony:** distinct modal DA (tri-bande header, chartreuse title —
-      its reserved use), god names under portraits, strong selected state, per-opponent
-      « N possibles » badge sourced from the local pense-bête (client-only), staging
-      order = seat order.
-- [ ] **Elimination beat:** full-screen overlay (shake exists) replacing the info banner;
-      persistent « Éliminé » chip in dock + topbar for self (B12); opponents' view
-      already has the plaque badge.
-- [ ] **Victory:** staged sequence — winner named, winner's own card flip (already
-      public), tri-bande sweep; loser perspective mirrors it. No projection changes:
-      others' gods stay hidden.
-- [ ] **Meneur for self (B17):** topbar/tracker chip « Meneur : vous ».
-- [ ] **Waiting & disconnect states (B13):** explicit « La table attend X… » line under
-      the tracker; disconnected player gets « X s'est déconnecté — reconnexion en
-      attente » wording (from CONN_STATUS); no invented countdown (timeout is deferred).
-- [ ] Hold-to-reveal: slight backdrop dim while held (Q4).
-- [ ] Reduced-motion audit of every new effect (existing convention).
-- [ ] Re-screenshot: 19/21/22/24/25 states + new beats → `polish/screenshots/s4/`;
-      versions.md entry.
+- [x] **Declaration ceremony:** `modale--ceremonie` (tri-bande header full-bleed,
+      chartreuse title — its reserved use, subtle divine glow on the frame); every god
+      NAMED under its portrait (10px mono, names may paint over the gutter rather than
+      truncate — « Aphrodite » at 390); strong selected state (chartreuse ring + glow +
+      ✓ + lit name); the local pense-bête projects into the modal: ✕ exclu (dimmed
+      portrait, struck name), ★ retenu (turquoise ring), and a per-row « N possibles »
+      badge in the seat tint; rows in seat order. `title` attr stays the bare god label
+      (journey anchor); marks live in aria-label. Client-only notes — no hidden info.
+- [x] **Elimination beat (B12):** full-screen `voile--elimine` (0.96 + vermillon
+      vignette — 0.93 let table text bleed through, caught on s4/24 and deepened),
+      stamped ✕ seal + title, explicit body (self: spectator wording; others: failed
+      declaration wording), « Continuer » (autoFocus, Escape works — topmost layer).
+      Persistent after dismissal: « Éliminé » chips in topbar AND dock, spectator
+      consigne in the tracker. Beat suppressed when `over` (the fin owns that moment).
+- [x] **Victory staged:** bande sweep (3 staggered scaleX) → title → verdict → card →
+      retour, all transform+opacity with delays; winner sees their own card flip (920ms
+      stage); losers see the winner's VERSO + « Le dieu de X restera secret. » — the
+      projection rule became a moment. NOT photographed: the loser-perspective fin (a
+      bot cannot legitimately win — it never knows the browser's god); verified by code
+      review; S6 may attempt a rigged capture via Déduction reveals.
+- [x] **Meneur for self (B17):** topbar chip « Meneur : vous », chartreuse.
+- [x] **Waiting & disconnect (B13):** confirmed-consigne now reads « … — la table
+      attend X… » (`fait.tableAttend` replaces `fait.enAttenteDe`; elision no longer
+      needed there, `d()` still used elsewhere); disconnect = plaque etiquette
+      « Déconnecté » (left side, neutral palette — vermillon stays elimination) + a
+      `traqueur__avis` line « Déconnexion d'Ophélie — reconnexion en attente, la partie
+      continue sans l'attendre. » (wording avoids gendered agreement, and is accurate:
+      server barrier auto-passes disconnected seats — checked `barrier.ts`). No countdown.
+- [x] **Hold-to-reveal dim (Q4):** fixed `revele-voile` (z 940, under the loupe 950)
+      while held — table dims behind the big card (s4/16).
+- [x] **Reduced-motion audit:** global reduce block now collapses `animation-delay`
+      too (staged sequences showed 0-opacity `both` fills for up to 1.3s otherwise);
+      all new effects are transform+opacity; beat/fin/sweep verified against the
+      collapsed-duration convention; spinner exception untouched.
+- [x] Journeys re-run (twice: iteration + final) + journey4p (now captures **31
+      déclaration 4j**); 62 files in `polish/screenshots/s4/`; versions.md **1.2.3**
+      (mirror rule — the s4 screenshots show the 1.2.2 footer stamp, taken before the
+      bump, cosmetic, same as S2/S3). Tests green (engine 39, server 48).
 
 ### S5 — Contextual onboarding (spec-grounded, no hidden-info leaks)
 
@@ -375,6 +399,12 @@ and trim states).
 ### S6 — Bug fixes & final review
 
 - [ ] Remaining 🟨 not covered above; verify every B# row and mark fixed/deferred.
+- [ ] S4 observation to rule on: `SEAT_TINTS` (S1-era, shared plaque/pense-bête/decl
+      badge accents) includes `--chartreuse` as seat-3 tint — the only non-divine
+      chartreuse left after S3's ★ retint. Decide: swap that tint (e.g. `--sarcelle`)
+      or ratify seat accents as an exception to the reserved-use rule.
+- [ ] S4 carry-forward: loser-perspective fin (`fin__dieu--secret` verso + note) has no
+      screenshot — attempt a capture (Déduction-power path) or record as code-verified.
 - [ ] 7-player pass: extend journey4p to 6 bots; judge arc, pense-bête 6 rows, plaque
       density at both viewports; fix what breaks (layout only).
 - [ ] Full journey + journey4p re-run against final build; complete before/after set in
@@ -388,6 +418,33 @@ and trim states).
 ---
 
 ## 6. Session log
+
+### S4 — 2026-07-24 — Atmosphere, reveal moments & feedback ✅
+
+- Fixed B12/B13/B17 and shipped the S1-identified drama gaps — details in §4 and the S4
+  checklist. Presentation-only: no engine/server/protocol diff (disconnect semantics
+  READ from `server/src/rooms/barrier.ts` to word the message truthfully); PNG
+  untouched; UI stays French; declaration modal consumes only local pense-bête marks
+  (never sent — no hidden-info path).
+- The three climactic moments now have distinct dress: declaration = ceremony
+  (tri-bande + chartreuse + named, mark-annotated god grid + « N possibles »), failed
+  declaration = full-screen vermillon beat with a persistent eliminated state, victory =
+  staged sequence whose loser view turns the never-reveal rule into a moment (winner's
+  verso + « restera secret »).
+- Iteration loop caught one real defect via screenshots: the beat voile at 0.93 let the
+  dimmed tracker text bleed under the beat body (s4/24) — deepened to 0.96, re-shot.
+- Harness updates (committed): journey.mjs dismisses the beat between states 24/25 and
+  waits out the staged fin before 22; journey4p gains state 31 (4p declaration ceremony
+  with marks pre-set). `.decl-dieu` keeps `title="<god label>"` as the automation anchor.
+- New fr.ts strings (jeu.meneurVous/deconnecte/deconnecteCourt, consignes.elimine,
+  elimination.*, fin.dieuCache, fait.tableAttend) carry S3's NBSP typography (scanner
+  re-run: string literals clean; flagged lines are comments/ternaries, untouched by
+  convention). `declaration.eliminated` retired with the banner it served.
+- Reduced-motion hardening: the global reduce block also zeroes `animation-delay` —
+  without it the new staged fills would sit invisible for up to ~1.3s.
+- `pnpm test` green (engine 39/39, server 48/48); versions.md → **1.2.3** (mirror rule).
+- Carry-forwards → S6: chartreuse seat tint ruling; loser-fin capture; B6 6-opponent
+  re-check; 7-player pass (unchanged from plan).
 
 ### S1 — 2026-07-23 — Immersion & design dossier (analysis only) ✅
 

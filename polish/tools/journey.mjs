@@ -288,7 +288,7 @@ await snap(page, '21-declaration-choisie');
 await page.locator('button:has-text("Je déclare « Panthéons »")').click();
 bot.passDeclaration();
 await page.waitForSelector('.voile:has-text("Panthéons"), .fin, [class*="fin"]', { timeout: 20000 }).catch(() => {});
-await sleep(1500);
+await sleep(2600); // S4: the staged fin sequence settles (last stage ≈ 1.32s + 520ms)
 await snap(page, '22-fin-victoire');
 
 // Back home (the end modal is above everything now — no drawer to clear)
@@ -359,10 +359,12 @@ await page.locator('button:has-text("Je déclare « Panthéons »")').click();
 await sleep(500);
 bot2.passDeclaration();
 await sleep(2500);
+// S4: the failed declaration now lands as the full-screen elimination beat
 await snap(page, '24-declaration-ratee');
 
-// Whatever the post-elimination state is (game over for 2p, or continues)
-await sleep(2000);
+// S4: dismiss the beat → the persistent Éliminé state (topbar + dock chips, spectator consigne)
+await page.locator('.beat-elimine button:has-text("Continuer")').click().catch(() => {});
+await sleep(1000);
 await snap(page, '25-apres-elimination');
 
 log('DONE');

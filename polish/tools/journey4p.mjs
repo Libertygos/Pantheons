@@ -142,6 +142,25 @@ await snap(page, '29-jeu-4j-reponse');
 await page.locator('button[aria-controls="tiroir-pense-bete"]').click();
 await sleep(600);
 await snap(page, '30-jeu-4j-pense-bete');
+await page.keyboard.press('Escape');
+await sleep(400);
+
+// S4: the declaration ceremony at the real table shape — 3 rows × 12 named gods.
+// Mark a few pense-bête cells first so the modal shows marks + a live « N possibles ».
+await page.locator('button[aria-controls="tiroir-pense-bete"]').click();
+await sleep(400);
+const cells4 = page.locator('.tiroir button[aria-pressed]');
+if (await cells4.count() > 14) {
+  await cells4.nth(0).click(); // row 1: exclu
+  await cells4.nth(13).click(); await cells4.nth(13).click(); // row 2: retenu
+}
+await page.keyboard.press('Escape');
+await sleep(400);
+await page.locator('button:has-text("Déclarer « Panthéons »")').click();
+await sleep(500);
+await snap(page, '31-declaration-4j');
+await page.locator('button:has-text("Annuler")').click();
+await sleep(300);
 
 log('DONE');
 await browser.close();

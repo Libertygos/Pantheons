@@ -140,6 +140,12 @@ export const fr = {
     aide: 'Aide',
     quitter: 'Quitter',
     elimine: 'Éliminé',
+    /** B17 : votre propre statut de meneur — les plaques adverses portent déjà le badge. */
+    meneurVous: 'Meneur : vous',
+    deconnecteCourt: 'Déconnecté',
+    /** B13 : la barrière n'attend jamais un absent (auto-passe serveur) — on le dit. */
+    deconnecte: (nom: string) =>
+      `Déconnexion ${d(nom)} — reconnexion en attente, la partie continue sans l’attendre.`,
     vous: 'vous',
     poserIci: 'Poser ici',
     cible: 'Ciblé',
@@ -175,6 +181,9 @@ export const fr = {
       n === 0 ? 'Passer sans question' : `Valider ${n} question${n > 1 ? 's' : ''}`,
     poserSpeciale: 'Poser sur l’emplacement spécial',
     retirer: 'Retirer',
+    /** B12 : la consigne du spectateur — l'éliminé garde une ligne d'état, jamais un vide. */
+    elimine:
+      'Vous êtes éliminé — votre dieu reste caché, vous suivez la partie en spectateur.',
   },
 
   /** États « action de phase envoyée / confirmée » (QoL §4). */
@@ -190,7 +199,8 @@ export const fr = {
           : `${n} question${n > 1 ? 's' : ''} validée${n > 1 ? 's' : ''}`,
     reponsePassee: 'Vous avez passé',
     declaration: 'Déclaration envoyée',
-    enAttenteDe: (noms: string) => `en attente ${d(noms)}…`,
+    /** S4 (Q3/Q8) : qui la table attend, en toutes lettres — même source que les coches. */
+    tableAttend: (noms: string) => `la table attend ${noms}…`,
   },
 
   declaration: {
@@ -201,8 +211,17 @@ export const fr = {
     aChoisir: 'à choisir',
     confirm: 'Je déclare « Panthéons »',
     cancel: 'Annuler',
-    eliminated: (nom: string) =>
-      `${nom} a déclaré « Panthéons » et s’est trompé — éliminé, son dieu reste caché.`,
+  },
+
+  /** S4 : le temps fort d'une élimination — plein écran, remplace l'ancienne bannière. */
+  elimination: {
+    titreVous: 'Vous êtes éliminé',
+    titre: (nom: string) => `${nom} est éliminé`,
+    corpsVous:
+      'Votre déclaration « Panthéons » comportait une erreur. Votre dieu reste caché — vous suivez la fin de la partie en spectateur.',
+    corps: (nom: string) =>
+      `${nom} a déclaré « Panthéons » et s’est trompé. Son dieu reste caché — la partie continue.`,
+    continuer: 'Continuer',
   },
 
   aide: {
@@ -293,6 +312,8 @@ export const fr = {
     titre: 'Panthéons',
     vainqueur: (nom: string) => `${nom} a percé tous les secrets et remporte la partie.`,
     vainqueurVous: 'Vous avez percé tous les secrets — victoire !',
+    /** S4 : le miroir du perdant — la carte du vainqueur reste face cachée (projection). */
+    dieuCache: (nom: string) => `Le dieu ${d(nom)} restera secret.`,
     retour: 'Retour à l’accueil',
   },
 

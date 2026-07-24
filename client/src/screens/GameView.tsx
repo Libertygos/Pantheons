@@ -30,7 +30,7 @@ import {
   questionCardBand,
   questionCardTexte,
 } from '../components/card-text.js';
-import { usePenseBete } from '../state/pense-bete.js';
+import { usePenseBete, type Mark } from '../state/pense-bete.js';
 import { godCardSrc, godPortraitSrc, penseBeteSrc, pouvoirCardSrc, questionCardSrc } from '../assets.js';
 import { fr } from '../i18n/fr.js';
 
@@ -157,7 +157,8 @@ export function GameView({
   /** Tactile : carte de la main levée au premier appui — le second appui agit (B5). */
   const [raisedId, setRaisedId] = useState<string | null>(null);
   const [discardId, setDiscardId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  /** S4 : élimination(s) fraîche(s) à dramatiser — plein écran jusqu'au « Continuer ». */
+  const [elimBeat, setElimBeat] = useState<string[] | null>(null);
   const [flights, setFlights] = useState<Flight[]>([]);
   /** QoL §4 : action de phase partie au serveur — Pending tant que youSubmitted est faux. */
   const [sent, setSent] = useState<SentAction | null>(null);
@@ -175,18 +176,19 @@ export function GameView({
   }, [showNotes]);
 
   // ESC congédie la couche la plus haute : loupe (CardInspectLayer capte l'événement en
-  // amont) → modale (déclaration, aide) → tiroir. La défausse de pouvoir ne se ferme pas :
-  // c'est une action requise de la phase, pas une surcouche.
+  // amont) → temps fort d'élimination → modale (déclaration, aide) → tiroir. La défausse
+  // de pouvoir ne se ferme pas : c'est une action requise de la phase, pas une surcouche.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (declaring) setDeclaring(false);
+      if (elimBeat) setElimBeat(null);
+      else if (declaring) setDeclaring(false);
       else if (showHelp) setShowHelp(false);
       else if (showNotes) setShowNotes(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [declaring, showHelp, showNotes]);
+  }, [elimBeat, declaring, showHelp, showNotes]);
 
   // Au DÉBUT de la phase réponse, un signal — jamais une prise de contrôle : la poignée
   // bat une fois et son badge compte les réponses non lues (l'ancienne auto-ouverture
@@ -233,20 +235,14 @@ export function GameView({
     setSent(null);
   }, [rejectNonce]);
 
-  // Surface new eliminations (declaration failed — god stays hidden).
+  // S4 : une élimination fraîche est un temps fort plein écran (B12 — l'ancienne bannière
+  // d'info banalisait le moment). La fin de partie a son propre écran étagé : pas de beat.
   const prevEliminated = useRef<string[]>(proj.eliminated);
   useEffect(() => {
     const fresh = proj.eliminated.filter((uid) => !prevEliminated.current.includes(uid));
     prevEliminated.current = proj.eliminated;
-    if (fresh.length > 0) {
-      const names = fresh.map((uid) =>
-        uid === proj.self.userId
-          ? `${proj.self.displayName} (${fr.jeu.vous})`
-          : (proj.opponents.find((o) => o.userId === uid)?.displayName ?? uid),
-      );
-      setNotice(names.map((n) => fr.declaration.eliminated(n)).join(' '));
-    }
-  }, [proj.eliminated, proj.opponents, proj.self.displayName, proj.self.userId]);
+    if (fresh.length > 0 && !over) setElimBeat(fresh);
+  }, [proj.eliminated, over]);
 
   const me = proj.self;
   const alive = me.alive;
@@ -426,7 +422,11 @@ export function GameView({
     return items.length > 0 ? <>{items}</> : null;
   };
 
-  const liveOpponents = proj.opponents.filter((o) => o.alive);
+  // S4 : l'ordre de la déclaration = l'ordre des sièges (la table physique), pas l'ordre
+  // d'arrivée dans la projection.
+  const liveOpponents = proj.seatOrder
+    .map((uid) => proj.opponents.find((o) => o.userId === uid))
+    .filter((o): o is NonNullable<typeof o> => Boolean(o?.alive));
   const declarationComplete = liveOpponents.every((o) => guesses[o.userId]);
 
   const submitDeclaration = () => {
@@ -469,15 +469,17 @@ export function GameView({
           : fr.fait.reponsePassee;
 
   const instruction =
-    over || !alive
+    over
       ? null
-      : powerMode
+      : !alive
+        ? fr.consignes.elimine
+        : powerMode
         ? powerPicksOpponent
           ? fr.jeu.choisirCiblePouvoir(data.POWERS[powerMode]?.label ?? powerMode)
           : fr.jeu.choisirCartePosee(data.POWERS[powerMode]?.label ?? powerMode)
         : youSubmitted
           ? pendingNames.length > 0
-            ? `${faitLine} — ${fr.fait.enAttenteDe(pendingNames.join(', '))}`
+            ? `${faitLine} — ${fr.fait.tableAttend(pendingNames.join(', '))}`
             : faitLine
           : proj.phase === 'pioche'
             ? powerCards.length > 1
@@ -656,9 +658,19 @@ export function GameView({
 
   const toggleNotes = () => setShowNotes((s) => !s);
 
+  // B13 : les absents en clair — la barrière ne les attend pas (auto-passe serveur),
+  // le point de connexion 2px ne suffisait pas à le dire.
+  const deconnectes = seatedOpponents.filter((o) => o.alive && !o.connected);
+
   return (
     <div className="jeu">
-      <GameTopBar tour={proj.tour} onHelp={() => setShowHelp(true)} onExit={onExit} />
+      <GameTopBar
+        tour={proj.tour}
+        meneurVous={proj.meneur === me.userId}
+        elimine={!alive}
+        onHelp={() => setShowHelp(true)}
+        onExit={onExit}
+      />
 
       {/* bande haute : l'arc des sièges */}
       <div className="places-arc">
@@ -713,26 +725,31 @@ export function GameView({
       </div>
 
       {/* traqueur de phase : étapes + coches prêt par siège + consigne + actions */}
-      <PhaseTracker p={proj} instruction={instruction}>
+      <PhaseTracker
+        p={proj}
+        instruction={instruction}
+        avis={
+          deconnectes.length > 0
+            ? deconnectes.map((o) => (
+                <span key={o.userId} className="traqueur__deco">
+                  <span className="point-conn point-conn--deco" aria-hidden="true" />
+                  {fr.jeu.deconnecte(o.displayName)}
+                </span>
+              ))
+            : null
+        }
+      >
         {trackerActions}
       </PhaseTracker>
 
       {/* centre : la table partagée */}
       <section className="table-centre">
         <AideZone sujet="table" className="btn-aide--table" />
-        {(banner || notice || info) && (
+        {(banner || info) && (
           <div className="table-centre__notices">
             {banner && (
               <div className="notice notice--erreur" role="alert">
                 {banner}
-              </div>
-            )}
-            {notice && (
-              <div className="notice" role="status">
-                {notice}
-                <button className="btn btn--nu btn--petit" onClick={() => setNotice(null)}>
-                  ✕
-                </button>
               </div>
             )}
             {info && (
@@ -853,6 +870,8 @@ export function GameView({
             <span className="libelle dock__titre">
               {fr.yourGod} <AideZone sujet="dieu" />
             </span>
+            {/* B12 : l'état persiste après le temps fort — le dock et la barre le disent */}
+            {!alive && <span className="dock__elimine">{fr.jeu.elimine}</span>}
             <MyGodCard god={me.god} />
           </div>
 
@@ -1103,32 +1122,53 @@ export function GameView({
         </div>
       )}
 
-      {/* modale : déclaration Panthéons */}
+      {/* modale : déclaration Panthéons — LE temps fort du jeu (S4) : bande signature,
+          titre divin (chartreuse, son usage réservé), noms sous les portraits, marques du
+          pense-bête en surimpression et badge « N possibles » par rangée (notes locales,
+          jamais envoyées — aucune information cachée n'entre ici). */}
       {declaring && (
         <div className="voile">
-          <div className="modale">
-            <h2 className="titre-affiche modale__titre">{fr.declaration.title}</h2>
+          <div className="modale modale--ceremonie">
+            <div className="tri-bande modale__bande" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+            <h2 className="titre-affiche modale__titre modale__titre--divin">
+              {fr.declaration.title}
+            </h2>
             <p className="modale__texte">{fr.declaration.instruction}</p>
-            {liveOpponents.map((opp) => (
-              <div className="decl-rang" key={opp.userId}>
-                <div className="decl-rang__nom">
-                  {opp.displayName}
-                  <span className="decl-rang__choix">
-                    {guesses[opp.userId] ? GODS[guesses[opp.userId]!].label : fr.declaration.aChoisir}
-                  </span>
+            {liveOpponents.map((opp) => {
+              const seat = seatOf(opp.userId);
+              return (
+                <div className="decl-rang" key={opp.userId}>
+                  <div className="decl-rang__nom">
+                    {opp.displayName}
+                    <span
+                      className="place__possibles"
+                      style={{ '--teinte-place': `var(${seatTint(seat)})` } as CSSProperties}
+                      title={`${fr.penseBete.title} — ${fr.penseBete.restants(penseBete.remaining(opp.userId))}`}
+                    >
+                      {fr.penseBete.restants(penseBete.remaining(opp.userId))}
+                    </span>
+                    <span className="decl-rang__choix">
+                      {guesses[opp.userId] ? GODS[guesses[opp.userId]!].label : fr.declaration.aChoisir}
+                    </span>
+                  </div>
+                  <div className="decl-dieux">
+                    {ALL_GODS.map((god) => (
+                      <DeclDieu
+                        key={god.id}
+                        godId={god.id}
+                        chosen={guesses[opp.userId] === god.id}
+                        mark={penseBete.get(opp.userId, god.id)}
+                        onPick={() => setGuesses((g) => ({ ...g, [opp.userId]: god.id }))}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="decl-dieux">
-                  {ALL_GODS.map((god) => (
-                    <DeclDieu
-                      key={god.id}
-                      godId={god.id}
-                      chosen={guesses[opp.userId] === god.id}
-                      onPick={() => setGuesses((g) => ({ ...g, [opp.userId]: god.id }))}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             <div className="modale__pied">
               <button className="btn btn--nu" onClick={() => setDeclaring(false)}>
                 {fr.declaration.cancel}
@@ -1213,16 +1253,59 @@ export function GameView({
         </span>
       ))}
 
-      {/* fin de partie */}
+      {/* temps fort : élimination (S4, B12) — plein écran, langage vermillon ; remplace
+          l'ancienne bannière d'info. La fin de partie a son propre écran : pas de beat. */}
+      {elimBeat && !over && (
+        <div className="voile voile--elimine">
+          <div
+            className="beat-elimine"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="beat-elimine-titre"
+          >
+            <span className="beat-elimine__sceau" aria-hidden="true">
+              ✕
+            </span>
+            <h2 id="beat-elimine-titre" className="titre-affiche beat-elimine__titre">
+              {elimBeat.includes(me.userId)
+                ? fr.elimination.titreVous
+                : fr.elimination.titre(
+                    elimBeat
+                      .map((uid) => proj.opponents.find((o) => o.userId === uid)?.displayName ?? uid)
+                      .join(', '),
+                  )}
+            </h2>
+            {elimBeat.includes(me.userId) && (
+              <p className="beat-elimine__texte">{fr.elimination.corpsVous}</p>
+            )}
+            {elimBeat
+              .filter((uid) => uid !== me.userId)
+              .map((uid) => (
+                <p key={uid} className="beat-elimine__texte">
+                  {fr.elimination.corps(
+                    proj.opponents.find((o) => o.userId === uid)?.displayName ?? uid,
+                  )}
+                </p>
+              ))}
+            <button className="btn btn--givre" onClick={() => setElimBeat(null)} autoFocus>
+              {fr.elimination.continuer}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* fin de partie — séquence étagée (S4) : bande signature → titre → verdict → la
+          carte du vainqueur (SA face pour lui seul ; pour les autres le verso — son dieu
+          reste secret, règle de projection) → retour. */}
       {over && (
         <div className="voile">
-          <div className="modale fin">
-            <h2 className="titre-affiche fin__titre">{fr.fin.titre}</h2>
-            <div className="tri-bande" aria-hidden="true" style={{ margin: '18px 0' }}>
+          <div className="modale modale--ceremonie fin">
+            <div className="tri-bande fin__bande" aria-hidden="true">
               <span />
               <span />
               <span />
             </div>
+            <h2 className="titre-affiche fin__titre">{fr.fin.titre}</h2>
             <p className="fin__texte">
               {proj.winner === me.userId
                 ? fr.fin.vainqueurVous
@@ -1232,8 +1315,21 @@ export function GameView({
                       '—',
                   )}
             </p>
-            {proj.winner && <WinnerGod godId={proj.winner === me.userId ? me.god : null} />}
-            <button className="btn btn--givre" onClick={onExit}>
+            {proj.winner &&
+              (proj.winner === me.userId ? (
+                <WinnerGod godId={me.god} />
+              ) : (
+                <div className="fin__dieu fin__dieu--secret">
+                  <GameCard size="lg" back="personnages" inspect={false} />
+                  <p className="fin__note">
+                    {fr.fin.dieuCache(
+                      proj.opponents.find((o) => o.userId === proj.winner)?.displayName ??
+                        proj.winner,
+                    )}
+                  </p>
+                </div>
+              ))}
+            <button className="btn btn--givre fin__retour" onClick={onExit}>
               {fr.fin.retour}
             </button>
           </div>
@@ -1246,25 +1342,58 @@ export function GameView({
   );
 }
 
-/** Choix de dieu de la déclaration, avec la loupe : la vraie carte Personnage en grand. */
+/**
+ * Choix de dieu de la déclaration (S4) : portrait + NOM (fini les 12 têtes muettes),
+ * marque du pense-bête en surimpression (✕ exclu / ★ retenu — vos notes locales guident
+ * le choix, jamais envoyées), état choisi fort (anneau chartreuse + coche), et la loupe :
+ * la vraie carte Personnage en grand. `title` reste le libellé NU (ancrage stable).
+ */
 function DeclDieu({
   godId,
   chosen,
+  mark,
   onPick,
 }: {
   godId: GodId;
   chosen: boolean;
+  mark: Mark;
   onPick: () => void;
 }) {
   const ref = useCardInspect<HTMLButtonElement>({ face: godCardFace(godId) });
   return (
     <button
       ref={ref}
-      className={`decl-dieu ${chosen ? 'decl-dieu--choisi' : ''}`}
+      className={[
+        'decl-dieu',
+        chosen ? 'decl-dieu--choisi' : '',
+        !chosen && mark === 'exclu' ? 'decl-dieu--exclu' : '',
+        !chosen && mark === 'suspect' ? 'decl-dieu--retenu' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       onClick={onPick}
+      aria-pressed={chosen}
       title={GODS[godId].label}
+      aria-label={
+        mark === 'inconnu'
+          ? GODS[godId].label
+          : `${GODS[godId].label} — ${fr.penseBete.etats[mark]}`
+      }
     >
-      <img src={godPortraitSrc(godId)} alt={GODS[godId].label} />
+      <span className="decl-dieu__portrait">
+        <img src={godPortraitSrc(godId)} alt="" />
+        {chosen && (
+          <span className="decl-dieu__coche" aria-hidden="true">
+            ✓
+          </span>
+        )}
+        {!chosen && mark !== 'inconnu' && (
+          <span className={`decl-dieu__marque decl-dieu__marque--${mark}`} aria-hidden="true">
+            {mark === 'exclu' ? '✕' : '★'}
+          </span>
+        )}
+      </span>
+      <span className="decl-dieu__nom">{GODS[godId].label}</span>
     </button>
   );
 }
@@ -1340,6 +1469,9 @@ function MyGodCard({ god }: { god: GodId }) {
 
   return (
     <>
+      {/* S4 (Q4) : un léger voile pendant la révélation — la carte tenue ne s'offre plus
+          à un regard par-dessus l'épaule sur une table pleinement éclairée. */}
+      {held && <span className="revele-voile" aria-hidden="true" />}
       <button
         ref={btnRef}
         className="dock-dieu"

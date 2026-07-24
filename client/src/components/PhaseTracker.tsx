@@ -16,10 +16,13 @@ const PHASES = ['pioche', 'question', 'reponse'] as const;
 export function PhaseTracker({
   p,
   instruction,
+  avis,
   children,
 }: {
   p: PlayerProjection;
   instruction: string | null;
+  /** B13 : avis d'état de table (déconnexions) — sous la consigne, jamais un silence. */
+  avis?: ReactNode;
   /** Boutons d'action de l'étape active (VALIDER LA PIOCHE, PASSER, DÉCLARER…). */
   children?: ReactNode;
 }) {
@@ -75,6 +78,8 @@ export function PhaseTracker({
             {children && <span className="traqueur__actions">{children}</span>}
           </div>
         )}
+
+        {avis && <div className="traqueur__avis">{avis}</div>}
       </div>
     </div>
   );

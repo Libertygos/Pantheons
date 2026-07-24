@@ -1,3 +1,43 @@
+# Version 1.2.3
+
+## Deep polish S4 — atmosphère, temps forts & retours (présentation seule)
+
+Session polish S4 (2026-07-24, protocole `CONTINUE-POLISH.md`, dossier `polish/STATE.md`).
+Zéro diff moteur/serveur/protocole ; PNG intacts ; UI français seul.
+
+1. **Cérémonie de déclaration.** La modale « Panthéons » ne ressemble plus à l'aide :
+   tri-bande signature en tête, titre chartreuse (son usage réservé — la déclaration EST
+   le moment divin), lueur discrète sur le cadre. Les 12 dieux sont NOMMÉS sous leur
+   portrait ; les marques de VOTRE pense-bête s'y projettent (✕ exclu — portrait éteint,
+   nom barré ; ★ retenu — liseré turquoise), et chaque rangée porte le badge vivant
+   « N possibles » à la teinte du siège. État choisi fort : anneau chartreuse + lueur +
+   coche + nom allumé (le liseré 1px ne portait pas le moment). L'ordre des rangées est
+   l'ordre des sièges. Notes locales seulement — rien de caché n'entre dans cette modale.
+2. **Élimination : un temps fort.** La déclaration ratée n'est plus une bannière
+   dissimissible : plein écran vermillon (sceau ✕ tamponné, titre « Vous êtes éliminé » /
+   « X est éliminé », corps explicite, « Continuer »). L'état PERSISTE ensuite : chip
+   « Éliminé » dans la barre haute ET sur le dock, consigne de spectateur dans le
+   traqueur (« vous suivez la partie en spectateur ») — l'UI d'un éliminé ne ressemble
+   plus à une table jouable (B12).
+3. **Fin de partie étagée.** Bande signature balayée (3 temps), titre, verdict, puis la
+   carte du vainqueur : SA face pour lui seul (déjà sienne) ; pour les autres le VERSO
+   avec « Le dieu de X restera secret. » — la règle de projection devient un moment au
+   lieu d'un manque. Modale au même habit cérémonial que la déclaration.
+4. **Meneur pour soi (B17).** Chip chartreuse « Meneur : vous » dans la barre haute —
+   jusqu'ici seuls les adversaires meneurs étaient marqués.
+5. **Attente & déconnexion (B13).** La consigne confirmée dit « la table attend X… »
+   (remplace « en attente de X… ») ; une déconnexion adverse s'affiche en toutes
+   lettres sous le traqueur (« Déconnexion d'Ophélie — reconnexion en attente, la
+   partie continue sans l'attendre. », élision comprise) et en étiquette « Déconnecté »
+   sur la plaque — le point rouge 2px ne portait pas l'état. Aucun compte à rebours
+   inventé (timeout de barrière : ⟨INPUT WoG⟩).
+6. **Révélation assombrie (Q4).** Pendant l'appui « maintenir pour révéler », un voile
+   léger assombrit la table sous la loupe — la carte tenue ne s'offre plus à un regard
+   par-dessus l'épaule sur une scène pleinement éclairée.
+7. **Reduced-motion.** Les délais d'animation s'effondrent avec les durées (les
+   séquences étagées n'imposent aucune attente aveugle) ; tous les nouveaux effets sont
+   transform + opacity.
+
 # Version 1.2.2
 
 ## Deep polish S3 — lisibilité & qualité du français (présentation seule)
