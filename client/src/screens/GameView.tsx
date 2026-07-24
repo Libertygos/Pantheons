@@ -24,7 +24,12 @@ import { PenseBeteGrid } from '../components/PenseBeteGrid.js';
 import { CardInspectLayer } from '../components/CardInspectLayer.js';
 import { AideZone } from '../components/AideZone.js';
 import { hideInspect, showInspect, useCardInspect } from '../components/card-inspect.js';
-import { describeQuestionCard, godCardFace, questionCardBand } from '../components/card-text.js';
+import {
+  describeQuestionCard,
+  godCardFace,
+  questionCardBand,
+  questionCardTexte,
+} from '../components/card-text.js';
 import { usePenseBete } from '../state/pense-bete.js';
 import { godCardSrc, godPortraitSrc, penseBeteSrc, pouvoirCardSrc, questionCardSrc } from '../assets.js';
 import { fr } from '../i18n/fr.js';
@@ -601,6 +606,12 @@ export function GameView({
 
   const hand = [...handCards.attributs, ...handCards.actions];
 
+  // S3 : la carte en lecture (choisie au clic, ou levée au premier appui tactile) affiche
+  // sa légende de chrome — nom + texte VERBATIM de la face — sous l'éventail, pour que
+  // l'effet se lise sans la loupe (et au tactile, où la loupe n'existe pas).
+  const readCard = selectedCard ?? hand.find((c) => c.id === raisedId) ?? null;
+  const readTexte = readCard ? questionCardTexte(readCard) : null;
+
   // §8.1 — la distribution : toute carte qui ENTRE en main vole depuis sa pioche
   // (attributs à la pioche, actions sur un « oui »), 60ms d'écart, puis se pose en éventail.
   const prevHandIds = useRef<string[]>(hand.map((c) => c.id));
@@ -920,6 +931,12 @@ export function GameView({
               })}
             </div>
             )}
+            {readCard && (
+              <p className="carte-legende carte-legende--main">
+                <strong className="carte-legende__nom">{describeQuestionCard(readCard)}</strong>
+                {readTexte && <span className="carte-legende__texte">{readTexte}</span>}
+              </p>
+            )}
           </div>
 
           {(receivedQuestions.length > 0 || mySpecial || stagedSpecialeSansCibleCard || specialeZoneLegale) && (
@@ -1010,6 +1027,13 @@ export function GameView({
                       tint: 'teinte-pouvoir',
                     }}
                   />
+                  {/* S3 : nom + effet verbatim de la face en légende — lisible sans loupe */}
+                  <p className="carte-legende carte-legende--pouvoir">
+                    <strong className="carte-legende__nom">
+                      {def?.label ?? pow.effectKey.replace(/_/g, ' ')}
+                    </strong>
+                    {def?.texte && <span className="carte-legende__texte">{def.texte}</span>}
+                  </p>
                   {activable && (
                     <button
                       className="btn btn--petit pouvoir-slot__utiliser"
@@ -1050,8 +1074,17 @@ export function GameView({
                       tint: 'teinte-pouvoir',
                     }}
                   />
+                  {/* S3 : le choix se lit sans loupe — nom + effet verbatim sous chaque carte */}
+                  <span className="carte-legende carte-legende--choix">
+                    <strong className="carte-legende__nom">
+                      {data.POWERS[pow.effectKey]?.label ?? pow.effectKey.replace(/_/g, ' ')}
+                    </strong>
+                    {data.POWERS[pow.effectKey]?.texte && (
+                      <span className="carte-legende__texte">{data.POWERS[pow.effectKey]!.texte}</span>
+                    )}
+                  </span>
                   <span className="choix-carte__note">
-                    {discardId === pow.id ? 'défausser celui-ci' : ''}
+                    {discardId === pow.id ? fr.jeu.defausserCeluiCi : ''}
                   </span>
                 </button>
               ))}
@@ -1125,7 +1158,7 @@ export function GameView({
             ))}
             <img
               src={penseBeteSrc()}
-              alt="Pense-bête des 12 dieux"
+              alt={fr.aide.penseBeteAlt}
               style={{ width: '100%', border: '1px solid var(--filet-fort)' }}
             />
             <div className="modale__pied">

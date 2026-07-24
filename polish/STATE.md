@@ -8,8 +8,8 @@
 > **Mode: full runtime mode.** The project runs end to end in this environment (S1 ran the
 > real stack and drove real games). No paper-audit pivot was needed.
 >
-> Session 1 executed 2026-07-23. Session 2 executed 2026-07-24.
-> Status: **S1–S2 complete** — S3..S6 not started. Resume at S3's first unchecked task.
+> Session 1 executed 2026-07-23. Sessions 2 and 3 executed 2026-07-24.
+> Status: **S1–S3 complete** — S4..S6 not started. Resume at S4's first unchecked task.
 
 ---
 
@@ -237,14 +237,14 @@ Status: ✅ fixed (session) · open otherwise.
 | B4 | 🟧 | ✅ S2 — staged ghosts (plays + spéciales) clear the instant `youSubmitted` confirms; the public placed card renders once (s2/17--1280). | `GameView.tsx` | S2 |
 | B5 | 🟧 | ✅ S2 — fan spacing 46→54px (34→38 at ≤600px); coarse-pointer: first tap raises (`--levee`, same lift as hover), second tap acts. Verified under Playwright touch emulation. Strict center-clicks still intercept by design (fan overlap) — aim taps at the exposed strip. | `.main-ev` CSS / `GameView` | S2 |
 | B6 | 🟨 | ✅ S2 — jetons get `max-width: 100%` + ellipsis: an oversized chip abridges instead of spilling past the plaque frame (s2/28--1280). Re-verify at 6 opponents in S6. | `.place__jetons` CSS | S2 |
-| B7 | 🟨 | « en attente de Ophélie… » — missing elision (« d'Ophélie »). Generic name interpolation issue. | `fr.ts` `fait.enAttenteDe` | S3 |
+| B7 | 🟨 | ✅ S3 — elision helper `de + voyelle/h → d'` in `fr.ts`, applied to `fait.enAttenteDe` and `jeu.reveleQuestion` (s3/17--1280 shows « en attente d'Ophélie… »). | `fr.ts` `fait.enAttenteDe` | S3 |
 | B8 | 🟨 | ✅ S2 — the lobby name/badge rules targeted `.place__nom` while the markup says `.siege__nom`; renamed, gap restored (s2/07). | `index.css` | S2 |
 | B9 | 🟨 | ✅ S2 — `canStart` flips the status line to « Tout le monde est prêt — l'hôte peut lancer la partie. » in vert (s2/08). | `RoomLobby.tsx` | S2 |
 | B10 | 🟨 | ✅ S2 — background moved to a `position: fixed` `body::before` layer; `background-attachment: fixed` removed. Journey scripts pin it absolute for captures. | `index.css` | S2 |
 | B11 | ⬜ | ENGINE (deferred, do not fix in polish): after a failed declaration in a 2-player game the match continues with a single alive player — no auto-end (24, 25). Needs a design ruling. | `engine` declaration/win | log only |
 | B12 | 🟨 | Eliminated **self** state: one dismissible banner, then nothing — no persistent « Éliminé » marker in the dock/topbar; UI still looks playable (24, 25). | `GameView.tsx` | S4 |
 | B13 | 🟨 | In-match disconnect = 2px red dot on the plaque only; the barrier silently stalls with no message (23--1280). | `GameView` / `SeatPlaque` | S4 |
-| B14 | 🟨 | Landing tagline: gray spans on navy fail AA contrast (01). | `index.css` | S3 |
+| B14 | 🟨 | ✅ S3 — root cause was the 62%-alpha text OVERLAPPING the bright card fan (contrast collapsed over the white card bottoms). Tagline now opaque (0.92), z-stacked above the fan, text-shadowed (s3/01). | `index.css` | S3 |
 | B15 | 🟨 | ✅ S2 — `joinTitle` rendered as a visible label above the code boxes; form `aria-labelledby` (s2/01). | `LandingScreen.tsx` | S2 |
 | B16 | ⬜ | ✅ S2 — Escape layering: loupe (capture+stop, unchanged) → modal (déclaration/aide via GameView handler; AideZone closes itself capture+stop) → drawer. The pouvoir-discard modal deliberately has NO Escape (required phase action). Verified in automation. | `GameView` / `AideZone` | S2 |
 | B17 | 🟨 | Self-meneur invisible: MENEUR badge exists only on opponent plaques — when *you* are meneur nothing shows it (09 vs 20). | `GameView` / `GameTopBar` | S4 |
@@ -292,24 +292,50 @@ and trim states).
       (01..30, both viewports); versions.md 1.2.1 entry (mirror rule). Tests green
       (engine 39, server 48).
 
-### S3 — Readability & French text quality
+### S3 — Readability & French text quality ✅ (2026-07-24)
 
-- [ ] Elision helper for interpolated names (« d'Ophélie ») (B7); sweep `fr.ts` for other
-      interpolation grammar traps.
-- [ ] Full `fr.ts` proofread: tone consistency (vouvoiement everywhere), punctuation
-      (espaces insécables before : ; ! ? »), quote style « », no anglicisms. Asset
-      verbatim strings stay [sic].
-- [ ] Contrast pass: tagline (B14), gray `libelle` text on navy ≥ AA at both viewports;
-      minimum text size audit (nothing informative below ~11px rendered).
-- [ ] **God table in the pense-bête** (from `glossary.md` table): names + genre + yeux +
-      panthéon visible in the drawer (fills the void, enables actual deduction); keep
-      portraits; eye-color shown as color + icon, never color alone.
-- [ ] **Card captions in chrome:** power dock and inspected cards get name + effect text
-      (verbatim from `card-catalog.md`, [sic] preserved) next to the PNG so effects are
-      readable without the loupe; loupe hint affordance (small ⌕ on hover-capable only).
-- [ ] Landing rules-cards: keep the posed look but remove text tilt if the 390 blur
-      persists; retint pense-bête ★ away from chartreuse (Q5 verdict).
-- [ ] Re-screenshot affected states to `polish/screenshots/s3/`; versions.md entry.
+- [x] **Elision (B7):** helper `d()` in `fr.ts` (`de + voyelle/h → d'`, typographic ’),
+      applied to `fait.enAttenteDe` (works on the joined name list — elision only depends
+      on the first char) and `jeu.reveleQuestion`. Sweep found no other `de + name` traps
+      (par/pour/avec interpolations don't elide).
+- [x] **`fr.ts` proofread:** espaces insécables (U+00A0, literal chars) before : ; ! ?
+      and inside « » across ALL chrome strings (verified by a string-literal-aware
+      scanner — code ternaries untouched; engine verbatim texts untouched, [sic]);
+      vouvoiement already consistent; « dans un autre onglet ou sur un autre appareil » ;
+      hardcoded strings moved to fr.ts (« Défausser celui-ci », pense-bête alt); lobby
+      « vous » badge now uses `fr.jeu.vous`.
+- [x] **Contrast pass:** measured, not guessed — `--texte-faible` (0.62 alpha) already
+      ≥ 5.2:1 on every navy surface, so left alone. Real failures fixed: tagline (B14,
+      overlap with the fan — now opaque + z-stacked + shadowed); ✓ OUI / ✗ NON stamps
+      were WHITE on vert (2.35:1) / vermillon (3.50:1) → now `--nuit-3` ink (7.2 / 4.8);
+      pense-bête ✕ was vermillon on givre-2 at 0.72 opacity (≈2.8:1) → new
+      `--vermillon-sombre` #b02318 on explicit #cfd9da (4.7:1). Regression caught in
+      iteration 1: a substring-match script recolored the « Tour » numeral instead of the
+      pastille — reverted, re-shot.
+- [x] **Minimum size audit:** every informative text ≥ 10px rendered (badges/chips) or
+      ≥ 11px (sentences, names): 21 selectors bumped (8→10, 9→10, 10→11). Kept at 9px:
+      `traqueur__num` (decorative, aria-hidden) and the rare `carte-tuile__type`
+      fallback header (8→9).
+- [x] **God table in the pense-bête:** « La table des dieux » under the grid — 12 rows
+      grouped by panthéon (icon + label headers), each row = portrait, name, genre
+      (♂/♀ glyph + label), eyes (colored-iris eye icon + label — never color alone),
+      hover/focus loupe to the real Personnage card. Grid itself gains a panthéon
+      super-header row (4 bandeaus spanning 3 columns). Fills the drawer void at 460px
+      width as planned (s3/15, s3/30).
+- [x] **Card captions in chrome:** verbatim face text ([sic] — `ATTRIBUT_QUESTION` map +
+      engine `data.ACTIONS/POWERS.texte`) via `questionCardTexte()`: power dock slot,
+      discard-modal choices, and the selected/touch-raised hand card (caption under the
+      fan — the touch path, which has no loupe, finally reads effects). Multiple sets
+      recomposed with god LABELS (engine texte carries raw ids); Spéciales append their
+      trigger phase (chrome). ⌕ badge on inspectable md/lg faces, `(hover)+(pointer:fine)`
+      only, suppressed on the landing hero fan (it has its own zoom).
+- [x] **Landing rules-cards tilt:** `--pente: 0` once stacked (≤980px) — the 390 blur was
+      the rotation; desktop keeps the posed look. **★ retint:** chartreuse → turquoise
+      (chartreuse back to divine-only).
+- [x] Journeys re-run (twice: iteration + final); full s3 set in `polish/screenshots/s3/`
+      (01..30, both viewports); versions.md **1.2.2** (mirror rule). Tests green
+      (engine 39, server 48). Note: s3 screenshots show the 1.2.1 footer stamp — taken
+      before the bump, cosmetic (same as S2).
 
 ### S4 — Atmosphere, reveal moments & feedback
 
@@ -404,3 +430,34 @@ and trim states).
   lobby ready line) follow the existing tone — S3's proofread covers them too.
 - `pnpm test` green (engine 39/39, server 48/48); versions.md → **1.2.1** (mirror rule;
   the s2 screenshots still show the 1.2.0 stamp — taken before the bump, cosmetic).
+
+### S3 — 2026-07-24 — Readability & French text quality ✅
+
+- Fixed B7 (elision) and B14 (tagline) — details in §4 and the S3 checklist. All
+  presentation-only: no engine/server/protocol diff (engine's verbatim card texts used
+  read-only via `data.ACTIONS/POWERS`); PNG untouched; UI stays French.
+- Shipped the two S1-identified gameplay-support gaps: the **god table in the drawer**
+  (names + 3 axes, grouped by panthéon, from `glossary.md` — the drawer void is now the
+  deduction reference) and **verbatim card captions in chrome** (dock power, discard
+  modal, selected/raised hand card) so effects read without the loupe — including on
+  touch, where the loupe doesn't exist. New ⌕ affordance marks inspectable faces on
+  fine-pointer devices.
+- Contrast work was measurement-driven (WCAG script in-session): the S1 "gray libelle
+  fails AA" hypothesis was wrong (0.62-alpha givre ≥ 5.2:1 on all navy) — the REAL
+  failures were the tagline-over-fan overlap and white text on legend-color chips
+  (2.35:1 on vert). Fixed those; ✕ mark got `--vermillon-sombre` (#b02318). Palette var
+  added to `:root`.
+- Iteration loop caught two real defects via screenshots: (1) a substring-matching CSS
+  script recolored `.table-centre__tour strong` (the big Tour numeral) instead of
+  `.reponse-pastille` — white restored, pastille fixed properly; (2) the new ⌕ badge
+  cluttered all 12 hero-fan cards on the landing — suppressed there (`.eventail`), kept
+  everywhere else.
+- New fr.ts strings (tableTitre/tableNote, defausserCeluiCi, penseBeteAlt,
+  declenchement) follow the existing tone and carry NBSP typography. NBSP are literal
+  U+00A0 chars in fr.ts/PenseBeteGrid — invisible in diffs; a scanner verified coverage.
+- Carry-forwards: declaration modal still has unlabeled portraits — S4's ceremony adds
+  names (the god table now gives S4 a pattern to reuse). The `carte-legende--main`
+  caption slightly grows the dock when a card is selected (accepted: no reflow above,
+  judged calm at both viewports). B6 6-opponent re-check and the ⌕-on-xs/sm decision
+  (currently md/lg only) stay in S6. Power-caption width (190px) OK at 4p — re-judge at
+  7 players in S6.

@@ -102,7 +102,7 @@ export function RoomLobby({
                   {seat.occupied ? seat.displayName : fr.lobby.seatEmpty}
                 </span>
                 {isHostSeat && <span className="siege__badge siege__badge--hote">{fr.lobby.host}</span>}
-                {isMe && seat.occupied && <span className="siege__badge">vous</span>}
+                {isMe && seat.occupied && <span className="siege__badge">{fr.jeu.vous}</span>}
               </span>
               <span
                 className={`siege__etat ${

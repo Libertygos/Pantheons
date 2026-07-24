@@ -2,10 +2,22 @@
  * FR chrome strings (Decision 7: French only, no EN source, no runtime toggle). God /
  * attribute / pantheon spellings are NOT here — they come verbatim from the assets/engine.
  * This file is chrome only: lobby, phases, buttons, the "Panthéons!" flow, errors.
+ *
+ * Typographie (S3) : espaces insécables ( ) avant : ; ! ? et à l'intérieur des
+ * guillemets « » — jamais d'orphelin « ? » en début de ligne à 390px. Les textes
+ * verbatim des faces de cartes ne vivent PAS ici (engine data, [sic] préservé).
  */
+
+/** Élision « de » devant voyelle ou h (B7) : « en attente d’Ophélie ». */
+const d = (nom: string): string => {
+  const n = nom.trim();
+  return /^[aàâäæeéèêëiîïoôöœuùûüyh]/i.test(n) ? `d’${n}` : `de ${n}`;
+};
+
 export const fr = {
   appTitle: 'Panthéons',
-  appTagline: 'Un jeu de déduction : découvrez quel dieu se cache derrière chaque joueur.',
+  appTagline:
+    'Un jeu de déduction : découvrez quel dieu se cache derrière chaque joueur.',
 
   nav: {
     backToPortal: 'Retour à gosgames (nouvel onglet)',
@@ -32,7 +44,7 @@ export const fr = {
       question:
         'Posez jusqu’à deux questions — jamais deux au même joueur. Chaque carte posée interroge le dieu secret d’un adversaire.',
       reponse:
-        'Chacun répond oui ou non, sans mentir. Sûr de vous ? Déclarez « Panthéons » et nommez le dieu de chacun. Tout juste : vous gagnez. Une erreur : vous êtes éliminé.',
+        'Chacun répond oui ou non, sans mentir. Sûr de vous ? Déclarez « Panthéons » et nommez le dieu de chacun. Tout juste : vous gagnez. Une erreur : vous êtes éliminé.',
     },
     axesAria: 'Les trois axes de déduction',
   },
@@ -41,9 +53,9 @@ export const fr = {
     notFound: 'Salon introuvable.',
     inProgress: 'Partie en cours — impossible de rejoindre.',
     sessionExpired: 'Session expirée — votre siège a été libéré.',
-    aborted: 'Partie interrompue : plusieurs joueurs déconnectés.',
+    aborted: 'Partie interrompue : plusieurs joueurs déconnectés.',
     duplicateTitle: 'Déjà ouvert ailleurs',
-    duplicateBody: 'Ce salon est déjà ouvert dans un autre onglet ou appareil.',
+    duplicateBody: 'Ce salon est déjà ouvert dans un autre onglet ou sur un autre appareil.',
     // Fin de session imposée : reprise du compte sur un autre appareil (409 superseded)
     // ou clôture demandée par la plateforme (login_all_games.md §D).
     sessionEndedTitle: 'Session terminée',
@@ -54,7 +66,7 @@ export const fr = {
       BAD_CODE: 'Code invalide.',
       ROOM_FULL: 'Salon complet.',
       ROOM_IN_PROGRESS: 'Partie en cours — impossible de rejoindre.',
-      ALREADY_IN_ROOM: 'Déjà présent dans ce salon (autre onglet ?).',
+      ALREADY_IN_ROOM: 'Déjà présent dans ce salon (autre onglet ?).',
       UNAUTHORIZED: 'Authentification refusée. Revenez au portail gosgames.',
       TIMEOUT: 'Le serveur ne répond pas.',
     } as Record<string, string>,
@@ -70,7 +82,7 @@ export const fr = {
     full: (max: number) => `Salon complet (${max}).`,
     code: 'Code du salon',
     copyInvite: 'Copier le lien d’invitation',
-    copied: 'Copié !',
+    copied: 'Copié !',
     seatEmpty: 'Siège libre',
     ready: 'Prêt',
     notReady: 'Pas prêt',
@@ -92,7 +104,7 @@ export const fr = {
   phaseHint: {
     pioche: 'Régularisez votre pouvoir puis piochez vos attributs.',
     question: 'Posez vos questions — votre pouvoir peut en changer les limites.',
-    reponse: 'Réponses en cours — déclarez « Panthéons » ou passez.',
+    reponse: 'Réponses en cours — déclarez « Panthéons » ou passez.',
   },
 
   meneur: 'Meneur',
@@ -134,25 +146,30 @@ export const fr = {
     faceCachee: 'Face cachée',
     utiliser: 'Utiliser',
     annulerPouvoir: 'Annuler',
+    defausserCeluiCi: 'Défausser celui-ci',
     choisirCiblePouvoir: (pouvoir: string) => `${pouvoir} — choisissez un adversaire.`,
     choisirCartePosee: (pouvoir: string) =>
       `${pouvoir} — cliquez une carte posée sur la table.`,
-    refusRoyalBloque: 'Refus royal : vous ne posez pas de questions à ce tour.',
+    refusRoyalBloque: 'Refus royal : vous ne posez pas de questions à ce tour.',
     specialeCible: (nom: string) => `Spéciale → ${nom}`,
-    choisirCibleSpeciale: 'Cette Spéciale vise un joueur : cliquez un adversaire pour la poser.',
+    choisirCibleSpeciale:
+      'Cette Spéciale vise un joueur : cliquez un adversaire pour la poser.',
     pouvoirActive: (nom: string, pouvoir: string) => `${nom} a activé ${pouvoir}.`,
-    revelePersonnageDe: (nom: string, dieu: string) => `Révélation : ${nom} est ${dieu}.`,
-    revelePersonnagePioche: (dieu: string) => `Carte personnage non piochée vue : ${dieu}.`,
-    reveleQuestion: (nom: string, q: string) => `Question de ${nom} espionnée : ${q}.`,
+    revelePersonnageDe: (nom: string, dieu: string) => `Révélation : ${nom} est ${dieu}.`,
+    revelePersonnagePioche: (dieu: string) => `Carte personnage non piochée vue : ${dieu}.`,
+    reveleQuestion: (nom: string, q: string) => `Question ${d(nom)} espionnée : ${q}.`,
+    /** Déclenchement d'une Spéciale — chrome autour du texte verbatim de la face. */
+    declenchement: (phase: string) => `Déclenchement : phase de ${phase.toLowerCase()}.`,
   },
 
   consignes: {
     piochePret: 'Phase de pioche — validez pour recevoir vos 2 cartes Attribut.',
-    piocheDefausse: 'Vous détenez deux pouvoirs : défaussez-en un pour valider la pioche.',
+    piocheDefausse: 'Vous détenez deux pouvoirs : défaussez-en un pour valider la pioche.',
     question:
       'Choisissez une carte en main, puis un adversaire — jusqu’à 2 questions, jamais deux au même joueur.',
     questionSpeciale: 'Cette Spéciale se pose sur votre emplacement dédié, pas sur un adversaire.',
-    reponse: 'Les réponses sont affichées sur les plateaux. Déclarez « Panthéons » — ou passez.',
+    reponse:
+      'Les réponses sont affichées sur les plateaux. Déclarez « Panthéons » — ou passez.',
     validerPioche: 'Valider la pioche',
     validerQuestions: (n: number) =>
       n === 0 ? 'Passer sans question' : `Valider ${n} question${n > 1 ? 's' : ''}`,
@@ -173,29 +190,30 @@ export const fr = {
           : `${n} question${n > 1 ? 's' : ''} validée${n > 1 ? 's' : ''}`,
     reponsePassee: 'Vous avez passé',
     declaration: 'Déclaration envoyée',
-    enAttenteDe: (noms: string) => `en attente de ${noms}…`,
+    enAttenteDe: (noms: string) => `en attente ${d(noms)}…`,
   },
 
   declaration: {
-    button: 'Déclarer « Panthéons »',
-    title: 'Déclaration « Panthéons »',
+    button: 'Déclarer « Panthéons »',
+    title: 'Déclaration « Panthéons »',
     instruction:
-      'Nommez le dieu de chaque adversaire vivant. Tout juste : vous gagnez. Une seule erreur : vous êtes éliminé et votre dieu reste caché.',
+      'Nommez le dieu de chaque adversaire vivant. Tout juste : vous gagnez. Une seule erreur : vous êtes éliminé et votre dieu reste caché.',
     aChoisir: 'à choisir',
-    confirm: 'Je déclare « Panthéons »',
+    confirm: 'Je déclare « Panthéons »',
     cancel: 'Annuler',
     eliminated: (nom: string) =>
-      `${nom} a déclaré « Panthéons » et s’est trompé — éliminé, son dieu reste caché.`,
+      `${nom} a déclaré « Panthéons » et s’est trompé — éliminé, son dieu reste caché.`,
   },
 
   aide: {
     titre: 'Rappel des règles',
     fermer: 'Fermer',
+    penseBeteAlt: 'Pense-bête des 12 dieux',
     corps: [
-      'Chaque joueur incarne en secret l’un des 12 dieux, défini par trois attributs : genre, couleur des yeux, panthéon.',
-      'Un tour = trois phases simultanées. Pioche : exactement un pouvoir, puis 2 attributs. Question : jusqu’à 2 cartes posées sur des adversaires différents. Réponse : chacun répond oui/non, sans mentir.',
-      'Tout « oui » fait piocher une carte Action au joueur interrogé. Les effets « Non » se déclenchent sur un non.',
-      'Après une phase Réponse, déclarez « Panthéons » : nommez le dieu de chacun. Tout juste, vous gagnez ; une erreur, vous êtes éliminé.',
+      'Chaque joueur incarne en secret l’un des 12 dieux, défini par trois attributs : genre, couleur des yeux, panthéon.',
+      'Un tour = trois phases simultanées. Pioche : exactement un pouvoir, puis 2 attributs. Question : jusqu’à 2 cartes posées sur des adversaires différents. Réponse : chacun répond oui/non, sans mentir.',
+      'Tout « oui » fait piocher une carte Action au joueur interrogé. Les effets « Non » se déclenchent sur un non.',
+      'Après une phase Réponse, déclarez « Panthéons » : nommez le dieu de chacun. Tout juste, vous gagnez ; une erreur, vous êtes éliminé.',
     ],
   },
 
@@ -206,24 +224,24 @@ export const fr = {
       sieges: {
         titre: 'Les sièges adverses',
         corps: [
-          'Chaque plaque est un adversaire : son nom, le badge Meneur, sa coche « prêt » et le nombre de dieux encore possibles d’après votre pense-bête.',
-          'Sous la plaque : les questions qu’il a reçues ce tour — de tous les joueurs — avec la réponse publique (✓ oui / ✗ non) une fois donnée.',
-          'Phase Question : choisissez une carte en main puis cliquez un siège pour la lui poser — jusqu’à 2 questions, jamais deux au même joueur (certains pouvoirs changent ces limites).',
-          'Chaque « oui » fait piocher une carte Action au joueur interrogé. Un éliminé garde son dieu caché jusqu’au bout.',
+          'Chaque plaque est un adversaire : son nom, le badge Meneur, sa coche « prêt » et le nombre de dieux encore possibles d’après votre pense-bête.',
+          'Sous la plaque : les questions qu’il a reçues ce tour — de tous les joueurs — avec la réponse publique (✓ oui / ✗ non) une fois donnée.',
+          'Phase Question : choisissez une carte en main puis cliquez un siège pour la lui poser — jusqu’à 2 questions, jamais deux au même joueur (certains pouvoirs changent ces limites).',
+          'Chaque « oui » fait piocher une carte Action au joueur interrogé. Un éliminé garde son dieu caché jusqu’au bout.',
         ],
       },
       table: {
-        titre: 'La table : pioches et phases',
+        titre: 'La table : pioches et phases',
         corps: [
-          'La pioche Attributs fournit vos 2 cartes de chaque phase Pioche ; la pioche Actions alimente les joueurs qui répondent « oui » à une question.',
+          'La pioche Attributs fournit vos 2 cartes de chaque phase Pioche ; la pioche Actions alimente les joueurs qui répondent « oui » à une question.',
           'Le traqueur au-dessus montre la phase en cours (Pioche → Question → Réponse), la consigne du moment et qui a déjà validé.',
-          'Les trois phases sont simultanées : tout le monde joue en même temps, et la table avance quand chaque joueur a validé.',
+          'Les trois phases sont simultanées : tout le monde joue en même temps, et la table avance quand chaque joueur a validé.',
         ],
       },
       dieu: {
         titre: 'Votre dieu',
         corps: [
-          'Votre identité secrète : l’un des 12 dieux, défini par trois attributs — genre, couleur des yeux, panthéon.',
+          'Votre identité secrète : l’un des 12 dieux, défini par trois attributs — genre, couleur des yeux, panthéon.',
           'Maintenez la carte (doigt, souris, ou Espace/Entrée) pour la révéler en grand. Personne d’autre ne la voit — même si vous êtes éliminé.',
         ],
       },
@@ -231,15 +249,15 @@ export const fr = {
         titre: 'Ma main',
         corps: [
           'Vos cartes Attribut et Action. En phase Question, sélectionnez-en une puis cliquez un adversaire pour la poser.',
-          'Les Attributs interrogent le dieu (genre, yeux, panthéon). Les Actions déclenchent leur effet sur un « oui » ou sur un « non » ; les Spéciales se posent sur votre emplacement dédié — ou visent un joueur.',
+          'Les Attributs interrogent le dieu (genre, yeux, panthéon). Les Actions déclenchent leur effet sur un « oui » ou sur un « non » ; les Spéciales se posent sur votre emplacement dédié — ou visent un joueur.',
           'Jusqu’à 2 questions par tour, jamais deux au même joueur (sauf pouvoir). Cliquez une carte posée pour la reprendre avant de valider.',
         ],
       },
       contreVous: {
         titre: 'Contre vous',
         corps: [
-          'Les questions posées contre vous ce tour. Vous y répondez automatiquement, sans mentir : la réponse (oui/non) devient publique sur la table.',
-          'Chaque « oui » vous fait piocher une carte Action — l’effet peut jouer pour ou contre vous.',
+          'Les questions posées contre vous ce tour. Vous y répondez automatiquement, sans mentir : la réponse (oui/non) devient publique sur la table.',
+          'Chaque « oui » vous fait piocher une carte Action — l’effet peut jouer pour ou contre vous.',
           'L’emplacement Spéciale accueille vos cartes Spéciales sans cible, le temps de leur effet.',
         ],
       },
@@ -247,8 +265,8 @@ export const fr = {
         titre: 'Votre pouvoir',
         corps: [
           'Vous détenez exactement un pouvoir après la pioche — deux en main, il faut en défausser un.',
-          'Un pouvoir passif s’applique tout seul ; un pouvoir actif s’active avec « Utiliser » puis, selon le cas, une cible (adversaire ou carte posée).',
-          'Chaque pouvoir tord une règle : limites de questions, espionnage, sabotage… Sa carte en détaille l’effet — la loupe l’agrandit.',
+          'Un pouvoir passif s’applique tout seul ; un pouvoir actif s’active avec « Utiliser » puis, selon le cas, une cible (adversaire ou carte posée).',
+          'Chaque pouvoir tord une règle : limites de questions, espionnage, sabotage… Sa carte en détaille l’effet — la loupe l’agrandit.',
         ],
       },
     },
@@ -266,14 +284,17 @@ export const fr = {
     restants: (n: number) => `${n} possibles`,
     etats: { inconnu: 'inconnu', exclu: 'exclu', suspect: 'retenu' } as Record<string, string>,
     axes: { genre: 'Genre', couleurYeux: 'Yeux', pantheon: 'Panthéon' },
+    /** La table des dieux (S3) — le contenu du pense-bête physique, en chrome. */
+    tableTitre: 'La table des dieux',
+    tableNote: 'Les 12 identités possibles et leurs trois attributs.',
   },
 
   fin: {
     titre: 'Panthéons',
     vainqueur: (nom: string) => `${nom} a percé tous les secrets et remporte la partie.`,
-    vainqueurVous: 'Vous avez percé tous les secrets — victoire !',
+    vainqueurVous: 'Vous avez percé tous les secrets — victoire !',
     retour: 'Retour à l’accueil',
   },
 
-  gameOver: (winner: string) => `Partie terminée — vainqueur : ${winner}.`,
+  gameOver: (winner: string) => `Partie terminée — vainqueur : ${winner}.`,
 } as const;

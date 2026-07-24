@@ -1,3 +1,41 @@
+# Version 1.2.2
+
+## Deep polish S3 — lisibilité & qualité du français (présentation seule)
+
+Session polish S3 (2026-07-24, protocole `CONTINUE-POLISH.md`, dossier `polish/STATE.md`).
+Zéro diff moteur/serveur/protocole ; PNG intacts ; UI français seul.
+
+1. **La table des dieux dans le pense-bête.** Le tiroir porte enfin le contenu du
+   pense-bête physique : sous la grille, les 12 identités et leurs trois attributs
+   (`glossary.md`, table canonique), groupées par panthéon — portrait, nom, genre
+   (glyphe + libellé), yeux (icône d'œil colorée + libellé, jamais la couleur seule),
+   loupe sur chaque rangée. La grille gagne une rangée d'en-tête « panthéon » (4 bandeaux
+   de 3 colonnes, icône + nom) — l'axe panthéon se lit au moment de cocher.
+2. **Légendes de chrome des cartes.** Le nom et le texte VERBATIM de la face
+   (`card-catalog.md`, orthographe [sic] conservée) se lisent désormais sans la loupe :
+   sous le pouvoir du dock, sous chaque carte de la modale de défausse, et sous
+   l'éventail pour la carte choisie (ou levée au premier appui tactile — là où la loupe
+   n'existe pas). Les Multiple recomposent leur set avec les libellés des dieux ; les
+   Spéciales annoncent leur phase de déclenchement. Un insigne ⌕ au coin des faces
+   inspectables (pointeur fin seulement) rend la loupe découvrable — jamais sur
+   l'éventail héros de l'accueil, qui a déjà son zoom.
+3. **Élision & typographie.** « en attente d'Ophélie… » (l'aide `de + voyelle/h → d'`
+   s'applique aux noms interpolés, aussi pour « Question d'X espionnée ») ; espaces
+   insécables avant : ; ! ? et à l'intérieur des « » dans tout le chrome — plus
+   d'orphelin « ? » en début de ligne à 390.
+4. **Contraste (AA).** La tagline de l'accueil devient opaque, posée au-dessus de
+   l'éventail et ombrée — son contraste ne dépend plus des cartes qui passent derrière ;
+   les tampons ✓ OUI / ✗ NON passent à l'encre sombre sur les couleurs de légende (le
+   blanc tombait à 2,4:1 sur le vert) ; le ✕ « exclu » du pense-bête passe au
+   vermillon sombre sur fond explicite (l'opacité 0.72 le délavait sous AA).
+5. **Tailles minimales.** Plus aucun texte informatif sous 10px rendu (audit complet :
+   badges, jetons, libellés de zone, notes d'éventail, poignée, chips du tiroir…) ;
+   les phrases passent à 11px.
+6. **Divers.** La ★ « retenu » du pense-bête quitte la chartreuse (réservée au divin :
+   meneur, CTA, déclaration) pour la turquoise ; les cartes-règles de l'accueil perdent
+   leur pente une fois empilées (≤980px) — le corps de texte tournait flou à 390 ;
+   « Défausser celui-ci » et l'alt du pense-bête rejoignent `fr.ts`.
+
 # Version 1.2.1
 
 ## Deep polish S2 — disposition, hiérarchie & panneaux (présentation seule)

@@ -131,6 +131,16 @@ export function GameCard({
           </div>
         )}
       </div>
+      {/* S3 : affordance de la loupe — un petit ⌕ au coin, pointeur fin seulement (CSS) ;
+          au tactile la loupe n'existe pas, les légendes de chrome prennent le relais. */}
+      {inspect && faceVisible && (
+        <span className="carte-jeu__loupe" aria-hidden="true">
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <circle cx="5" cy="5" r="3.4" />
+            <path d="M7.6 7.6 10.6 10.6" />
+          </svg>
+        </span>
+      )}
     </div>
   );
 }

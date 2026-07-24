@@ -18,6 +18,8 @@
   --turquoise: #68cbc0;
   --vert: #81b93f;
   --vermillon: #fb4537;
+  /* vermillon assombri pour l'encre sur fonds clairs (le vermillon pur y tombe sous AA) */
+  --vermillon-sombre: #b02318;
   --chartreuse: #e5eb2e;
 
   /* Couleurs d'identité par catégorie de carte — mesurées sur les faces réelles
@@ -434,11 +436,16 @@ button {
   margin-top: 10px;
 }
 
+/* B14 : la ligne chevauche le bas de l'éventail — texte OPAQUE, posé au-dessus des
+   cartes, ombré comme le titre : le contraste ne dépend plus de ce qui passe derrière */
 .landing__tagline {
+  position: relative;
+  z-index: 45;
   max-width: 560px;
   margin: 22px auto 0;
-  color: var(--texte-faible);
+  color: rgba(237, 248, 249, 0.92);
   font-size: 14px;
+  text-shadow: 0 1px 10px rgba(10, 14, 35, 0.85);
 }
 
 /* ---- l'éventail des douze (recette §9.1) ---- */
@@ -482,6 +489,11 @@ button {
   --ev-decale: calc(var(--ev-ecart) / -2);
 }
 
+/* le héros a déjà son zoom au survol : pas d'insigne loupe sur l'éventail des douze */
+.eventail .carte-jeu__loupe {
+  display: none !important;
+}
+
 /* vie au repos : flottement ±2px très lent, décalé par carte (transform-only) */
 @keyframes eventail-flotte {
   from {
@@ -523,7 +535,7 @@ button {
 }
 
 .landing__rejoindre-libelle {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .landing__rejoindre-champs {
@@ -849,7 +861,7 @@ button {
 }
 
 .siege__badge {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   padding: 2px 8px;
@@ -1064,7 +1076,7 @@ button.place__plaque--legale:focus-visible {
 
 /* compteurs en jetons libellés — plus aucun code à une lettre */
 .jeton-stat {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   padding: 1px 7px;
   border: 1px solid var(--filet);
@@ -1094,7 +1106,7 @@ button.place__plaque--legale:focus-visible {
   top: -10px;
   right: 8px;
   z-index: 2;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   padding: 2px 8px;
@@ -1122,7 +1134,7 @@ button.place__plaque--legale:focus-visible {
 
 .place__zone-libelle {
   display: block;
-  font-size: 9px;
+  font-size: 10px;
   margin-bottom: 6px;
 }
 
@@ -1214,7 +1226,7 @@ button.pose-ev__item {
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 1px 6px;
@@ -1233,7 +1245,7 @@ button.pose-ev__item {
 .pose-ev__cible-note {
   align-self: center;
   margin-left: 10px;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--turquoise);
@@ -1275,7 +1287,7 @@ button.pose-ev__item {
 }
 
 .pose .reponse-pastille {
-  font-size: 9px;
+  font-size: 10px;
   padding: 2px 7px;
   bottom: 4px;
 }
@@ -1348,7 +1360,7 @@ button.pose-ev__item {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 8px;
   border: 1px solid var(--filet);
   border-radius: 999px;
@@ -1465,7 +1477,7 @@ button.pose-ev__item {
 }
 
 .pioche-pile__libelle {
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .reponse-pastille {
@@ -1478,7 +1490,8 @@ button.pose-ev__item {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   padding: 3px 10px;
-  color: var(--blanc);
+  /* encre sombre sur les couleurs de légende : le blanc y tombait sous AA (S3) */
+  color: var(--nuit-3);
 }
 
 .reponse-pastille--oui {
@@ -1534,7 +1547,7 @@ button.pose-ev__item {
 }
 
 .carte-tuile__type {
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--encre-sur-clair);
@@ -1622,7 +1635,7 @@ button.pose-ev__item {
 .dock-dieu__hint {
   display: block;
   text-align: center;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--texte-faible);
@@ -1706,7 +1719,7 @@ button.pose-ev__item {
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 1px 7px;
@@ -1754,7 +1767,7 @@ button.pose-ev__item {
 
 /* le badge « N possibles » sur la plaque — la conclusion du tiroir, visible à la table */
 .place__possibles {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   padding: 1px 7px;
   border: 1px solid var(--teinte-place, var(--filet));
@@ -1830,7 +1843,7 @@ button.pose-ev__item {
 }
 
 .pense-bete__note {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--texte-faible);
   margin: 0 0 12px;
 }
@@ -1930,7 +1943,7 @@ button.pose-ev__item {
 .pb-grille__adv {
   background: var(--nuit);
   color: var(--givre);
-  font-size: 10px;
+  font-size: 11px;
   padding: 4px 6px 4px 8px;
   border-left: 3px solid var(--teinte-rang, var(--filet));
   display: flex;
@@ -1960,24 +1973,139 @@ button.pose-ev__item {
   background: var(--blanc);
 }
 
-/* exclu : ✕ et la cellule s'éteint */
+/* exclu : ✕ et la cellule s'éteint — fond assombri EXPLICITE (l'ancienne opacité 0.72
+   délavait aussi le ✕ sous AA) ; encre vermillon-sombre ≥ 4.5:1 sur ce fond */
 .pb-case--exclu {
-  color: var(--vermillon);
-  background: var(--givre-2);
-  opacity: 0.72;
+  color: var(--vermillon-sombre);
+  background: #cfd9da;
 }
 
-/* retenu : ★ + anneau chartreuse */
+/* retenu : ★ + anneau — famille turquoise/givre (S3) : la chartreuse reste réservée
+   au divin (meneur, CTA, déclaration) — c'était son seul emploi non divin */
 .pb-case--retenu {
   color: var(--encre-sur-clair);
-  background: var(--chartreuse);
+  background: var(--turquoise);
   box-shadow: inset 0 0 0 2px var(--encre-sur-clair);
 }
 
 .pb-restants {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--texte-faible);
   margin-top: 10px;
+}
+
+/* ---- S3 : l'axe panthéon dans la grille — 4 bandeaux de 3 colonnes ---- */
+
+.pb-pantheon {
+  grid-column: span 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 3px 4px;
+  background: var(--nuit);
+  color: var(--givre);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.pb-pantheon__nom {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* le coin de la colonne réponses ne colle pas : seule la colonne des noms est collante */
+.pb-grille__coin--reponses {
+  position: static;
+  box-shadow: none;
+}
+
+/* ---- S3 : la table des dieux — le contenu du pense-bête physique, en chrome.
+   Remplit le tiroir sous la grille : 12 identités × 3 attributs (glossary.md),
+   groupées par panthéon ; l'œil = icône + libellé, jamais la couleur seule. ---- */
+
+.pb-table {
+  margin-top: 20px;
+  border-top: 1px solid var(--filet);
+  padding-top: 14px;
+}
+
+.pb-table__titre {
+  font-size: 11px;
+  color: var(--givre);
+}
+
+.pb-table__note {
+  font-size: 11px;
+  color: var(--texte-faible);
+  margin: 4px 0 12px;
+}
+
+.pb-table__groupe {
+  margin-bottom: 12px;
+}
+
+.pb-table__pantheon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0 4px;
+  border-bottom: 1px solid var(--filet);
+  color: var(--givre);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.pb-table__rang {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 96px 84px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(237, 248, 249, 0.09);
+  font-size: 12px;
+  color: var(--givre);
+  cursor: help;
+}
+
+.pb-table__portrait {
+  width: 24px;
+  height: 28px;
+  object-fit: cover;
+  display: block;
+  border-radius: 3px;
+  border: 1px solid var(--encre-bord);
+  box-shadow: var(--ombre-1);
+}
+
+.pb-table__nom {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pb-table__genre,
+.pb-table__yeux {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(237, 248, 249, 0.82);
+  white-space: nowrap;
+}
+
+.pb-table__genre-glyphe {
+  font-size: 13px;
+  line-height: 1;
+  color: var(--givre);
 }
 
 /* ---- aide par zone : un « ? » discret sur chaque zone de la table ---- */
@@ -2167,7 +2295,7 @@ button.pose-ev__item {
 
 .choix-carte__note {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   text-align: center;
   padding-top: 6px;
   color: var(--texte-faible);
@@ -2551,7 +2679,7 @@ button.pose-ev__item {
 
 .tiroir-poignee__texte {
   writing-mode: vertical-rl;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -2570,7 +2698,7 @@ button.pose-ev__item {
   place-items: center;
   background: var(--turquoise);
   color: var(--encre-sur-clair);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   border-radius: 999px;
   box-shadow: var(--ombre-1);
@@ -2600,7 +2728,7 @@ button.pose-ev__item {
   display: flex;
   align-items: center;
   padding: 4px 6px;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .pb-reponses {
@@ -2635,13 +2763,13 @@ button.pose-ev__item {
 }
 
 .pb-reponse__chip {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 1px 6px;
   border-radius: 999px;
-  color: var(--blanc);
+  color: var(--nuit-3);
   white-space: nowrap;
 }
 
@@ -2732,6 +2860,77 @@ button.pose-ev__item {
   }
 }
 
+/* ---- S3 : légendes de chrome des cartes — nom + texte VERBATIM de la face,
+   lisible sans la loupe (et au tactile, où la loupe n'existe pas). ---- */
+
+.carte-legende {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--texte-faible);
+}
+
+.carte-legende__nom {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--givre);
+  margin-bottom: 2px;
+}
+
+.carte-legende__texte {
+  display: block;
+}
+
+/* sous l'éventail de la main : la carte choisie (ou levée au tactile) se lit ici */
+.carte-legende--main {
+  max-width: 460px;
+  margin: 8px auto 0;
+  text-align: center;
+}
+
+/* dans l'emplacement pouvoir du dock */
+.carte-legende--pouvoir {
+  max-width: 190px;
+  margin-top: 8px;
+}
+
+/* sous chaque carte de la modale de défausse */
+.carte-legende--choix {
+  display: block;
+  max-width: 200px;
+  margin-top: 8px;
+  text-align: left;
+}
+
+/* ---- S3 : affordance de la loupe — un petit ⌕ gravé au coin des faces
+   inspectables, pointeur fin seulement (le tactile n'a pas de loupe) ---- */
+
+.carte-jeu__loupe {
+  display: none;
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  z-index: 3;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(16, 22, 48, 0.72);
+  color: var(--givre);
+  border: 1px solid var(--filet);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .carte-jeu--md .carte-jeu__loupe,
+  .carte-jeu--lg .carte-jeu__loupe {
+    display: grid;
+  }
+}
+
 /* ---- responsive -------------------------------------------------------------- */
 
 @media (max-width: 980px) {
@@ -2764,6 +2963,12 @@ button.pose-ev__item {
 
   .temps-rang::before {
     display: none;
+  }
+
+  /* empilées, les cartes-règles perdent leur pente : le corps de texte tournait flou
+     à 390 (S3) — la pose inclinée reste un langage du rang desktop */
+  .carte-temps {
+    --pente: 0deg;
   }
 }
 

@@ -13,15 +13,35 @@
  * envoyées ; les réponses viennent de la projection déjà reçue (answeredOui public).
  */
 import { useEffect, useRef, useState } from 'react';
-import { ALL_GODS, GODS, type God, type GodId, type PlacedCardView } from '@pantheons/engine';
+import {
+  ALL_GODS,
+  GODS,
+  PANTHEONS,
+  type God,
+  type GodId,
+  type Pantheon,
+  type PlacedCardView,
+} from '@pantheons/engine';
 import type { Mark } from '../state/pense-bete.js';
-import { cardBackSrc, godPortraitSrc, questionCardSrc } from '../assets.js';
+import { cardBackSrc, godPortraitSrc, questionCardSrc, VALEUR_LABEL } from '../assets.js';
 import { describeQuestionCard, godCardFace } from './card-text.js';
 import { useCardInspect } from './card-inspect.js';
+import { PantheonIcon } from './PantheonIcon.js';
 import { fr } from '../i18n/fr.js';
 
 const GLYPH: Record<Mark, string> = { inconnu: '', exclu: '✕', suspect: '★' };
 const PRESSED: Record<Mark, boolean | 'mixed'> = { inconnu: false, exclu: true, suspect: 'mixed' };
+
+/** Libellés courts des yeux pour la table des dieux (l'en-tête de colonne porte « Yeux »). */
+const YEUX_COURT: Record<string, string> = { bleus: 'Bleus', verts: 'Verts', rouges: 'Rouges' };
+/** Couleur d'iris de la légende (le langage de bandes du pense-bête). */
+const YEUX_TEINTE: Record<string, string> = {
+  bleus: 'var(--turquoise)',
+  verts: 'var(--vert)',
+  rouges: 'var(--vermillon)',
+};
+/** Glyphe de genre (icône + libellé texte, jamais le glyphe seul). */
+const GENRE_GLYPHE: Record<string, string> = { masculin: '♂', feminin: '♀' };
 
 /** Une réponse publique de ce tour : la carte posée telle que vue par ce spectateur. */
 export interface PenseBeteAnswer {
@@ -46,10 +66,67 @@ function DieuEntete({ god }: { god: God }) {
     <span
       ref={ref}
       className="pb-dieu"
-      title={`${god.label} — ${fr.penseBete.axes.genre} ${god.genre}, ${fr.penseBete.axes.couleurYeux} ${god.couleurYeux}, ${god.pantheon}`}
+      title={`${god.label} — ${VALEUR_LABEL[god.genre]}, ${YEUX_COURT[god.couleurYeux] ?? god.couleurYeux} (${fr.penseBete.axes.couleurYeux.toLowerCase()}), ${VALEUR_LABEL[god.pantheon]}`}
     >
       <img src={godPortraitSrc(god.id)} alt={god.label} />
     </span>
+  );
+}
+
+/** Œil de légende miniature : l'amande filaire, l'iris dans la couleur de l'axe. */
+function OeilMini({ couleur }: { couleur: string }) {
+  return (
+    <svg width="20" height="12" viewBox="0 0 30 18" fill="none" stroke="var(--filet-fort)" strokeWidth="1.6" aria-hidden="true">
+      <path d="M2 9c4.4-5.3 8.7-8 13-8s8.6 2.7 13 8c-4.4 5.3-8.7 8-13 8S6.4 14.3 2 9Z" fill="var(--nuit-3)" />
+      <circle cx="15" cy="9" r="4.6" fill={couleur} stroke="none" />
+      <circle cx="15" cy="9" r="1.7" fill="var(--nuit-3)" stroke="none" />
+    </svg>
+  );
+}
+
+/**
+ * La table des dieux (S3) — le contenu du pense-bête physique rendu en chrome : les 12
+ * identités possibles avec leurs trois attributs (glossary.md, table canonique), groupées
+ * par panthéon. Remplit le tiroir sous la grille et donne enfin de quoi déduire ; chaque
+ * rangée porte la loupe (la vraie carte Personnage en grand au survol/focus).
+ */
+function TableDieuxRang({ god }: { god: God }) {
+  const ref = useCardInspect<HTMLDivElement>({ face: godCardFace(god.id) });
+  return (
+    <div className="pb-table__rang" ref={ref}>
+      <img className="pb-table__portrait" src={godPortraitSrc(god.id)} alt="" />
+      <span className="pb-table__nom">{god.label}</span>
+      <span className="pb-table__genre">
+        <span className="pb-table__genre-glyphe" aria-hidden="true">
+          {GENRE_GLYPHE[god.genre]}
+        </span>
+        {VALEUR_LABEL[god.genre]}
+      </span>
+      <span className="pb-table__yeux">
+        <OeilMini couleur={YEUX_TEINTE[god.couleurYeux] ?? 'currentColor'} />
+        {YEUX_COURT[god.couleurYeux] ?? god.couleurYeux}
+      </span>
+    </div>
+  );
+}
+
+function TableDieux() {
+  return (
+    <section className="pb-table" aria-label={fr.penseBete.tableTitre}>
+      <h4 className="libelle pb-table__titre">{fr.penseBete.tableTitre}</h4>
+      <p className="pb-table__note">{fr.penseBete.tableNote}</p>
+      {PANTHEONS.map((p: Pantheon) => (
+        <div className="pb-table__groupe" key={p}>
+          <div className="pb-table__pantheon">
+            <PantheonIcon pantheon={p} size={18} />
+            <span>{VALEUR_LABEL[p]}</span>
+          </div>
+          {ALL_GODS.filter((g) => g.pantheon === p).map((g) => (
+            <TableDieuxRang key={g.id} god={g} />
+          ))}
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -149,6 +226,17 @@ export function PenseBeteGrid({
       >
         <div className="pb-defile" ref={scrollerRef}>
       <div className="pb-grille" ref={gridRef} onKeyDown={handleKeyDown}>
+        {/* S3 : l'axe panthéon devient visible dans la grille — 4 bandeaux de 3 colonnes */}
+        <div className="pb-grille__rang" aria-hidden="true">
+          <span className="pb-grille__coin" />
+          <span className="pb-grille__coin pb-grille__coin--reponses" />
+          {PANTHEONS.map((p: Pantheon) => (
+            <span key={p} className="pb-pantheon">
+              <PantheonIcon pantheon={p} size={13} />
+              <span className="pb-pantheon__nom">{VALEUR_LABEL[p]}</span>
+            </span>
+          ))}
+        </div>
         <div className="pb-grille__rang">
           <span className="pb-grille__coin" />
           <span className="pb-grille__entete-reponses libelle">{fr.penseBete.reponses}</span>
@@ -206,9 +294,11 @@ export function PenseBeteGrid({
       <div className="pb-restants">
         {rows
           .filter((o) => o.alive)
-          .map((o) => `${o.displayName} : ${fr.penseBete.restants(remaining(o.userId))}`)
+          .map((o) => `${o.displayName} : ${fr.penseBete.restants(remaining(o.userId))}`)
           .join(' · ')}
       </div>
+
+      <TableDieux />
     </div>
   );
 }
