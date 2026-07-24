@@ -1,3 +1,25 @@
+# Version 1.2.4
+
+## Pense-bête entier — les 12 dieux toujours visibles (présentation seule)
+
+Directive joueur (2026-07-24, exécutée hors sessions planifiées — dossier
+`polish/STATE.md`, règle ratifiée en §3). Zéro diff moteur/serveur/protocole ;
+PNG intacts ; UI français seul.
+
+1. **Les 12 dieux d'un coup, pour chaque joueur.** Ouvrir le pense-bête montre
+   TOUJOURS les 12 possibilités de chaque rangée — plus aucun défilement horizontal ne
+   cache une colonne. Le tiroir prend la largeur de la grille entière
+   (`min(840px, 96vw)`) quitte à couvrir la table : c'est une surimpression qu'on
+   referme d'un geste, le compromis est assumé. Fenêtre étroite (< 840px) : chaque
+   rangée passe sur deux lignes — nom + réponses, puis les 12 cases pleine largeur —
+   rien ne sort jamais de l'écran, à 390 comme à 1280.
+2. **Les réponses s'agrandissent comme les dieux.** Chaque réponse publique du tiroir
+   (vignette + pastille ✓ OUI / ✗ NON) porte désormais la loupe d'inspection : survol,
+   focus clavier, ET clic — au tactile, un tap l'ouvre, un second tap sur la même
+   vignette la range. La loupe montre la vraie face de la carte avec le verdict en
+   plaque de nom. Une réponse face cachée reste inerte : rien à agrandir, rien à
+   divulguer.
+
 # Version 1.2.3
 
 ## Deep polish S4 — atmosphère, temps forts & retours (présentation seule)

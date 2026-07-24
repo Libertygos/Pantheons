@@ -8,8 +8,11 @@
 > **Mode: full runtime mode.** The project runs end to end in this environment (S1 ran the
 > real stack and drove real games). No paper-audit pivot was needed.
 >
-> Session 1 executed 2026-07-23. Sessions 2, 3 and 4 executed 2026-07-24.
-> Status: **S1–S4 complete** — S5..S6 not started. Resume at S5's first unchecked task.
+> Session 1 executed 2026-07-23. Sessions 2, 3 and 4 executed 2026-07-24, followed the
+> same day by **S4b**, a user-directed interstitial (pense-bête full-view rule — see §3
+> and the S4b log entry).
+> Status: **S1–S4 + S4b complete** — S5..S6 not started. Resume at S5's first unchecked
+> task.
 
 ---
 
@@ -130,6 +133,12 @@ the drawer (drop the `padding-right` squeeze; overlay instead). Cap drawer width
 ~420–460px desktop; fill it with the god table (Q1). Manual open stays modal with veil.
 All S2.
 
+> **Superseded in part (S4b, user directive 2026-07-24):** the ~460px width cap is
+> LIFTED. The pense-bête full-view rule (§3) outranks it: the open drawer must show all
+> 12 god columns for every player at once, and covering the table while open is an
+> accepted trade-off. Everything else in this verdict (no auto-open, overlay-only, no
+> table reflow) stands.
+
 ### Q3. Do votes/answers and identity reveals get dramatic weight?
 
 **Findings.** Réponse answers: ✓ OUI / ✗ NON stamps in legend colors — good language,
@@ -219,6 +228,15 @@ the WoG input; UI shows no countdown until then. Do not invent one.)
 
 Additional S1 rulings, same force:
 
+- **Pense-bête FULL-VIEW rule (user directive, 2026-07-24 — MOST IMPORTANT, outranks
+  earlier width verdicts):** opening the pense-bête must ALWAYS show all 12 god
+  possibilities for EVERY player at once — no horizontal scrolling, no hidden god
+  columns, at 390 and 1280 alike. It does not matter if the open drawer hides parts of
+  the table underneath: it is an overlay the player closes with one gesture. Never
+  reintroduce a width cap or a scrolling god axis. Corollary (same directive): the
+  public answer given by each player zooms like the god portraits — inspect loupe on
+  hover/focus AND on click/tap (face-down answers stay inert: nothing to enlarge,
+  nothing to leak).
 - The card-face **verbatim [sic] rule** extends to chrome captions: never "correct" the
   faces' spelling when quoting them.
 - Chartreuse stays reserved: meneur, primary CTA, declaration. Nothing else.
@@ -252,7 +270,7 @@ Status: ✅ fixed (session) · open otherwise.
 | B15 | 🟨 | ✅ S2 — `joinTitle` rendered as a visible label above the code boxes; form `aria-labelledby` (s2/01). | `LandingScreen.tsx` | S2 |
 | B16 | ⬜ | ✅ S2 — Escape layering: loupe (capture+stop, unchanged) → modal (déclaration/aide via GameView handler; AideZone closes itself capture+stop) → drawer. The pouvoir-discard modal deliberately has NO Escape (required phase action). Verified in automation. | `GameView` / `AideZone` | S2 |
 | B17 | 🟨 | ✅ S4 — chartreuse chip « Meneur : vous » in the topbar (reserved-use compliant); wraps cleanly at 390 (s4/09--390). | `GameView` / `GameTopBar` | S4 |
-| B18 | 🟨 | ✅ S2 — grid scrolls inside the drawer with a sticky name column (reordered first), fixed 48px god tracks, and edge-fade cues driven by scroll position (s2/15--390, sticky verified scrolled). | `PenseBeteGrid` | S2 |
+| B18 | 🟨 | ✅ S2 — grid scrolls inside the drawer with a sticky name column (reordered first), fixed 48px god tracks, and edge-fade cues driven by scroll position (s2/15--390, sticky verified scrolled). **Superseded by S4b:** the full-view rule (§3) removed horizontal scrolling entirely — the sticky/fade machinery stays in place as a dormant safety net only. | `PenseBeteGrid` | S2 |
 
 ---
 
@@ -382,6 +400,39 @@ and trim states).
       (mirror rule — the s4 screenshots show the 1.2.2 footer stamp, taken before the
       bump, cosmetic, same as S2/S3). Tests green (engine 39, server 48).
 
+### S4b — Interstitial: pense-bête full view ✅ (2026-07-24, user directive)
+
+Not a planned session — a direct player directive executed between S4 and S5. Rule
+recorded in §3 (full-view rule); Q2's width cap superseded (§2).
+
+- [x] **All 12 gods always visible:** drawer width `min(840px, 96vw)` — sized to the
+      whole grid, overlay-only as ever; covering the table while open is the accepted
+      trade-off. Grid `width: 100%` with god tracks `minmax(44px, 1fr)` (tap targets
+      keep ≥ 44px in the wide drawer). Below 840px viewport each row folds to two
+      lines — name + réponses, then the 12 mark cells full-width `minmax(0, 1fr)`
+      (≈ 28×38px at 390) — nothing ever scrolls out of view. Header coins and the
+      « Réponses » label column retire in folded mode (answers read next to each name).
+      Runtime-asserted at 1280 AND 390: `.pb-defile` overflow = 0px, 36/36 mark cells
+      present (3 opponents × 12 gods).
+- [x] **Answer zoom like the gods:** each public answer thumbnail (`MiniReponse`) is now
+      a button carrying the shared inspect loupe — hover ≥ 180ms / keyboard focus, AND
+      click; on touch, tap opens and a second tap on the same thumbnail closes (state
+      read at pointerdown — a tap fires pointerleave, which hides the loupe, BEFORE
+      click). The loupe shows the real card face with the ✓ OUI / ✗ NON verdict as its
+      name plate. Face-down answers stay inert (nothing to enlarge — loupe discipline).
+      New `questionCardFace()` helper in `card-text.ts`.
+- [x] **CSS-order gotcha (caught by screenshot iteration):** the folded-mode media block
+      first sat before the `.pb-grille__entete-reponses`/`.pb-reponses` base rules —
+      equal specificity, later rule wins, the label column survived and pushed the 12th
+      portrait to wrap at 390. Block moved after the base rules; re-shot clean.
+- [x] Verified: `pnpm test` green (engine 39, server 48); full journey + journey4p
+      re-run against the final build into `polish/screenshots/s4b/` (01..31, both
+      viewports, plus 32/33 loupe-on-answer evidence); a scripted runtime check drove
+      hover / pointer-leave / click / Escape-layering (loupe closes, drawer stays) /
+      tap-toggle. versions.md **1.2.4** (mirror rule).
+- Carry-forward → S6: re-judge the folded pense-bête and the 840px drawer at 7 players
+  (6 rows), and re-verify the full-view rule there (12 columns must still fit).
+
 ### S5 — Contextual onboarding (spec-grounded, no hidden-info leaks)
 
 - [ ] First-turn one-shot hints per phase (pioche/question/réponse), copy drawn strictly
@@ -418,6 +469,25 @@ and trim states).
 ---
 
 ## 6. Session log
+
+### S4b — 2026-07-24 — Interstitial: pense-bête full view (user directive) ✅
+
+- Direct player directive, executed outside the planned S1..S6 sequence — S5/S6 tasks
+  deliberately NOT started. The directive, now a ratified rule in §3: **opening the
+  pense-bête must always show all 12 god possibilities for every player** (the most
+  important property of the drawer — a deduction sheet with hidden columns is not a
+  deduction sheet), covering the table while open being explicitly acceptable; and the
+  **answers players give must zoom on click/hover like the god portraits**.
+- Implementation is presentation-only (client CSS + `PenseBeteGrid`/`card-text`): wide
+  drawer `min(840px, 96vw)` fits the whole grid; below 840px each row folds to two
+  lines so the 12 mark cells always fit the screen; answer thumbnails carry the shared
+  inspect loupe (hover/focus/click, tap-toggle on touch) with the OUI/NON verdict as
+  name plate. No engine/server/protocol diff; PNG untouched; UI stays French; no new
+  hidden-info path (only already-public answers zoom — face-down stays inert).
+- Details, verification evidence and the CSS-order defect caught during iteration: §5
+  S4b checklist. Screenshots: `polish/screenshots/s4b/` (full 01..31 set at both
+  viewports + 32/33 loupe evidence). Tests green (engine 39/39, server 48/48);
+  versions.md → **1.2.4** (mirror rule).
 
 ### S4 — 2026-07-24 — Atmosphere, reveal moments & feedback ✅
 

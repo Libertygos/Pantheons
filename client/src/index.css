@@ -94,9 +94,11 @@
   --succes-rgb: 129, 185, 63;
 
   /* largeur du tiroir pense-bête — partagée par le tiroir et sa poignée. Le tiroir est
-     TOUJOURS en surimpression (jamais de reflux de la table — B3) : une largeur de
-     panneau latéral, pas un demi-écran ; la grille défile dedans (rangée collante). */
-  --tiroir-larg: min(460px, 94vw);
+     TOUJOURS en surimpression (jamais de reflux de la table — B3). Règle « pense-bête
+     entier » (directive joueur 2026-07-24) : ouvert, il montre les 12 dieux de CHAQUE
+     rangée d'un coup — la largeur porte la grille entière, quitte à couvrir la table
+     (compromis accepté : le tiroir se referme d'un geste). */
+  --tiroir-larg: min(840px, 96vw);
 }
 
 * {
@@ -1918,8 +1920,10 @@ button.pose-ev__item {
 }
 
 /* la grille garde le papier du pense-bête : cellules givre sur filets blancs.
-   Plus large que le tiroir, elle DÉFILE horizontalement dans .pb-defile ; la colonne des
-   noms (1re) reste collante et des fondus de bord signalent la suite (B18). */
+   Règle « pense-bête entier » : les 12 colonnes de dieux tiennent TOUJOURS dans le
+   tiroir — pistes fluides en tiroir large, rangées sur deux lignes en tiroir étroit
+   (media query plus bas). Le défilement horizontal de B18 est retiré ; .pb-defile et la
+   colonne collante restent en filet de sécurité si un contenu imprévu débordait. */
 .pb-defile-cadre {
   position: relative;
 }
@@ -1961,8 +1965,7 @@ button.pose-ev__item {
 }
 
 .pb-grille {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
   border: 2px solid var(--blanc);
   background: var(--blanc);
   display: grid;
@@ -1971,9 +1974,9 @@ button.pose-ev__item {
 
 .pb-grille__rang {
   display: grid;
-  /* pistes FIXES : sous `width: max-content`, un `1fr` gonflerait chaque colonne à la
-     taille intrinsèque des portraits — 48px = cible tactile ≥ 44px, rangées alignées */
-  grid-template-columns: 84px 92px repeat(12, 48px);
+  /* sous `width: 100%`, minmax(44px, 1fr) garde la cible tactile ≥ 44px et répartit le
+     reste — les 12 colonnes remplissent exactement le tiroir, rien ne déborde */
+  grid-template-columns: 84px 92px repeat(12, minmax(44px, 1fr));
   gap: 1px;
 }
 
@@ -3052,10 +3055,23 @@ button.pose-ev__item {
   font-size: 11px;
 }
 
+/* bouton nu : la vignette s'agrandit au clic comme au survol (loupe des dieux) */
 .pb-reponse {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: zoom-in;
+}
+
+/* face cachée : rien à agrandir — la vignette redevient inerte */
+.pb-reponse--inerte {
+  cursor: default;
 }
 
 .pb-reponse__carte {
@@ -3084,6 +3100,44 @@ button.pose-ev__item {
 
 .pb-reponse__chip--non {
   background: var(--vermillon);
+}
+
+/* ---- Règle « pense-bête entier », tiroir étroit (fenêtre < 840px) : les 12 dieux de
+   chaque rangée restent TOUS visibles — aucune colonne cachée par un défilement. Chaque
+   rangée passe sur deux lignes (nom + réponses, puis les 12 cases pleine largeur) et les
+   pistes deviennent fluides ; les cases rétrécissent plutôt que de disparaître.
+   (Bloc placé APRÈS les règles de base .pb-* : à spécificité égale, il doit gagner.) ---- */
+@media (max-width: 839px) {
+  .pb-grille__rang {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  /* plus de colonnes dédiées aux en-têtes nom/réponses : les coins et le libellé
+     « Réponses » se retirent — les réponses se lisent à côté de chaque nom */
+  .pb-grille__coin,
+  .pb-grille__entete-reponses {
+    display: none;
+  }
+
+  .pb-grille__adv {
+    position: static;
+    box-shadow: none;
+    grid-column: 1 / span 4;
+  }
+
+  .pb-reponses {
+    grid-column: 5 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 34px;
+  }
+
+  .pb-case {
+    min-width: 0;
+    min-height: 38px;
+    aspect-ratio: auto;
+  }
 }
 
 /*

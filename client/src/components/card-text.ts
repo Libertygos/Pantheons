@@ -7,7 +7,7 @@
  * « corrigée ») pour que l'effet se lise sans la loupe, y compris au tactile.
  */
 import { GODS, data, type GodId, type QuestionCard } from '@pantheons/engine';
-import { godCardSrc, SUBTYPE_LABEL, VALEUR_LABEL } from '../assets.js';
+import { godCardSrc, questionCardSrc, SUBTYPE_LABEL, VALEUR_LABEL } from '../assets.js';
 import { fr } from '../i18n/fr.js';
 import type { GameCardFace } from './GameCard.js';
 
@@ -61,6 +61,18 @@ export function questionCardTexte(card: QuestionCard): string | null {
     return `${def.texte} ${fr.jeu.declenchement(fr.phases[def.triggerPhase])}`;
   }
   return def.texte;
+}
+
+/** Face d'inspection d'une carte question (loupe : les mini-réponses du pense-bête). */
+export function questionCardFace(card: QuestionCard): GameCardFace {
+  return {
+    src: questionCardSrc(card),
+    alt: describeQuestionCard(card),
+    typeLabel: card.type === 'attribut' ? 'Attribut' : 'Action',
+    bodyLabel: describeQuestionCard(card),
+    bandColor: questionCardBand(card),
+    tint: card.type === 'attribut' ? 'teinte-attribut' : 'teinte-action',
+  };
 }
 
 /** Face d'inspection d'une carte Personnage (loupe : portraits du pense-bête, déclaration, dieu du dock). */

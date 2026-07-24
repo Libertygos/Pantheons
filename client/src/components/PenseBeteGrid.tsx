@@ -24,8 +24,8 @@ import {
 } from '@pantheons/engine';
 import type { Mark } from '../state/pense-bete.js';
 import { cardBackSrc, godPortraitSrc, questionCardSrc, VALEUR_LABEL } from '../assets.js';
-import { describeQuestionCard, godCardFace } from './card-text.js';
-import { useCardInspect } from './card-inspect.js';
+import { describeQuestionCard, godCardFace, questionCardFace } from './card-text.js';
+import { currentInspect, hideInspect, showInspect, useCardInspect } from './card-inspect.js';
 import { PantheonIcon } from './PantheonIcon.js';
 import { fr } from '../i18n/fr.js';
 
@@ -130,12 +130,44 @@ function TableDieux() {
   );
 }
 
-/** Mini réponse : vignette de la carte (face ou verso de catégorie) + pastille OUI/NON. */
+/**
+ * Mini réponse : vignette de la carte (face ou verso de catégorie) + pastille OUI/NON.
+ * La face visible s'agrandit comme les dieux — loupe au survol/focus, ET au clic/tap
+ * (au tactile, re-taper la même vignette la range) ; la loupe porte la pastille en
+ * plaque de nom. Une face cachée reste inerte : rien à agrandir, rien à divulguer.
+ */
 function MiniReponse({ placed }: { placed: PlacedCardView }) {
   const desc = placed.card ? describeQuestionCard(placed.card) : fr.jeu.faceCachee;
   const oui = placed.answeredOui === true;
+  const chip = oui ? `✓ ${fr.oui}` : `✗ ${fr.non}`;
+  const payload = placed.card ? { face: questionCardFace(placed.card), namePlate: chip } : null;
+  const ref = useCardInspect<HTMLButtonElement>(payload);
+  // Un tap déclenche pointerleave (qui range la loupe) AVANT click : l'état « déjà à la
+  // loupe » se lit donc au pointerdown, sinon un second tap rouvrirait au lieu de ranger.
+  const lastPointerType = useRef('');
+  const dejaOuverte = useRef(false);
   return (
-    <span className="pb-reponse" title={`${desc} — ${oui ? fr.oui : fr.non}`}>
+    <button
+      type="button"
+      ref={ref}
+      className={`pb-reponse ${payload ? '' : 'pb-reponse--inerte'}`}
+      title={`${desc} — ${oui ? fr.oui : fr.non}`}
+      onPointerDown={(e) => {
+        lastPointerType.current = e.pointerType;
+        dejaOuverte.current = currentInspect()?.anchor === ref.current;
+      }}
+      onClick={() => {
+        const el = ref.current;
+        if (!el || !payload) return;
+        if (lastPointerType.current === 'touch' && dejaOuverte.current) {
+          // Second TAP sur la même vignette : la loupe se range.
+          hideInspect(el);
+        } else if (currentInspect()?.anchor !== el) {
+          // Au pointeur fin le clic n'éteint jamais ce que le survol vient d'ouvrir.
+          showInspect({ anchor: el, ...payload });
+        }
+      }}
+    >
       <img
         className="pb-reponse__carte"
         src={
@@ -146,9 +178,9 @@ function MiniReponse({ placed }: { placed: PlacedCardView }) {
         alt={desc}
       />
       <span className={`pb-reponse__chip ${oui ? 'pb-reponse__chip--oui' : 'pb-reponse__chip--non'}`}>
-        {oui ? `✓ ${fr.oui}` : `✗ ${fr.non}`}
+        {chip}
       </span>
-    </span>
+    </button>
   );
 }
 
