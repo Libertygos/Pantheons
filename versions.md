@@ -1,3 +1,39 @@
+# Version 1.2.1
+
+## Deep polish S2 — disposition, hiérarchie & panneaux (présentation seule)
+
+Session polish S2 (2026-07-24, protocole `CONTINUE-POLISH.md`, dossier `polish/STATE.md`).
+Zéro diff moteur/serveur/protocole ; PNG intacts ; UI français seul.
+
+1. **Tiroir pense-bête — plus jamais une prise de contrôle.** L'auto-ouverture de la
+   phase réponse est remplacée par un signal : la poignée bat une fois et porte un badge
+   turquoise « réponses non lues » (compte des réponses publiques adverses du tour, réputé
+   lu à l'ouverture). Le tiroir ne s'ouvre que par sa poignée, toujours en surimpression
+   (le reflux `padding-right` de la table est supprimé), largeur ≤ 460px. Les modales
+   (`.voile`, z 70) passent AU-DESSUS du tiroir (57) et de sa poignée (58) — un temps fort
+   ne passe plus sous un panneau. Échap congédie la couche la plus haute : loupe → modale
+   (déclaration, aide, aides de zone) → tiroir ; la défausse de pouvoir, action requise,
+   ne se ferme pas.
+2. **Grille du pense-bête.** Rangée réordonnée : nom (colonne collante au défilement),
+   réponses du tour, puis les 12 dieux en pistes fixes de 48px ; la grille défile
+   horizontalement dans le tiroir avec des fondus de bord qui n'apparaissent que s'il
+   reste du contenu de ce côté — plus d'overflow caché à 390.
+3. **Table & dock.** Une carte validée n'est plus rendue deux fois (les fantômes locaux
+   s'effacent dès la confirmation serveur) ; l'éventail de la main s'espace (54px / 38px
+   à ≤600px) et, au tactile, le premier appui LÈVE la carte couverte, le second agit ;
+   main vide = une ligne d'explication par état (pioche à valider / en attente / aucune
+   carte) au lieu d'une bande morte ; aucune zone du dock ne déborde sur sa voisine
+   (« Contre vous » enveloppe) ; un jeton de plaque plus large que sa rangée s'abrège au
+   lieu de déborder du cadre.
+4. **Salon.** Les badges HÔTE / VOUS respirent (les règles `.siege__nom` visaient
+   `.place__nom`) ; quand la table peut démarrer, la ligne d'état passe à « Tout le monde
+   est prêt — l'hôte peut lancer la partie. » (vert) ; « Copier le lien d'invitation »
+   devient un vrai bouton avec confirmation « ✓ Copié ! » sur place.
+5. **Accueil & fond.** Le libellé « Rejoindre avec un code » est enfin rendu au-dessus
+   des cases ; le fond « table de nuit » quitte `background-attachment: fixed` (ratés
+   iOS Safari, coût de repaint) pour une couche `body::before` en position fixe — rendu
+   identique.
+
 # Version 1.2.0
 
 ## Visual V2 — « des cartes sur une table de nuit » (phases A–E)

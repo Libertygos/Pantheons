@@ -120,24 +120,31 @@ export function LandingScreen({
 
           <form
             className="landing__rejoindre"
+            aria-labelledby="rejoindre-libelle"
             onSubmit={(e) => {
               e.preventDefault();
               void handleJoin();
             }}
           >
-            <CodeInput
-              value={joinCode}
-              onChange={setJoinCode}
-              length={ROOM_CODE_LENGTH}
-              disabled={busy}
-            />
-            <button
-              type="submit"
-              className="btn"
-              disabled={busy || joinCode.length < ROOM_CODE_LENGTH}
-            >
-              {fr.landing.join}
-            </button>
+            {/* B15 : les cases de code portent enfin leur libellé visible */}
+            <span className="libelle landing__rejoindre-libelle" id="rejoindre-libelle">
+              {fr.landing.joinTitle}
+            </span>
+            <div className="landing__rejoindre-champs">
+              <CodeInput
+                value={joinCode}
+                onChange={setJoinCode}
+                length={ROOM_CODE_LENGTH}
+                disabled={busy}
+              />
+              <button
+                type="submit"
+                className="btn"
+                disabled={busy || joinCode.length < ROOM_CODE_LENGTH}
+              >
+                {fr.landing.join}
+              </button>
+            </div>
           </form>
         </div>
 

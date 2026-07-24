@@ -6,8 +6,9 @@
  * indicateur de tour, événements transients. En bas, mon dock : VOTRE DIEU (face cachée,
  * appui maintenu = révélation en grand via la loupe), MA MAIN en éventail, CONTRE VOUS /
  * SPÉCIALE, POUVOIR. QoL : loupe d'inspection sur toute face visible (CardInspectLayer),
- * tiroir pense-bête auto-ouvert en mode flottant à la phase réponse + poignée au bord
- * droit, cycle envoyé → confirmé sur les actions de phase (autorité : barrier serveur).
+ * tiroir pense-bête en surimpression (poignée au bord droit ; à la phase réponse elle bat
+ * une fois et porte le compte des réponses non lues — le tiroir ne s'ouvre jamais seul),
+ * cycle envoyé → confirmé sur les actions de phase (autorité : barrier serveur).
  *
  * Cards are final images displayed as-is; all interaction is chrome around them.
  * Un éliminé reste face cachée (la projection n'envoie jamais son dieu — never-send).
@@ -145,9 +146,11 @@ export function GameView({
   const [guesses, setGuesses] = useState<Record<string, GodId>>({});
   const [showHelp, setShowHelp] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
-  /** Tiroir modal (ouverture manuelle : voile + focus) ou flottant (auto-ouverture réponse). */
-  const [notesModal, setNotesModal] = useState(true);
   const [handlePulse, setHandlePulse] = useState(false);
+  /** Réponses publiques déjà consultées dans le tiroir — la poignée affiche le solde. */
+  const [answersSeen, setAnswersSeen] = useState(0);
+  /** Tactile : carte de la main levée au premier appui — le second appui agit (B5). */
+  const [raisedId, setRaisedId] = useState<string | null>(null);
   const [discardId, setDiscardId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [flights, setFlights] = useState<Flight[]>([]);
@@ -161,29 +164,34 @@ export function GameView({
   const volMain = new Set(flights.filter((f) => f.hide === 'main').map((f) => f.cardId));
   const volFantome = new Set(flights.filter((f) => f.hide === 'fantome').map((f) => f.cardId));
 
-  // Tiroir : ESC ferme ; en mode MODAL seulement, l'ouverture donne le focus au bouton de
-  // fermeture (l'auto-ouverture de la phase réponse ne vole jamais le focus du jeu).
+  // L'ouverture du tiroir donne le focus au bouton de fermeture.
   useEffect(() => {
-    if (!showNotes) return;
-    if (notesModal) notesCloseRef.current?.focus();
+    if (showNotes) notesCloseRef.current?.focus();
+  }, [showNotes]);
+
+  // ESC congédie la couche la plus haute : loupe (CardInspectLayer capte l'événement en
+  // amont) → modale (déclaration, aide) → tiroir. La défausse de pouvoir ne se ferme pas :
+  // c'est une action requise de la phase, pas une surcouche.
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowNotes(false);
+      if (e.key !== 'Escape') return;
+      if (declaring) setDeclaring(false);
+      else if (showHelp) setShowHelp(false);
+      else if (showNotes) setShowNotes(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [showNotes, notesModal]);
+  }, [declaring, showHelp, showNotes]);
 
-  // QoL §2 : au DÉBUT de la phase réponse, le tiroir s'ouvre seul en mode flottant (pas de
-  // voile, la table reste jouable). Une seule fois par tour : le refermer vaut pour toute
-  // la phase, jusqu'à la réponse du tour suivant.
-  const autoOpenedTour = useRef(0);
+  // Au DÉBUT de la phase réponse, un signal — jamais une prise de contrôle : la poignée
+  // bat une fois et son badge compte les réponses non lues (l'ancienne auto-ouverture
+  // recouvrait la table et les commandes — B1/B3). Une seule fois par tour.
+  const pulsedTour = useRef(0);
   useEffect(() => {
     if (over || !proj.self.alive) return;
     if (proj.phase !== 'reponse' || proj.status !== 'enCours') return;
-    if (autoOpenedTour.current === proj.tour) return;
-    autoOpenedTour.current = proj.tour;
-    setShowNotes(true);
-    setNotesModal(false);
+    if (pulsedTour.current === proj.tour) return;
+    pulsedTour.current = proj.tour;
     setHandlePulse(true);
   }, [proj.phase, proj.status, proj.tour, proj.self.alive, over]);
 
@@ -209,6 +217,8 @@ export function GameView({
       setGuesses({});
       setDiscardId(null);
       setSent(null);
+      setRaisedId(null);
+      setAnswersSeen(0);
     }
   }, [phaseKey]);
 
@@ -250,6 +260,16 @@ export function GameView({
     const t = window.setTimeout(() => setSentSlow(true), 200);
     return () => window.clearTimeout(t);
   }, [pendingSent]);
+
+  // B4 : sitôt la validation confirmée, la pose PUBLIQUE (projection) remplace mes
+  // fantômes locaux — on les retire pour ne jamais rendre la même carte deux fois.
+  useEffect(() => {
+    if (!youSubmitted) return;
+    setStagedPlays([]);
+    setStagedSpeciales([]);
+    setSelectedCardId(null);
+    setRaisedId(null);
+  }, [youSubmitted]);
 
   const rules = proj.questionRules;
   const selectedCard =
@@ -566,6 +586,19 @@ export function GameView({
     !!selectedCard && selectedIsSpeciale && !selectedSpecialeACible && stagedSpeciales.length === 0;
   const receivedQuestions = questionsAgainst(me.userId);
 
+  // La matière du tiroir : les réponses publiques de CE tour chez les adversaires. Tiroir
+  // fermé, la poignée porte le solde non lu ; ouvert, tout est réputé lu.
+  const publicAnswers = proj.seatOrder
+    .filter((uid) => uid !== me.userId)
+    .reduce(
+      (n, uid) => n + questionsAgainst(uid).filter((q) => q.placed.answeredOui !== undefined).length,
+      0,
+    );
+  const unreadAnswers = showNotes ? 0 : Math.max(0, publicAnswers - answersSeen);
+  useEffect(() => {
+    if (showNotes) setAnswersSeen(publicAnswers);
+  }, [showNotes, publicAnswers]);
+
   const hand = [...handCards.attributs, ...handCards.actions];
 
   // §8.1 — la distribution : toute carte qui ENTRE en main vole depuis sa pioche
@@ -610,18 +643,10 @@ export function GameView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stagedIdsKey]);
 
-  // Ouverture manuelle par la poignée : mode modal (voile + focus), comportement historique.
-  const toggleNotes = () => {
-    if (showNotes) {
-      setShowNotes(false);
-    } else {
-      setNotesModal(true);
-      setShowNotes(true);
-    }
-  };
+  const toggleNotes = () => setShowNotes((s) => !s);
 
   return (
-    <div className={`jeu ${showNotes && !notesModal ? 'jeu--tiroir-flottant' : ''}`}>
+    <div className="jeu">
       <GameTopBar tour={proj.tour} onHelp={() => setShowHelp(true)} onExit={onExit} />
 
       {/* bande haute : l'arc des sièges */}
@@ -720,10 +745,10 @@ export function GameView({
         </div>
       </section>
 
-      {/* tiroir pense-bête : glisse sur la table ; le voile n'assombrit qu'en mode manuel
-          (modal) — l'auto-ouverture de la réponse laisse la table entièrement jouable */}
+      {/* tiroir pense-bête : toujours en surimpression (jamais de reflux de la table),
+          voile + focus — il ne s'ouvre que par la poignée */}
       <div
-        className={`tiroir-voile ${showNotes && notesModal ? 'tiroir-voile--visible' : ''}`}
+        className={`tiroir-voile ${showNotes ? 'tiroir-voile--visible' : ''}`}
         onClick={() => setShowNotes(false)}
         aria-hidden="true"
       />
@@ -788,9 +813,24 @@ export function GameView({
         onClick={toggleNotes}
         aria-expanded={showNotes}
         aria-controls="tiroir-pense-bete"
-        aria-label={showNotes ? fr.penseBete.fermer : fr.penseBete.ouvrir}
-        title={fr.penseBete.title}
+        aria-label={
+          showNotes
+            ? fr.penseBete.fermer
+            : unreadAnswers > 0
+              ? `${fr.penseBete.ouvrir} — ${fr.penseBete.nouvellesReponses(unreadAnswers)}`
+              : fr.penseBete.ouvrir
+        }
+        title={
+          unreadAnswers > 0
+            ? `${fr.penseBete.title} — ${fr.penseBete.nouvellesReponses(unreadAnswers)}`
+            : fr.penseBete.title
+        }
       >
+        {unreadAnswers > 0 && (
+          <span className="tiroir-poignee__badge" aria-hidden="true">
+            {unreadAnswers}
+          </span>
+        )}
         <NotebookIcon />
         <span className="tiroir-poignee__texte">{fr.penseBete.title}</span>
       </button>
@@ -809,6 +849,17 @@ export function GameView({
             <span className="libelle dock__titre">
               {fr.jeu.maMain} — {hand.length} <AideZone sujet="main" />
             </span>
+            {hand.length === 0 && (
+              // Jamais un vide muet : une ligne dit pourquoi la main est vide (390 pioche).
+              <p className="main-vide">
+                {proj.phase === 'pioche' && alive && !over
+                  ? youSubmitted
+                    ? fr.jeu.mainVideAttente
+                    : fr.jeu.mainVidePioche
+                  : fr.jeu.mainVide}
+              </p>
+            )}
+            {hand.length > 0 && (
             <div className="main-ev" style={{ '--n': hand.length } as CSSProperties}>
               {hand.map((card, idx) => {
                 const i = idx - (hand.length - 1) / 2;
@@ -826,6 +877,7 @@ export function GameView({
                       'main-ev__carte',
                       selectedCardId === card.id ? 'main-ev__carte--choisie' : '',
                       staged ? 'main-ev__carte--posee' : '',
+                      raisedId === card.id ? 'main-ev__carte--levee' : '',
                     ].join(' ')}
                     style={
                       {
@@ -837,6 +889,12 @@ export function GameView({
                     }
                     aria-disabled={locked || undefined}
                     onClick={() => {
+                      // Tactile (pas de survol) : le premier appui LÈVE la carte couverte
+                      // pour la lire, le second agit — parité avec le lift au survol (B5).
+                      if (window.matchMedia('(pointer: coarse)').matches && raisedId !== card.id) {
+                        setRaisedId(card.id);
+                        return;
+                      }
                       if (locked) return;
                       if (staged) unstage(card.id);
                       else setSelectedCardId((cur) => (cur === card.id ? null : card.id));
@@ -861,6 +919,7 @@ export function GameView({
                 );
               })}
             </div>
+            )}
           </div>
 
           {(receivedQuestions.length > 0 || mySpecial || stagedSpecialeSansCibleCard || specialeZoneLegale) && (

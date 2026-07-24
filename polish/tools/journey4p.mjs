@@ -8,7 +8,8 @@ import fs from 'node:fs';
 
 const BASE = 'http://localhost:2567';
 const WS = 'ws://localhost:2567';
-const OUT = '/home/user/Pantheons/polish/screenshots/before';
+// S2+: override the output dir per session (OUT=…/polish/screenshots/s2 node journey4p.mjs)
+const OUT = process.env.OUT ?? '/home/user/Pantheons/polish/screenshots/before';
 const SECRET = 'devsecret';
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -87,10 +88,11 @@ async function waitPhase(page, phaseLabel, timeout = 25000) {
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+// Fixed body::before background layer (S2, B10) → absolute for fullPage captures.
 await context.addInitScript(() => {
   const inject = () => {
     const s = document.createElement('style');
-    s.textContent = 'body { background-attachment: scroll !important; }';
+    s.textContent = 'body::before { position: absolute !important; }';
     document.head.appendChild(s);
   };
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', inject);
@@ -136,7 +138,9 @@ await waitPhase(page, 'Réponse');
 await sleep(800);
 await snap(page, '29-jeu-4j-reponse');
 
-// Drawer is auto-open in réponse; capture the 3-row pense-bête grid as-is.
+// S2: the drawer no longer auto-opens — open it by its handle (badge visible before).
+await page.locator('button[aria-controls="tiroir-pense-bete"]').click();
+await sleep(600);
 await snap(page, '30-jeu-4j-pense-bete');
 
 log('DONE');

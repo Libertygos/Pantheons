@@ -1,17 +1,18 @@
 /**
  * Pense-bête v2 (Visual V2 §7 + QoL §2) — la grille de déduction, outil de premier rang.
- * Colonne de tête « Réponses » : les réponses PUBLIQUES données par ce joueur ce tour-ci
- * (mini-carte — face si visible pour ce spectateur, sinon le verso de catégorie — plus
- * pastille ✓ OUI / ✗ NON : icône + couleur, jamais la couleur seule), vidée à chaque tour.
- * Puis les adversaires en rangées (en-tête teinté à l'identité de leur siège) et les 12
- * dieux en tuiles-portraits (loupe d'inspection au survol/focus : la carte Personnage en
- * grand). Cellules : bascules TRI-ÉTAT inconnu → exclu (✕) → retenu (★ + anneau), état
- * annoncé (aria-pressed + libellé), navigation clavier complète (Tab + flèches).
+ * Rangées d'adversaires : d'abord leur NOM (colonne collante — la grille défile
+ * horizontalement dans le tiroir, fondus de bord en guise d'affordance, B18), puis leurs
+ * réponses PUBLIQUES de ce tour (mini-carte — face si visible pour ce spectateur, sinon le
+ * verso de catégorie — plus pastille ✓ OUI / ✗ NON : icône + couleur, jamais la couleur
+ * seule, vidée à chaque tour), puis les 12 dieux en tuiles-portraits (loupe d'inspection
+ * au survol/focus : la carte Personnage en grand). Cellules : bascules TRI-ÉTAT inconnu →
+ * exclu (✕) → retenu (★ + anneau), état annoncé (aria-pressed + libellé), navigation
+ * clavier complète (Tab + flèches).
  *
  * Présentationnel : les marques vivent dans usePenseBete (state/pense-bete.ts) — jamais
  * envoyées ; les réponses viennent de la projection déjà reçue (answeredOui public).
  */
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ALL_GODS, GODS, type God, type GodId, type PlacedCardView } from '@pantheons/engine';
 import type { Mark } from '../state/pense-bete.js';
 import { cardBackSrc, godPortraitSrc, questionCardSrc } from '../assets.js';
@@ -87,6 +88,33 @@ export function PenseBeteGrid({
 }) {
   const gridRef = useRef<HTMLDivElement | null>(null);
 
+  // B18 : la grille défile horizontalement dans le tiroir (colonne des noms collante) ;
+  // les fondus de bord ne s'affichent que s'il RESTE du contenu de ce côté.
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [cues, setCues] = useState({ gauche: false, droite: false });
+  const updateCues = () => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const gauche = el.scrollLeft > 4;
+    const droite = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+    setCues((c) => (c.gauche === gauche && c.droite === droite ? c : { gauche, droite }));
+  };
+  useEffect(() => {
+    updateCues();
+    const el = scrollerRef.current;
+    el?.addEventListener('scroll', updateCues, { passive: true });
+    window.addEventListener('resize', updateCues);
+    return () => {
+      el?.removeEventListener('scroll', updateCues);
+      window.removeEventListener('resize', updateCues);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Le tiroir s'ouvre par transform : re-mesurer quand le contenu ou la taille change.
+  useEffect(() => {
+    updateCues();
+  });
+
   /** Flèches : déplace le focus de cellule en cellule (les cellules restent tabbables). */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const deltas: Record<string, [number, number]> = {
@@ -110,10 +138,20 @@ export function PenseBeteGrid({
 
   return (
     <div>
+      <div
+        className={[
+          'pb-defile-cadre',
+          cues.gauche ? 'pb-defile-cadre--gauche' : '',
+          cues.droite ? 'pb-defile-cadre--droite' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <div className="pb-defile" ref={scrollerRef}>
       <div className="pb-grille" ref={gridRef} onKeyDown={handleKeyDown}>
         <div className="pb-grille__rang">
-          <span className="pb-grille__entete-reponses libelle">{fr.penseBete.reponses}</span>
           <span className="pb-grille__coin" />
+          <span className="pb-grille__entete-reponses libelle">{fr.penseBete.reponses}</span>
           {ALL_GODS.map((god) => (
             <DieuEntete key={god.id} god={god} />
           ))}
@@ -121,6 +159,13 @@ export function PenseBeteGrid({
 
         {rows.map((opp, r) => (
           <div className="pb-grille__rang" key={opp.userId}>
+            <span
+              className="pb-grille__adv"
+              style={{ '--teinte-rang': `var(${opp.tint})` } as React.CSSProperties}
+              title={opp.displayName}
+            >
+              {opp.alive ? opp.displayName : `✕ ${opp.displayName}`}
+            </span>
             <span className="pb-reponses">
               {opp.answers.length === 0 ? (
                 <span
@@ -133,13 +178,6 @@ export function PenseBeteGrid({
               ) : (
                 opp.answers.map((a) => <MiniReponse key={a.key} placed={a.placed} />)
               )}
-            </span>
-            <span
-              className="pb-grille__adv"
-              style={{ '--teinte-rang': `var(${opp.tint})` } as React.CSSProperties}
-              title={opp.displayName}
-            >
-              {opp.alive ? opp.displayName : `✕ ${opp.displayName}`}
             </span>
             {ALL_GODS.map((god, c) => {
               const mark = get(opp.userId, god.id);
@@ -161,6 +199,8 @@ export function PenseBeteGrid({
             })}
           </div>
         ))}
+      </div>
+        </div>
       </div>
 
       <div className="pb-restants">

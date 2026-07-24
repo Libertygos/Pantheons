@@ -78,8 +78,9 @@
   --ev-pas: 4deg;
   --ev-chute: 9px;
 
-  /* éventail de la main (2–8 cartes → pas plus large, chevauchement moindre) */
-  --main-ecart: 46px;
+  /* éventail de la main (2–8 cartes → pas plus large, chevauchement moindre).
+     54px : la bande exposée de chaque carte reste une vraie cible (B5). */
+  --main-ecart: 54px;
   --main-pas: 5deg;
   --main-chute: 7px;
 
@@ -90,9 +91,10 @@
   /* succès / confirmation (composants rgb du vert) */
   --succes-rgb: 129, 185, 63;
 
-  /* largeur du tiroir pense-bête — partagée par le tiroir, sa poignée et le reflux
-     de la table en mode flottant (colonne Réponses + grille sans défilement à 1440px) */
-  --tiroir-larg: min(780px, 94vw);
+  /* largeur du tiroir pense-bête — partagée par le tiroir et sa poignée. Le tiroir est
+     TOUJOURS en surimpression (jamais de reflux de la table — B3) : une largeur de
+     panneau latéral, pas un demi-écran ; la grille défile dedans (rangée collante). */
+  --tiroir-larg: min(460px, 94vw);
 }
 
 * {
@@ -107,17 +109,27 @@ body {
 }
 
 body {
-  /* La table éclairée dans une pièce sombre : spot radial (marine plus clair en
-     haut-centre → marine profond aux bords) + vignette. */
-  background:
-    radial-gradient(120% 85% at 50% 28%, transparent 52%, rgba(10, 14, 35, 0.5) 100%),
-    radial-gradient(115% 90% at 50% 16%, var(--nuit-clair) 0%, var(--nuit) 46%, var(--nuit-3) 100%);
-  background-attachment: fixed;
+  background: var(--nuit-3);
   color: var(--texte);
   font-family: var(--fonte);
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+}
+
+/* La table éclairée dans une pièce sombre : spot radial (marine plus clair en haut-centre
+   → marine profond aux bords) + vignette. Couche position:fixed derrière le contenu — même
+   rendu que l'ancien `background-attachment: fixed`, sans ses ratés iOS Safari ni son coût
+   de repaint au défilement (B10). */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 85% at 50% 28%, transparent 52%, rgba(10, 14, 35, 0.5) 100%),
+    radial-gradient(115% 90% at 50% 16%, var(--nuit-clair) 0%, var(--nuit) 46%, var(--nuit-3) 100%);
 }
 
 /* Grain très léger sur toute la scène — unifie l'art plat et la lumière de table. */
@@ -505,6 +517,16 @@ button {
 }
 
 .landing__rejoindre {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.landing__rejoindre-libelle {
+  font-size: 10px;
+}
+
+.landing__rejoindre-champs {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -804,7 +826,9 @@ button {
   border-right: 1px solid var(--filet);
 }
 
-.place__nom {
+/* B8 : ces règles visaient .place__nom alors que le markup du lobby dit .siege__nom —
+   le nom et les badges HÔTE / VOUS se touchaient. (.place__* reste aux plaques du jeu.) */
+.siege__nom {
   display: flex;
   align-items: baseline;
   gap: 10px;
@@ -813,13 +837,13 @@ button {
   min-width: 0;
 }
 
-.place__nom-texte {
+.siege__nom-texte {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.siege--libre .place__nom {
+.siege--libre .siege__nom {
   color: var(--texte-faible);
   font-style: normal;
 }
@@ -870,6 +894,19 @@ button {
   color: var(--texte-faible);
   font-size: 12px;
   margin-top: 14px;
+}
+
+/* la table est prête : la ligne d'état passe au vert (B9) */
+.lobby__hint--pret {
+  color: var(--vert);
+}
+
+/* « Copié ! » : le bouton d'invitation confirme en vert, sur place */
+.btn--copie,
+.btn--copie:hover:not(:disabled) {
+  border-color: var(--vert);
+  color: var(--vert);
+  background: rgba(var(--succes-rgb), 0.12);
 }
 
 /* ====================================================================== JEU */
@@ -1016,6 +1053,13 @@ button.place__plaque--legale:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+/* un jeton plus large que la plaque s'abrège au lieu de déborder du cadre (B6) */
+.place__jetons > * {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* compteurs en jetons libellés — plus aucun code à une lettre */
@@ -1533,9 +1577,35 @@ button.pose-ev__item {
   align-items: start;
 }
 
+/* aucune zone ne déborde sur sa voisine : chaque colonne peut rétrécir, son contenu
+   enveloppe ou défile — les titres (« MA MAIN » / « CONTRE VOUS ») ne se croisent jamais */
+.dock__zone {
+  min-width: 0;
+}
+
+.dock__zone--recu .pose-ev {
+  flex-wrap: wrap;
+  row-gap: 14px;
+  max-width: 300px;
+}
+
 .dock__titre {
   display: block;
   margin-bottom: 8px;
+}
+
+/* main vide : une ligne qui explique, jamais une bande morte (390 pioche) */
+.main-vide {
+  margin: 0;
+  min-height: 84px;
+  display: grid;
+  place-items: center;
+  padding: 12px 16px;
+  border: 1px dashed var(--filet);
+  border-radius: var(--rayon-2);
+  color: var(--texte-faible);
+  font-size: 12px;
+  text-align: center;
 }
 
 /* mon dieu : appui maintenu = retournement 3D (GameCard revealed) */
@@ -1599,6 +1669,14 @@ button.pose-ev__item {
 .main-ev__carte:has(+ .main-ev__carte:hover),
 .main-ev__carte:has(+ .main-ev__carte:focus-visible) {
   --ev-decale: calc(var(--main-ecart) / -2);
+}
+
+/* tactile (B5) : levée au premier appui — même geste que le lift au survol souris ;
+   le second appui sélectionne (le lift met la face en pleine lecture au-dessus du fan) */
+.main-ev__carte--levee {
+  z-index: 60;
+  transform: translateX(calc(var(--i) * var(--main-ecart))) rotate(0deg) translateY(-22px)
+    scale(1.06);
 }
 
 /* sélectionnée : levée en position d'attente, les cibles légales pulsent sur la table */
@@ -1758,10 +1836,51 @@ button.pose-ev__item {
 }
 
 /* la grille garde le papier du pense-bête : cellules givre sur filets blancs.
-   Elle ÉPOUSE le tiroir (width 100%) — colonnes Réponses + adversaire dimensionnées pour
-   qu'à 1440px de viewport rien ne défile horizontalement (QoL §2). */
+   Plus large que le tiroir, elle DÉFILE horizontalement dans .pb-defile ; la colonne des
+   noms (1re) reste collante et des fondus de bord signalent la suite (B18). */
+.pb-defile-cadre {
+  position: relative;
+}
+
+.pb-defile {
+  overflow-x: auto;
+}
+
+/* fondus de bord : « il y a plus » — pilotés par PenseBeteGrid selon la position */
+.pb-defile-cadre::before,
+.pb-defile-cadre::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 30px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-vite) ease;
+  z-index: 3;
+}
+
+.pb-defile-cadre::before {
+  left: 86px; /* au bord droit de la colonne des noms collante */
+  background: linear-gradient(to right, rgba(16, 22, 48, 0.75), transparent);
+}
+
+.pb-defile-cadre::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(16, 22, 48, 0.75), transparent);
+}
+
+.pb-defile-cadre--gauche::before {
+  opacity: 1;
+}
+
+.pb-defile-cadre--droite::after {
+  opacity: 1;
+}
+
 .pb-grille {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border: 2px solid var(--blanc);
   background: var(--blanc);
   display: grid;
@@ -1770,8 +1889,19 @@ button.pose-ev__item {
 
 .pb-grille__rang {
   display: grid;
-  grid-template-columns: 92px 78px repeat(12, minmax(44px, 1fr));
+  /* pistes FIXES : sous `width: max-content`, un `1fr` gonflerait chaque colonne à la
+     taille intrinsèque des portraits — 48px = cible tactile ≥ 44px, rangées alignées */
+  grid-template-columns: 84px 92px repeat(12, 48px);
   gap: 1px;
+}
+
+/* colonne des noms collante : le repère « qui est cette rangée » survit au défilement */
+.pb-grille__coin,
+.pb-grille__adv {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  box-shadow: 1px 0 0 var(--blanc); /* le filet que le gap 1px ne peut plus donner */
 }
 
 .pb-grille__coin {
@@ -1912,7 +2042,9 @@ button.pose-ev__item {
   margin: 10px 0 0;
 }
 
-/* superposition (modales : déclaration, défausse pouvoir, aide, fin) */
+/* superposition (modales : déclaration, défausse pouvoir, aide, fin) — AU-DESSUS du
+   tiroir (57) et de sa poignée (58), un temps fort ne passe jamais sous un panneau (B2) ;
+   la loupe (950) et le grain (2000) restent au-dessus */
 .voile {
   position: fixed;
   inset: 0;
@@ -1920,7 +2052,7 @@ button.pose-ev__item {
   display: grid;
   place-items: center;
   padding: 24px;
-  z-index: 40;
+  z-index: 70;
   overflow-y: auto;
 }
 
@@ -2327,6 +2459,7 @@ button.pose-ev__item {
 .main-ev__carte:hover .carte-jeu,
 .main-ev__carte:focus-visible .carte-jeu,
 .main-ev__carte--choisie .carte-jeu,
+.main-ev__carte--levee .carte-jeu,
 .main-ev__carte[aria-disabled='true'] .carte-jeu {
   animation-play-state: paused;
 }
@@ -2424,6 +2557,26 @@ button.pose-ev__item {
   text-transform: uppercase;
 }
 
+/* le badge « réponses non lues » — le signal qui remplace l'auto-ouverture (B1) ;
+   turquoise = langage de l'interactif (la chartreuse reste au divin) */
+.tiroir-poignee__badge {
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  background: var(--turquoise);
+  color: var(--encre-sur-clair);
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 999px;
+  box-shadow: var(--ombre-1);
+  animation: fait-chip-entree 200ms var(--ease-pop) both;
+}
+
 /* un seul battement d'attention quand la phase réponse commence — la propriété `scale`
    se compose avec le transform de position, transform-only par construction */
 .tiroir-poignee--pulse {
@@ -2437,24 +2590,6 @@ button.pose-ev__item {
   100% {
     scale: 1;
   }
-}
-
-/*
- * §2 — tiroir flottant (auto-ouverture de la phase réponse) : pas de voile, et sur écran
- * large la table se réserve la place du tiroir (reflux d'état, instantané — on n'anime
- * jamais le layout) pour que consigne, actions et sièges restent visibles ET cliquables.
- * L'arc des sièges défile s'il déborde de la largeur restante.
- */
-@media (min-width: 1200px) {
-  .jeu--tiroir-flottant {
-    padding-right: var(--tiroir-larg);
-  }
-}
-
-.jeu--tiroir-flottant .places-arc {
-  justify-content: flex-start;
-  overflow-x: auto;
-  padding-bottom: 10px;
 }
 
 /* §2 — colonne « Réponses » en tête de rangée : les réponses publiques données par CE
@@ -2669,7 +2804,9 @@ button.pose-ev__item {
   :root {
     --carte-md: 96px;
     --carte-lg: 148px;
-    --main-ecart: 34px;
+    /* 38px : 8 cartes tiennent encore à 390 (96 + 7×38 = 362) avec une bande tapable
+       plus franche par carte (B5) */
+    --main-ecart: 38px;
   }
 
   .places-arc {

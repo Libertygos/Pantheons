@@ -10,7 +10,8 @@ import fs from 'node:fs';
 
 const BASE = 'http://localhost:2567';
 const WS = 'ws://localhost:2567';
-const OUT = '/home/user/Pantheons/polish/screenshots/before';
+// S2+: override the output dir per session (OUT=…/polish/screenshots/s2 node journey.mjs)
+const OUT = process.env.OUT ?? '/home/user/Pantheons/polish/screenshots/before';
 const SECRET = 'devsecret';
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -102,13 +103,13 @@ async function waitPhase(page, phaseLabel, timeout = 25000) {
 // ---------- main ----------
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-// Capture-only fix: body uses background-attachment: fixed, which Playwright fullPage
-// screenshots do not paint past the first screenful (white below). Switch to scroll for
-// captures — rendering is otherwise identical. (Logged as a mobile-compat finding.)
+// Capture-only fix: the table-light background lives on a position:fixed body::before
+// layer (S2, B10) — Playwright fullPage shots paint fixed elements only over the first
+// screenful. Pin it to absolute for captures; rendering is otherwise identical.
 await context.addInitScript(() => {
   const inject = () => {
     const s = document.createElement('style');
-    s.textContent = 'body { background-attachment: scroll !important; }';
+    s.textContent = 'body::before { position: absolute !important; }';
     document.head.appendChild(s);
   };
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', inject);
@@ -248,16 +249,11 @@ await bot.waitState((s) => s.phase === 'reponse');
 await sleep(600);
 await snap(page, '18-jeu-reponse');
 
-// Declaration modal (then cancel). BUG (logged): the pense-bête drawer auto-opens in
-// réponse and stacks ABOVE .voile modals (tiroir z57 vs voile z-auto) — capture the
-// authentic overlap, then Escape to close the drawer so the modal is usable.
+// Declaration modal (then cancel). S2: the drawer no longer auto-opens — the modal sits
+// clear above everything (.voile z70) and Escape would close the MODAL now.
 await page.locator('button:has-text("Déclarer « Panthéons »")').click();
 await sleep(500);
 await snap(page, '19-declaration-modale');
-await page.mouse.move(10, 300); // clear any hover loupe (it captures the first Escape)
-await sleep(200);
-await page.keyboard.press('Escape');
-await sleep(300);
 await page.locator('button:has-text("Annuler")').click();
 await sleep(300);
 
@@ -286,10 +282,6 @@ await sleep(400);
 log('bot god is', bot.god);
 await page.locator('button:has-text("Déclarer « Panthéons »")').click();
 await sleep(400);
-await page.mouse.move(10, 300);
-await sleep(200);
-await page.keyboard.press('Escape'); // close auto-opened drawer covering the modal
-await sleep(300);
 await page.locator(`.decl-dieu[title="${GOD_LABEL[bot.god]}"]`).click();
 await sleep(300);
 await snap(page, '21-declaration-choisie');
@@ -299,11 +291,7 @@ await page.waitForSelector('.voile:has-text("Panthéons"), .fin, [class*="fin"]'
 await sleep(1500);
 await snap(page, '22-fin-victoire');
 
-// Back home (Escape first: drawer may cover the end-screen button)
-await page.mouse.move(10, 300);
-await sleep(200);
-await page.keyboard.press('Escape');
-await sleep(300);
+// Back home (the end modal is above everything now — no drawer to clear)
 await page.locator('button:has-text("Retour à l’accueil"), button:has-text("Retour à l\'accueil")').first().click().catch(async () => {
   log('retour button not found, navigating home');
   await page.goto(`${BASE}/`);
@@ -364,10 +352,6 @@ await sleep(400);
 const wrong = bot2.god === 'zeus' ? 'odin' : 'zeus';
 log('bot2 god:', bot2.god, '— declaring wrong:', wrong);
 await page.locator('button:has-text("Déclarer « Panthéons »")').click();
-await sleep(300);
-await page.mouse.move(10, 300);
-await sleep(200);
-await page.keyboard.press('Escape'); // close auto-opened drawer covering the modal
 await sleep(300);
 await page.locator(`.decl-dieu[title="${GOD_LABEL[wrong]}"]`).click();
 await sleep(200);

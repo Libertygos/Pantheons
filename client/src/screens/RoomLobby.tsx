@@ -48,9 +48,13 @@ export function RoomLobby({
   const occupied = lobby.seats.filter((s) => s.occupied).length;
 
   const copyInvite = async () => {
-    await navigator.clipboard.writeText(`${window.location.origin}/room/${lobby.roomCode}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/room/${lobby.roomCode}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard indisponible (contexte non sécurisé) : le code reste lisible juste au-dessus
+    }
   };
 
   return (
@@ -62,8 +66,12 @@ export function RoomLobby({
           <span className="libelle lobby__code-libelle">{fr.lobby.code}</span>
           <strong className="lobby__code">{lobby.roomCode}</strong>
           <div className="lobby__inviter">
-            <button className="btn btn--nu btn--petit" onClick={() => void copyInvite()}>
-              {copied ? fr.lobby.copied : fr.lobby.copyInvite}
+            {/* un vrai bouton (pas un lien nu) + confirmation verte sur place */}
+            <button
+              className={`btn btn--petit ${copied ? 'btn--copie' : ''}`}
+              onClick={() => void copyInvite()}
+            >
+              {copied ? `✓ ${fr.lobby.copied}` : fr.lobby.copyInvite}
             </button>
           </div>
           <div className="tri-bande" aria-hidden="true">
@@ -120,7 +128,11 @@ export function RoomLobby({
         })}
       </ul>
 
-      <p className="lobby__hint">{fr.lobby.waiting(occupied, lobby.minSeats)}</p>
+      {/* B9 : table au complet et prête → la ligne d'état le dit, au lieu de rester
+          bloquée sur « En attente de joueurs » */}
+      <p className={`lobby__hint ${lobby.canStart ? 'lobby__hint--pret' : ''}`}>
+        {lobby.canStart ? fr.lobby.readyToStart : fr.lobby.waiting(occupied, lobby.minSeats)}
+      </p>
 
       <div className="lobby__controles">
         <button

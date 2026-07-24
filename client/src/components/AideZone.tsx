@@ -3,7 +3,7 @@
  * une boîte qui rappelle les règles et les cartes de CETTE zone (même dispositif que sur
  * les autres jeux gosgames). Le rappel général des règles reste dans la barre haute.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fr } from '../i18n/fr.js';
 
 export type AideSujet = keyof typeof fr.aideZones.zones;
@@ -11,6 +11,19 @@ export type AideSujet = keyof typeof fr.aideZones.zones;
 export function AideZone({ sujet, className }: { sujet: AideSujet; className?: string }) {
   const [open, setOpen] = useState(false);
   const aide = fr.aideZones.zones[sujet];
+
+  // ESC ferme CETTE modale et rien d'autre : capture + stopPropagation, même convention
+  // que la loupe — le gestionnaire de couches de GameView (modale → tiroir) ne voit rien.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      setOpen(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [open]);
   return (
     <>
       <button

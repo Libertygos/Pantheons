@@ -8,7 +8,8 @@
 > **Mode: full runtime mode.** The project runs end to end in this environment (S1 ran the
 > real stack and drove real games). No paper-audit pivot was needed.
 >
-> Session 1 executed 2026-07-23. Status: **S1 complete** — S2..S6 not started.
+> Session 1 executed 2026-07-23. Session 2 executed 2026-07-24.
+> Status: **S1–S2 complete** — S3..S6 not started. Resume at S3's first unchecked task.
 
 ---
 
@@ -37,29 +38,35 @@ Server serves the built SPA at `http://localhost:2567`. `ADMIN_USER_IDS` lets th
 ### Capture harness (committed)
 
 `polish/tools/journey.mjs` (2-player full journey: 25 states → screenshots 01..25) and
-`polish/tools/journey4p.mjs` (4-player real table shape: states 26..30). Run them from a
-scratch dir with two symlinks in a local `node_modules`:
+`polish/tools/journey4p.mjs` (4-player real table shape: states 26..30). ESM resolves
+packages from the SCRIPT's directory — **copy the scripts into a scratch dir** that has
+the two symlinks in a local `node_modules` (running them in place fails):
 
 ```bash
 mkdir -p work/node_modules && cd work
 ln -s /opt/node22/lib/node_modules/playwright node_modules/playwright
 ln -s <repo>/client/node_modules/colyseus.js node_modules/colyseus.js
-node <repo>/polish/tools/journey.mjs      # writes into polish/screenshots/before/
+cp <repo>/polish/tools/journey*.mjs .
+OUT=<repo>/polish/screenshots/sN node journey.mjs   # default OUT: …/screenshots/before
 ```
 
-For S2+ iterations, copy the scripts, change `OUT` to `polish/screenshots/sN/`, and trim
-to the affected states. Notes baked into the scripts (learned the hard way):
+Notes baked into the scripts (learned the hard way):
 
 - Each snap is taken at 1280×800 then 390×844 (`fullPage: true`).
-- The scripts inject `body { background-attachment: scroll !important }` **capture-only**:
-  the app uses `background-attachment: fixed`, which Playwright full-page shots do not
-  paint past the first screenful (white below). Rendering is otherwise identical.
+- Since S2 the night-table background lives on a `position: fixed` `body::before` layer;
+  the scripts pin it to `absolute` **capture-only** (Playwright full-page shots don't
+  paint fixed layers past the first screenful). Rendering is otherwise identical.
 - The card-inspect loupe captures the first Escape when the cursor rests on a card —
   move the mouse to a neutral point before sending Escape.
+- Since S2, Escape closes the topmost layer (loupe → modal → drawer) — the drawer no
+  longer auto-opens, so the old « Escape before clicking the declaration modal » dance is
+  gone from the scripts; journey4p opens the drawer by its handle for state 30.
 - In a 2-player game the LAST barrier submitter never sees its own « ✓ Validé » chip
   (phase advances instantly) — have the browser submit first to photograph it.
 - Bot question intents are engine `QuestionPlay` objects:
   `{ cardId, card: <resolved card from self.handCards>, targetSeat: seatOrder.indexOf(target) }`.
+- Playwright strict center-clicks fail on covered fan cards (the neighbour intercepts) —
+  click/tap with `position: { x: 16, y: 80 }` to hit the exposed strip like a finger.
 
 ### Screenshot inventory (`polish/screenshots/before/`, 60 files)
 
@@ -220,27 +227,28 @@ Additional S1 rulings, same force:
 ## 4. Bug list (found in S1 — nothing fixed yet)
 
 Severity: 🟥 blocker · 🟧 major · 🟨 minor · ⬜ info. "Fix in" = planned session.
+Status: ✅ fixed (session) · open otherwise.
 
 | # | Sev | What / evidence | Where | Fix in |
 |---|-----|-----------------|-------|--------|
-| B1 | 🟥 | Réponse auto-open drawer covers ~94vw at 390 — answers, PASSER / DÉCLARER and the whole declaration modal are hidden behind it (18--390, 19--390). | `GameView.tsx` auto-open effect; `.tiroir` CSS | S2 |
-| B2 | 🟥 | `.voile` modals (déclaration/aide/fin) have **no z-index**; `.tiroir` (57) and `.tiroir-poignee` (58) stack above them — modal buttons unclickable under the drawer at 1280 (19--1280; automation click-interception logs). | `index.css` | S2 |
-| B3 | 🟧 | `.jeu--tiroir-flottant { padding-right: var(--tiroir-larg) }` with `--tiroir-larg: min(780px, 94vw)` squeezes the table to ~500px at 1280: dock titles interleave (« MA MAIN » / « CONTRE VOUS »), cards overlap zones (29--1280). | `index.css` | S2 |
-| B4 | 🟧 | After « Valider N questions », the placed card renders **doubled** in the target zone (public placed card + leftover local staged ghost), garbling the face (17--1280). | `GameView.tsx` staged ghosts vs `questionsAgainst` | S2 |
-| B5 | 🟧 | Hand-fan overlap: a card's center is covered by its right neighbor; hover raises on desktop but **touch has no hover** — covered cards are nearly untappable at 390 (11--390; Playwright center-click interception). | `.main-ev` CSS / `GameCard` | S2 |
-| B6 | 🟨 | Seat plaque jeton row clips at 3+ opponents — « 12 possibles » cut mid-chip (28--1280, Chloé). | `SeatPlaque` / `.place__jetons` CSS | S2 |
+| B1 | 🟥 | ✅ S2 — Réponse auto-open drawer covered ~94vw at 390. Auto-open removed: handle pulses + unread-answers badge; drawer opens only by handle, always overlays (s2/18--390). | `GameView.tsx`; `.tiroir` CSS | S2 |
+| B2 | 🟥 | ✅ S2 — `.voile` now z 70, above `.tiroir` (57) and `.tiroir-poignee` (58); loupe (950) and grain (2000) above. Declaration flow clicks clean in automation (s2/19). | `index.css` | S2 |
+| B3 | 🟧 | ✅ S2 — the `padding-right` reflow is gone (class + CSS removed); drawer capped at min(460px, 94vw); table keeps full width in réponse (s2/29--1280). | `index.css` | S2 |
+| B4 | 🟧 | ✅ S2 — staged ghosts (plays + spéciales) clear the instant `youSubmitted` confirms; the public placed card renders once (s2/17--1280). | `GameView.tsx` | S2 |
+| B5 | 🟧 | ✅ S2 — fan spacing 46→54px (34→38 at ≤600px); coarse-pointer: first tap raises (`--levee`, same lift as hover), second tap acts. Verified under Playwright touch emulation. Strict center-clicks still intercept by design (fan overlap) — aim taps at the exposed strip. | `.main-ev` CSS / `GameView` | S2 |
+| B6 | 🟨 | ✅ S2 — jetons get `max-width: 100%` + ellipsis: an oversized chip abridges instead of spilling past the plaque frame (s2/28--1280). Re-verify at 6 opponents in S6. | `.place__jetons` CSS | S2 |
 | B7 | 🟨 | « en attente de Ophélie… » — missing elision (« d'Ophélie »). Generic name interpolation issue. | `fr.ts` `fait.enAttenteDe` | S3 |
-| B8 | 🟨 | Lobby: name and HÔTE/VOUS badges have no gap (« Jules[HÔTE] »), crowding at both viewports (05, 07). | `RoomLobby` CSS | S2 |
-| B9 | 🟨 | Lobby status stays « En attente de joueurs (2/2 minimum) » when the table is full and everyone is ready (08). Should flip to a "ready to start" line. | `RoomLobby.tsx` | S2 |
-| B10 | 🟨 | `body { background-attachment: fixed }` — poor/broken on iOS Safari, repaint cost on mobile; also defeats naive full-page captures. | `index.css` | S2 |
+| B8 | 🟨 | ✅ S2 — the lobby name/badge rules targeted `.place__nom` while the markup says `.siege__nom`; renamed, gap restored (s2/07). | `index.css` | S2 |
+| B9 | 🟨 | ✅ S2 — `canStart` flips the status line to « Tout le monde est prêt — l'hôte peut lancer la partie. » in vert (s2/08). | `RoomLobby.tsx` | S2 |
+| B10 | 🟨 | ✅ S2 — background moved to a `position: fixed` `body::before` layer; `background-attachment: fixed` removed. Journey scripts pin it absolute for captures. | `index.css` | S2 |
 | B11 | ⬜ | ENGINE (deferred, do not fix in polish): after a failed declaration in a 2-player game the match continues with a single alive player — no auto-end (24, 25). Needs a design ruling. | `engine` declaration/win | log only |
 | B12 | 🟨 | Eliminated **self** state: one dismissible banner, then nothing — no persistent « Éliminé » marker in the dock/topbar; UI still looks playable (24, 25). | `GameView.tsx` | S4 |
 | B13 | 🟨 | In-match disconnect = 2px red dot on the plaque only; the barrier silently stalls with no message (23--1280). | `GameView` / `SeatPlaque` | S4 |
 | B14 | 🟨 | Landing tagline: gray spans on navy fail AA contrast (01). | `index.css` | S3 |
-| B15 | 🟨 | Join-code inputs have no visible label — `fr.landing.joinTitle` exists but is never rendered (01). | `LandingScreen.tsx` | S2 |
-| B16 | ⬜ | Escape layering: loupe (capture, stops propagation) → drawer → nothing. Modals have **no** Escape close at all. | `GameView` modals | S2 |
+| B15 | 🟨 | ✅ S2 — `joinTitle` rendered as a visible label above the code boxes; form `aria-labelledby` (s2/01). | `LandingScreen.tsx` | S2 |
+| B16 | ⬜ | ✅ S2 — Escape layering: loupe (capture+stop, unchanged) → modal (déclaration/aide via GameView handler; AideZone closes itself capture+stop) → drawer. The pouvoir-discard modal deliberately has NO Escape (required phase action). Verified in automation. | `GameView` / `AideZone` | S2 |
 | B17 | 🟨 | Self-meneur invisible: MENEUR badge exists only on opponent plaques — when *you* are meneur nothing shows it (09 vs 20). | `GameView` / `GameTopBar` | S4 |
-| B18 | 🟨 | Pense-bête grid at 390 needs horizontal scroll to reach 8 of 12 gods, with no scroll affordance (15--390). | `PenseBeteGrid` CSS | S2 |
+| B18 | 🟨 | ✅ S2 — grid scrolls inside the drawer with a sticky name column (reordered first), fixed 48px god tracks, and edge-fade cues driven by scroll position (s2/15--390, sticky verified scrolled). | `PenseBeteGrid` | S2 |
 
 ---
 
@@ -252,32 +260,37 @@ acceptable version; update this file (checkboxes + reasoning + new findings); ru
 `pnpm test`; commit and push to main. Re-use `polish/tools/journey*.mjs` (adjust `OUT`
 and trim states).
 
-### S2 — Layout, hierarchy & collapsible panels
+### S2 — Layout, hierarchy & collapsible panels ✅ (2026-07-24)
 
-- [ ] **Drawer model rework (B1/B2/B3):** kill the auto-open takeover — réponse start
-      pulses the handle and shows an unread-answers badge instead; drawer always
-      overlays (never `padding-right` reflow); width ≤ 460px at 1280, ≤ 94vw at 390
-      as today; `.voile` gets `z-index` above drawer+handle (e.g. 70) with loupe (950)
-      and grain (2000) still above; Escape closes topmost layer: loupe → modal → drawer
-      (B16).
-- [ ] **Staged-ghost double render (B4):** after the placed card becomes public in the
-      zone, drop the local ghost (dedupe by cardId or clear staged on `youSubmitted`).
-- [ ] **Hand fan touch targets (B5):** widen exposed strip per card; on touch, first tap
-      raises/previews, second tap selects; ensure all cards reachable at 390 with 8+
-      cards in hand.
-- [ ] **Plaque jetons (B6):** allow wrap or auto-shrink; verify 3 and 6 opponents.
-- [ ] **Dock structure:** fixed zone grid so titles never collide; empty-hand state gets
-      a one-line explanation instead of a void (390 pioche); Contre-vous cards must not
-      spill over neighbors at narrow widths.
-- [ ] **Pense-bête drawer content layout (with B18):** grid fits 390 without hidden
-      overflow (sticky name column, scroll cue) — content additions themselves are S3.
-- [ ] **Lobby:** badge spacing (B8); status line flips when `canStart` (B9); « Copier le
-      lien d'invitation » becomes a real button with visible « Copié ! » feedback.
-- [ ] **Landing:** render `joinTitle` label over the code boxes (B15); drop
-      `background-attachment: fixed` in favor of a fixed-position background layer
-      (identical look, mobile-safe) (B10).
-- [ ] Re-run journey + journey4p; screenshot affected states to `polish/screenshots/s2/`;
-      update versions.md entry (mirror rule).
+- [x] **Drawer model rework (B1/B2/B3):** auto-open removed — réponse start pulses the
+      handle once per tour and a turquoise badge counts unread opponent answers (reset
+      per tour, cleared while open); drawer always overlays, width min(460px, 94vw);
+      `.voile` z 70 above drawer (57) + handle (58); Escape closes topmost layer:
+      loupe → modal → drawer (B16; AideZone modals close themselves capture+stop; the
+      pouvoir-discard modal keeps NO Escape — required action).
+- [x] **Staged-ghost double render (B4):** staged plays/spéciales (and selection/raise)
+      clear on `youSubmitted` — the public card renders once.
+- [x] **Hand fan touch targets (B5):** spacing 54px (38px ≤600px; 8 cards = 362px ≤ 390);
+      coarse pointer: first tap raises (`--levee`), second tap selects/unstages; raise
+      state resets on phase change and submit. Verified with hasTouch emulation.
+- [x] **Plaque jetons (B6):** chips ellipsize at `max-width: 100%` instead of spilling
+      past the plaque frame; 3-opponent check clean — 6-opponent check stays in S6.
+- [x] **Dock structure:** `.dock__zone { min-width: 0 }` + « Contre vous » fan wraps
+      (row-gap, max-width 300px); empty hand renders a one-line explanation per state
+      (validate / waiting for table / no cards) instead of the 212px void.
+- [x] **Pense-bête drawer content layout (B18):** row order now name → réponses → god
+      cells; name column sticky under horizontal scroll (box-shadow keeps the hairline);
+      fixed 48px tracks (a `1fr` under `width: max-content` ballooned to portrait
+      intrinsic width — first iteration caught by screenshot); JS-driven edge-fade cues
+      appear only where content remains. Content additions (god table) stay S3.
+- [x] **Lobby:** `.siege__nom` rename fixes badge crowding (B8); status flips green on
+      `canStart` (B9); copy-invite is a real `.btn` with « ✓ Copié ! » confirmation and a
+      clipboard try/catch.
+- [x] **Landing:** `joinTitle` label rendered above the code boxes, form labelled (B15);
+      background moved to fixed `body::before` layer, `background-attachment` gone (B10).
+- [x] Journeys re-run (twice: iteration + final); full s2 set in `polish/screenshots/s2/`
+      (01..30, both viewports); versions.md 1.2.1 entry (mirror rule). Tests green
+      (engine 39, server 48).
 
 ### S3 — Readability & French text quality
 
@@ -365,3 +378,29 @@ and trim states).
 - Notable systemic findings: the réponse-phase drawer model (B1/B2/B3) is the dominant
   defect cluster; the pense-bête lacks the god table (biggest gameplay-support gap);
   climactic moments (declaration/elimination/victory) carry no ceremony.
+
+### S2 — 2026-07-24 — Layout, hierarchy & collapsible panels ✅
+
+- Fixed B1/B2/B3/B4/B5/B6/B8/B9/B10/B15/B16/B18 — details in §4 and the S2 checklist.
+  Presentation-only: no engine/server/protocol diff; PNG untouched; UI stays French.
+- Iteration loop: implement → build → full journey + journey4p into
+  `polish/screenshots/s2/` → judge → refine. One real defect caught by screenshots and
+  re-shot: the reworked pense-bête grid used `minmax(44px, 1fr)` tracks under
+  `width: max-content`, which ballooned columns to the portraits' intrinsic width —
+  replaced with fixed 48px tracks.
+- Behavior verified beyond screenshots (Playwright, touch emulation): tap 1 raises a
+  covered fan card, tap 2 selects; Escape closes aide modal then drawer, in that order;
+  the aide veil correctly blocks the drawer handle (z-order proof). Sticky name column +
+  edge cues verified at scrollLeft 280 at 390px.
+- Harness updates (committed): journey scripts take `OUT` env override; the
+  auto-open-era Escape workarounds are gone; capture-only style pins the new
+  `body::before` background layer to absolute; journey4p opens the drawer by its handle
+  for state 30. Scripts must be COPIED to the scratch dir (ESM resolves from the
+  script's own path).
+- Carry-forwards noted in place: drawer void below the grid awaits the S3 god table
+  (the 460px drawer means the grid always scrolls — S3 should design content for that
+  width, or transpose); B6 needs a 6-opponent re-check in S6; declaration/victory
+  ceremony untouched (S4). New strings added to `fr.ts` (empty-hand ×3, unread answers,
+  lobby ready line) follow the existing tone — S3's proofread covers them too.
+- `pnpm test` green (engine 39/39, server 48/48); versions.md → **1.2.1** (mirror rule;
+  the s2 screenshots still show the 1.2.0 stamp — taken before the bump, cosmetic).
