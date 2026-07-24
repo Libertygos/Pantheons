@@ -21,6 +21,9 @@
   /* vermillon assombri pour l'encre sur fonds clairs (le vermillon pur y tombe sous AA) */
   --vermillon-sombre: #b02318;
   --chartreuse: #e5eb2e;
+  /* S6 : teinte du siège 3 — l'ambre remplace la chartreuse (réservée au divin) ;
+     ≥ 4.5:1 sur les fonds nuit (le rôle est un texte de badge 11px) */
+  --ambre: #d9a441;
 
   /* Couleurs d'identité par catégorie de carte — mesurées sur les faces réelles
      (2026-07-07) : versos/panneaux Attribut sarcelle, Action vermillon-saumon,
@@ -1134,8 +1137,10 @@ button.place__plaque--legale:focus-visible {
   color: var(--pouvoir-clair);
 }
 
+/* S6 : l'accent Spéciale passe à l'ambre — dernier emploi non divin de la chartreuse
+   dans le chrome de jeu après le retint du siège 3 */
 .jeton-stat--speciale {
-  color: var(--chartreuse);
+  color: var(--ambre);
 }
 
 .place__etiquette {
@@ -1285,8 +1290,8 @@ button.pose-ev__item {
 }
 
 .pose-ev__spe-note {
-  border-color: var(--chartreuse);
-  color: var(--chartreuse);
+  border-color: var(--ambre);
+  color: var(--ambre);
 }
 
 .pose-ev__cible-note {

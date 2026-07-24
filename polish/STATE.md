@@ -8,10 +8,12 @@
 > **Mode: full runtime mode.** The project runs end to end in this environment (S1 ran the
 > real stack and drove real games). No paper-audit pivot was needed.
 >
-> Session 1 executed 2026-07-23. Sessions 2, 3 and 4 executed 2026-07-24, followed the
-> same day by **S4b**, a user-directed interstitial (pense-bête full-view rule — see §3
-> and the S4b log entry), then **S5** (contextual onboarding) the same day.
-> Status: **S1–S5 complete** — S6 not started. Resume at S6's first unchecked task.
+> Session 1 executed 2026-07-23. Sessions 2, 3, 4, 4b (user directive), 5 and 6 executed
+> 2026-07-24.
+> Status: **S1–S6 ALL COMPLETE — the deep polish is finished.** Final report:
+> `polish/DEEP-POLISH-REPORT.md`; final screenshot set: `polish/screenshots/final/`.
+> Any future session starts a NEW effort (nothing left unchecked below); the deferred
+> list lives in the report (B11, projection-dependent victory recap, barrier-timeout UI).
 
 ---
 
@@ -86,7 +88,9 @@ via its « Continuer » between the two).
 
 Not yet captured (do during the relevant session): two-power discard modal, power
 activation targeting, Spéciale placement, private `reveal` banner, duplicate-tab view,
-non-host lobby view, 7-player table (6 opponents).
+non-host lobby view, ~~7-player table (6 opponents)~~ (✅ S6: states 36..41).
+Later sets: `s5/` adds 34 (aide règles) + 35 (aide déclaration); `s6/` holds the 7p set
+(36..41) + 42 (fin défaite, rig); `final/` is the complete 80-file set against 1.2.6.
 
 ---
 
@@ -257,12 +261,12 @@ Status: ✅ fixed (session) · open otherwise.
 | B3 | 🟧 | ✅ S2 — the `padding-right` reflow is gone (class + CSS removed); drawer capped at min(460px, 94vw); table keeps full width in réponse (s2/29--1280). | `index.css` | S2 |
 | B4 | 🟧 | ✅ S2 — staged ghosts (plays + spéciales) clear the instant `youSubmitted` confirms; the public placed card renders once (s2/17--1280). | `GameView.tsx` | S2 |
 | B5 | 🟧 | ✅ S2 — fan spacing 46→54px (34→38 at ≤600px); coarse-pointer: first tap raises (`--levee`, same lift as hover), second tap acts. Verified under Playwright touch emulation. Strict center-clicks still intercept by design (fan overlap) — aim taps at the exposed strip. | `.main-ev` CSS / `GameView` | S2 |
-| B6 | 🟨 | ✅ S2 — jetons get `max-width: 100%` + ellipsis: an oversized chip abridges instead of spilling past the plaque frame (s2/28--1280). Re-verify at 6 opponents in S6. | `.place__jetons` CSS | S2 |
+| B6 | 🟨 | ✅ S2 — jetons get `max-width: 100%` + ellipsis: an oversized chip abridges instead of spilling past the plaque frame (s2/28--1280). ✅ S6: re-verified at 6 opponents (s6/39--1280) — holds. | `.place__jetons` CSS | S2 |
 | B7 | 🟨 | ✅ S3 — elision helper `de + voyelle/h → d'` in `fr.ts`, applied to `fait.enAttenteDe` and `jeu.reveleQuestion` (s3/17--1280 shows « en attente d'Ophélie… »). | `fr.ts` `fait.enAttenteDe` | S3 |
 | B8 | 🟨 | ✅ S2 — the lobby name/badge rules targeted `.place__nom` while the markup says `.siege__nom`; renamed, gap restored (s2/07). | `index.css` | S2 |
 | B9 | 🟨 | ✅ S2 — `canStart` flips the status line to « Tout le monde est prêt — l'hôte peut lancer la partie. » in vert (s2/08). | `RoomLobby.tsx` | S2 |
 | B10 | 🟨 | ✅ S2 — background moved to a `position: fixed` `body::before` layer; `background-attachment: fixed` removed. Journey scripts pin it absolute for captures. | `index.css` | S2 |
-| B11 | ⬜ | ENGINE (deferred, do not fix in polish): after a failed declaration in a 2-player game the match continues with a single alive player — no auto-end (24, 25). Needs a design ruling. | `engine` declaration/win | log only |
+| B11 | ⬜ | ENGINE (deferred, do not fix in polish): after a failed declaration in a 2-player game the match continues with a single alive player — no auto-end (24, 25). Needs a design ruling. S6 close-out: confirmed deferred — listed in DEEP-POLISH-REPORT §deferred. | `engine` declaration/win | deferred |
 | B12 | 🟨 | ✅ S4 — elimination is a full-screen vermillon beat (✕ seal, explicit body, « Continuer »), then a PERSISTENT state: « Éliminé » chips in topbar + dock, spectator consigne in the tracker (s4/24, s4/25). | `GameView.tsx` | S4 |
 | B13 | 🟨 | ✅ S4 — disconnect shown in words: « Déconnecté » etiquette on the plaque + tracker line « Déconnexion d'Ophélie — reconnexion en attente, la partie continue sans l'attendre. » (accurate: the server barrier auto-passes absentees). No invented countdown (s4/23--1280). | `GameView` / `SeatPlaque` / `PhaseTracker` | S4 |
 | B14 | 🟨 | ✅ S3 — root cause was the 62%-alpha text OVERLAPPING the bright card fan (contrast collapsed over the white card bottoms). Tagline now opaque (0.92), z-stacked above the fan, text-shadowed (s3/01). | `index.css` | S3 |
@@ -466,28 +470,65 @@ recorded in §3 (full-view rule); Q2's width cap superseded (§2).
       (mirror rule — s5 screenshots show the 1.2.4 stamp, taken before the bump,
       cosmetic, same as S2..S4). Tests green (engine 39, server 48).
 
-### S6 — Bug fixes & final review
+### S6 — Bug fixes & final review ✅ (2026-07-24)
 
-- [ ] Remaining 🟨 not covered above; verify every B# row and mark fixed/deferred.
-- [ ] S4 observation to rule on: `SEAT_TINTS` (S1-era, shared plaque/pense-bête/decl
-      badge accents) includes `--chartreuse` as seat-3 tint — the only non-divine
-      chartreuse left after S3's ★ retint. Decide: swap that tint (e.g. `--sarcelle`)
-      or ratify seat accents as an exception to the reserved-use rule.
-- [ ] S4 carry-forward: loser-perspective fin (`fin__dieu--secret` verso + note) has no
-      screenshot — attempt a capture (Déduction-power path) or record as code-verified.
-- [ ] 7-player pass: extend journey4p to 6 bots; judge arc, pense-bête 6 rows, plaque
-      density at both viewports; fix what breaks (layout only).
-- [ ] Full journey + journey4p re-run against final build; complete before/after set in
-      `polish/screenshots/final/`.
-- [ ] Cross-check hard limits: no PNG touched, no EN leaked into UI, no role-logic diff
-      (git diff audit of `packages/engine` must be empty except approved items).
-- [ ] `pnpm test` green; write `polish/DEEP-POLISH-REPORT.md` (what changed per session,
-      before/after pairs, remaining deferred list: B11, projection-dependent victory
-      recap, barrier-timeout UI).
+- [x] **Bug sweep:** every B# row verified — 17/18 fixed (B6 re-verified at 6 opponents
+      in the 7p pass: jetons hold, no spill); B11 stays deferred by design (engine
+      win-condition ruling, out of polish scope). Statuses updated in §4.
+- [x] **Chartreuse ruling:** REPLACED, not ratified — new `--ambre` #d9a441 (≥4.5:1 on
+      navy, the role is 11px badge text; `--sarcelle` measured 2.9:1 and was rejected).
+      Seat-3 tint AND the two Spéciale accents (`jeton-stat--speciale`,
+      `pose-ev__spe-note`) move to ambre — chartreuse is now exclusively meneur / CTA /
+      declaration (plus the S1-ratified focus-ring + caret interaction accents; the
+      landing primer chips and the lobby « Hôte » badge are ratified as meneur-family /
+      brand-surface uses — documented, unchanged).
+- [x] **Loser-perspective fin CAPTURED** (upgrade over "code-verified"): committed tool
+      `polish/tools/rig-loser-fin.mjs`. Path: 2p admin room, retry rooms until the bot's
+      tour-1 power draw is Déduction (~1/12/room), then 11 all-pass tours — the
+      `noOuiLastTurn` gate is false at tour 1 (effects.ts:43, found when run 1 came up
+      one god short), so activations span tours 2..11 → reveal indexes 1..9 then 0 = all
+      10 undealt personnages; the 12th god is the host's; the bot declares and wins a
+      FAIR game. Evidence: s6+final `42-fin-defaite--{1280,390}` (verso + « Le dieu
+      d'Ophélie restera secret. », asserted in-script). Second timing gotcha handled:
+      each tour's private reveal lands a beat after the réponse state message — the
+      script polls before deducing.
+- [x] **7-player pass:** `journey4p.mjs` parameterized (`BOTS=6` → states 36..41, « 7j »
+      suffix; 26..31 stay the 4p namespace; host adds the 3 missing seats first). Judged
+      at both viewports: arc of 6 plaques clean at 1280, 6-row folded pense-bête intact
+      at 390, 6-row ceremony scrolls inside the modal (inherent, accepted). Full-view
+      rule now RUNTIME-ASSERTED in the harness at both viewports (72/72 cells, 0px
+      overflow — throws on regression). No layout fixes needed.
+- [x] **Final set:** journey + journey4p(3) + journey4p(6) re-run against the 1.2.6
+      build → `polish/screenshots/final/` (80 files: 01..25 + 34/35 + 26..31 + 36..41 +
+      42, both viewports).
+- [x] **Hard-limit audit:** `git diff 6c29f68..HEAD -- packages/engine server` empty;
+      no PNG/WebP modified in the range; `docs/` untouched; French-only verified; NBSP
+      scanner clean.
+- [x] `pnpm test` green (engine 39/39, server 48/48); `polish/DEEP-POLISH-REPORT.md`
+      written (per-session summary, before/after table, bug outcomes, deferred list,
+      compliance audit, capture how-to); versions.md **1.2.6** (mirror rule).
 
 ---
 
 ## 6. Session log
+
+### S6 — 2026-07-24 — Bug fixes & final review ✅ (effort complete)
+
+- Closed the four carry-forwards: chartreuse ruling (swap to new `--ambre`, incl. the
+  two Spéciale accents found in the audit — chartreuse is divine-only now), B6 6-opponent
+  re-check (holds), 7-player pass (no layout breakage; full-view rule runtime-asserted
+  at both viewports in the harness), and the loser-perspective fin — CAPTURED via the
+  new committed rig (`rig-loser-fin.mjs`, Déduction path exactly as S4 predicted; two
+  real defects found and fixed while building it: the tour-1 `noOuiLastTurn` gate and
+  the reveal-after-réponse message timing).
+- Final screenshot set (80 files) against the 1.2.6 build in `polish/screenshots/final/`;
+  hard-limit audit clean (empty engine/server diff over the whole S1..S6 range, no art
+  files touched, docs/ untouched, French-only, NBSP clean); tests green (39+48).
+- Wrote `polish/DEEP-POLISH-REPORT.md`. Deferred list on record there: B11,
+  projection-dependent victory recap, barrier-timeout UI (⟨INPUT WoG⟩), ⌕-on-xs/sm
+  watch item.
+- **The S1..S6 protocol is complete.** This file stays as the historical dossier; a
+  future polish effort should start a new plan rather than append here.
 
 ### S5 — 2026-07-24 — Contextual onboarding ✅
 

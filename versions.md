@@ -1,3 +1,30 @@
+# Version 1.2.6
+
+## Deep polish S6 — revue finale & chartreuse divine seule (présentation seule)
+
+Session polish S6 (2026-07-24, protocole `CONTINUE-POLISH.md`, dossier `polish/STATE.md`
+et rapport final `polish/DEEP-POLISH-REPORT.md`). Zéro diff moteur/serveur/protocole ;
+PNG intacts ; UI français seul.
+
+1. **La chartreuse redevient exclusivement divine.** Nouvelle teinte `--ambre` (#d9a441,
+   ≥ 4.5:1 sur les fonds nuit) : le siège 3 (badge « N possibles », rangée du pense-bête,
+   badge de déclaration) et l'accent Spéciale (jeton « Spé ✓ » des plaques, note « Spé »
+   d'une carte posée) quittent la chartreuse — qui ne marque plus que le meneur, le CTA
+   primaire et la déclaration (plus l'anneau de focus et le caret, accents d'interaction
+   ratifiés de S1). Décision actée : la teinte de siège est REMPLACÉE, pas ratifiée en
+   exception.
+2. **Passe 7 joueurs.** `journey4p.mjs` paramétré (`BOTS=6`) : salon complet, arc de
+   6 adversaires, pense-bête 6 rangées, cérémonie de déclaration 6 rangées — états
+   36..41. La règle « pense-bête entier » est vérifiée à l'exécution aux deux viewports
+   (72/72 cases, zéro débordement) ; les jetons de plaque tiennent à 6 adversaires (B6
+   clos).
+3. **La fin vue par un perdant, photographiée.** Nouvel outil `rig-loser-fin.mjs` : en
+   salon admin 2 joueurs, un bot doté de Déduction voit les 10 personnages non piochés
+   en 11 tours (la contrainte « aucun oui au tour précédent » interdit le tour 1), en
+   déduit le dieu de l'hôte, déclare et GAGNE — l'écran de défaite (verso du vainqueur +
+   « Le dieu d'Ophélie restera secret. ») existe enfin en capture (état 42), pas
+   seulement en revue de code.
+
 # Version 1.2.5
 
 ## Deep polish S5 — accompagnement contextuel (présentation seule)

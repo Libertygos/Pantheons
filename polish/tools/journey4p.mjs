@@ -1,5 +1,7 @@
 /**
  * 4-player capture — the real product shape: arc of 3 opponents, pense-bête 3 rows.
+ * S6: BOTS=6 runs the same traversal at 7 players (6 opponents, pense-bête 6 rows) and
+ * numbers its states 36..41 with a « 7j » suffix (26..31 stay the 4p namespace).
  */
 import { chromium } from 'playwright';
 import { Client } from 'colyseus.js';
@@ -22,7 +24,13 @@ function mintToken(sub, username) {
   return `${header}.${payload}.${sig}`;
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const log = (...a) => console.log('[4p]', ...a);
+
+// S6: bot count override (3 = 4 players → states 26..31 « 4j » ; 6 = 7 players → 36..41 « 7j »)
+const NBOTS = Number(process.env.BOTS ?? 3);
+const SUFFIX = `${NBOTS + 1}j`;
+const BASE_NUM = NBOTS === 3 ? 26 : 36;
+const N = (i, name) => `${BASE_NUM + i}-${name}`;
+const log = (...a) => console.log(`[${NBOTS + 1}p]`, ...a);
 
 async function snap(page, name) {
   for (const [w, h, label] of [[1280, 800, '1280'], [390, 844, '390']]) {
@@ -109,23 +117,32 @@ await page.waitForSelector('button:has-text("Je suis prêt")');
 const roomCode = page.url().split('/room/')[1];
 log('room:', roomCode);
 
-const bots = [makeBot('Ophélie', 'u-b1'), makeBot('Maxime', 'u-b2'), makeBot('Chloé', 'u-b3')];
+const BOT_DEFS = [
+  ['Ophélie', 'u-b1'], ['Maxime', 'u-b2'], ['Chloé', 'u-b3'],
+  ['Nadia', 'u-b4'], ['Théo', 'u-b5'], ['Camille', 'u-b6'],
+];
+const bots = BOT_DEFS.slice(0, NBOTS).map(([n, s]) => makeBot(n, s));
+// 7 players: the lobby opens at 4 seats — the host adds the 3 missing ones first.
+for (let i = 0; i < NBOTS - 3; i++) {
+  await page.locator('button:has-text("Ajouter un siège")').click();
+  await sleep(200);
+}
 for (const b of bots) { await b.connect(roomCode); await sleep(250); b.ready(); }
 await sleep(600);
-await snap(page, '26-salon-complet-4j');
+await snap(page, N(0, `salon-complet-${SUFFIX}`));
 
 await page.locator('button:has-text("Je suis prêt")').click();
 await page.waitForSelector('button:has-text("Démarrer la partie"):not([disabled])');
 await page.locator('button:has-text("Démarrer la partie")').click();
 await waitPhase(page, 'Pioche');
 await sleep(1600);
-await snap(page, '27-jeu-4j-pioche');
+await snap(page, N(1, `jeu-${SUFFIX}-pioche`));
 
 await page.locator('button:has-text("Valider la pioche")').click();
 for (const b of bots) { await b.waitState((s) => s.phase === 'pioche'); b.submitPioche(); }
 await waitPhase(page, 'Question');
 await sleep(500);
-await snap(page, '28-jeu-4j-question');
+await snap(page, N(2, `jeu-${SUFFIX}-question`));
 
 // Host asks one question at first opponent; bots each ask one too.
 await page.locator('.main-ev__carte').last().click();
@@ -136,12 +153,35 @@ await page.locator('button:has-text("Valider 1 question")').click();
 for (const b of bots) { await b.waitState((s) => s.phase === 'question'); b.askOne(); }
 await waitPhase(page, 'Réponse');
 await sleep(800);
-await snap(page, '29-jeu-4j-reponse');
+await snap(page, N(3, `jeu-${SUFFIX}-reponse`));
 
 // S2: the drawer no longer auto-opens — open it by its handle (badge visible before).
 await page.locator('button[aria-controls="tiroir-pense-bete"]').click();
 await sleep(600);
-await snap(page, '30-jeu-4j-pense-bete');
+// S6 (full-view rule re-check at any table size): no horizontal overflow, every mark
+// cell present — NBOTS × 12 — at BOTH viewports.
+for (const [w, h, label] of [[1280, 800, '1280'], [390, 844, '390']]) {
+  await page.setViewportSize({ width: w, height: h });
+  await sleep(400);
+  const pb = await page.evaluate((nbots) => {
+    const defile = document.querySelector('.pb-defile');
+    const cells = document.querySelectorAll('.pb-case').length;
+    return {
+      overflow: defile ? defile.scrollWidth - defile.clientWidth : -1,
+      cells,
+      expected: nbots * 12,
+    };
+  }, NBOTS);
+  if (pb.overflow > 0 || pb.cells !== pb.expected) {
+    throw new Error(
+      `full-view rule broken at ${label}: overflow=${pb.overflow}px cells=${pb.cells}/${pb.expected}`,
+    );
+  }
+  log(`full-view OK at ${label} — overflow 0, ${pb.cells}/${pb.expected} cells`);
+}
+await page.setViewportSize({ width: 1280, height: 800 });
+await sleep(300);
+await snap(page, N(4, `jeu-${SUFFIX}-pense-bete`));
 await page.keyboard.press('Escape');
 await sleep(400);
 
@@ -158,7 +198,7 @@ await page.keyboard.press('Escape');
 await sleep(400);
 await page.locator('button:has-text("Déclarer « Panthéons »")').click();
 await sleep(500);
-await snap(page, '31-declaration-4j');
+await snap(page, N(5, `declaration-${SUFFIX}`));
 await page.locator('button:has-text("Annuler")').click();
 await sleep(300);
 

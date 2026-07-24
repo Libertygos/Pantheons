@@ -38,11 +38,13 @@ import { fr } from '../i18n/fr.js';
 /**
  * Accents d'identité par siège (1..7) : la rangée du pense-bête et le badge « N possibles »
  * de la plaque partagent la même teinte — la conclusion du tiroir reste lisible à la table.
+ * S6 : le siège 3 passe de la chartreuse (réservée : meneur / CTA / déclaration) à
+ * l'ambre — plus aucun emploi non divin de la chartreuse dans l'app.
  */
 const SEAT_TINTS = [
   '--turquoise',
   '--vert',
-  '--chartreuse',
+  '--ambre',
   '--pouvoir-clair',
   '--vermillon',
   '--saumon',
