@@ -1,3 +1,15 @@
+# Version 1.2.7
+
+## CI — fin du déploiement automatique en prod
+
+Un push vert sur `main` ne déplace plus l'image de prod : le job `retarget` (commit
+`images[].newTag` dans le dépôt homelab) est retiré de `.github/workflows/ci.yml`, ainsi
+que l'usage de `HOMELAB_DEPLOY_TOKEN`. La CI s'arrête à l'image GHCR
+(`ghcr.io/libertygos/pantheons:<sha>` et `:latest`). Conformément à l'ADR-10
+(`architecture.md` de gosgames, `specs/platform/`), la prod ne bouge plus que par une
+promotion délibérée : d'ici l'arrivée du monorepo/ApplicationSet, le `newTag` se bumpe à
+la main dans homelab. Le secret du dépôt et le déploiement en cours ne sont pas touchés.
+
 # Version 1.2.6
 
 ## Deep polish S6 — revue finale & chartreuse divine seule (présentation seule)

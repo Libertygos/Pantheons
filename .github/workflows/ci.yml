@@ -115,57 +115,7 @@ jobs:
             ${{ env.IMAGE }}:${{ github.sha }}
             ${{ env.IMAGE }}:latest
 
-  # ── 5. Auto-deploy: retarget homelab Pantheons newTag (main pushes only) ────
-  # Strict GitOps (mirrors WoG): the only deploy action is a commit to
-  # Libertygos/homelab that bumps the Pantheons kustomization's images[].newTag to
-  # the SHA we just pushed. ArgoCD reconciles from there — no kubectl/helm here.
-  # Requires the HOMELAB_DEPLOY_TOKEN repo secret (same PAT as WoG's).
-  retarget:
-    name: Retarget homelab Pantheons image tag
-    needs: image
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout homelab
-        uses: actions/checkout@v6
-        with:
-          repository: Libertygos/homelab
-          token: ${{ secrets.HOMELAB_DEPLOY_TOKEN }}
-          ref: main
-          path: homelab
-
-      - name: Patch Pantheons image newTag
-        env:
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          KUSTOMIZATION=infra/pantheons/kustomization.yaml
-          test -f "homelab/${KUSTOMIZATION}" || {
-            echo "::error::homelab/${KUSTOMIZATION} not found on homelab main"
-            exit 1
-          }
-          # Guard: the images entry we expect to retarget must exist.
-          present=$(yq '[.images[] | select(.name == strenv(IMAGE))] | length' "homelab/${KUSTOMIZATION}")
-          if [ "${present}" != "1" ]; then
-            echo "::error::expected exactly one images[] entry for ${IMAGE} in ${KUSTOMIZATION}, found ${present}"
-            exit 1
-          fi
-          yq -i '(.images[] | select(.name == strenv(IMAGE))).newTag = strenv(SHA)' "homelab/${KUSTOMIZATION}"
-          # Fail loudly on a no-op (e.g. tag already at this SHA) — never push an empty deploy.
-          if git -C homelab diff --quiet -- "${KUSTOMIZATION}"; then
-            echo "::error::newTag patch was a no-op (already ${SHA}?) — refusing an empty deploy commit"
-            exit 1
-          fi
-
-      - name: Commit and push
-        working-directory: homelab
-        env:
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          git config user.name "pantheons-ci[bot]"
-          git config user.email "pantheons-ci@users.noreply.github.com"
-          git add infra/pantheons/kustomization.yaml
-          git commit -m "chore(deploy): Pantheons ${IMAGE}:${SHA}"
-          # A rejected push (non-fast-forward, auth) fails the step under set -e.
-          git push origin HEAD:main
+  # ── No auto-deploy ─────────────────────────────────────────────────────────
+  # Games never auto-deploy to prod (gosgames specs/platform/architecture.md,
+  # ADR-10): CI stops at the GHCR image above. Until the monorepo/ApplicationSet
+  # lands, prod is bumped by hand in homelab (images[].newTag = the commit SHA).
