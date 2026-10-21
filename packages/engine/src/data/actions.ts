@@ -172,8 +172,6 @@ export const ACTIONS: Record<string, ActionDef> = Object.fromEntries([
     }),
 ]);
 
-export const ACTION_KEYS = Object.keys(ACTIONS);
-
 export function getAction(effectKey: string): ActionDef | undefined {
   return ACTIONS[effectKey];
 }

@@ -45,10 +45,3 @@ export function loadSession(): Session | null {
 export function clearSession(): void {
   sessionStorage.removeItem(SESSION_KEY);
 }
-
-/** Resolve a session: reuse a stored one, else consume + exchange a fresh handoff token. */
-export async function resolveSession(serverHttpUrl: string): Promise<Session | null> {
-  const token = consumeHandoffFragment();
-  if (token) return exchangeHandoff(serverHttpUrl, token);
-  return loadSession();
-}

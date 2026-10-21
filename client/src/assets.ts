@@ -82,12 +82,6 @@ export function cardBackSrc(type: 'personnages' | 'attributs' | 'actions' | 'pou
   return face(`card_${type}_verso`);
 }
 
-/** FR display labels for the fallback tile when a face fails to load (chrome, not card copy). */
-export const AXE_LABEL: Record<Axe, string> = {
-  genre: 'Genre',
-  couleurYeux: 'Yeux',
-  pantheon: 'Panthéon',
-};
 
 export const VALEUR_LABEL: Record<string, string> = {
   masculin: 'Masculin',
