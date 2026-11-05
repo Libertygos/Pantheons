@@ -1,0 +1,7 @@
+file,workflow,lora,strength,seed,prompt_id
+1706-style-lora/singles/base-anubis-s2000.png,flux2-klein-base-4b,panthflat-klein4b-s2000,1.0,11,anubis
+1706-style-lora/singles/base-plateau-s2000.png,flux2-klein-base-4b,panthflat-klein4b-s2000,1.0,11,plateau
+1706-style-lora/singles/base-anubis-none.png,flux2-klein-base-4b,none,0,11,anubis
+1706-style-lora/singles/base-plateau-none.png,flux2-klein-base-4b,none,0,11,plateau
+1706-style-lora/singles/rapide-*-{none,s1000,s1500,s2000}.png,flux2-klein-4b,panthflat-klein4b-sN,0.9,11,anubis|deesse-lune|pouvoir-sablier|plateau
+1706-style-lora/singles/rapide-x1.4-*-s2000x14.png,flux2-klein-4b,panthflat-klein4b-s2000,1.4,11,anubis|plateau

@@ -1,0 +1,1 @@
+panthflat, a plain teal card with rounded corners on a white margin, a large white line icon of an Ionic column inside a white circle in the upper part, the rest of the card empty

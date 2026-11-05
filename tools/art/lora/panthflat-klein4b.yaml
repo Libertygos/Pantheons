@@ -1,0 +1,64 @@
+# Style LoRA "panthflat" on FLUX.2 klein 4B base (Panthéons physical pipeline, homelab #1706), trained with
+# ai-toolkit, same recipe as abordink (#1699) and wogpaint (#1162). Dataset: 38 TEXT-FREE images from
+# Libertygos/Pantheons conversion_cartes/ (Jules 2026-11-05: no text in training, text is added by code):
+# 12 Personnages (name box erased), 9 Attributs and 3 eye Non cards (question text erased), 11 Pouvoirs
+# (title and paragraph erased), the pense-bête whole and halved (title, names, numbers, labels erased).
+# Text-only cards and the 4 backs are left out. Upscaled to 1024 on the long side. Sources never modified.
+job: extension
+config:
+  name: 'panthflat_klein4b_v1'
+  process:
+    - type: 'sd_trainer'
+      training_folder: '/home/jules/lora-runs'
+      device: cuda:0
+      trigger_word: 'panthflat'
+      network:
+        type: 'lora'
+        linear: 16
+        linear_alpha: 16
+      save:
+        dtype: float16
+        save_every: 250
+        max_step_saves_to_keep: 8
+      datasets:
+        - folder_path: '/home/jules/datasets/pantheons/img'
+          caption_ext: 'txt'
+          caption_dropout_rate: 0.05
+          shuffle_tokens: false
+          cache_latents_to_disk: true
+          resolution: [768, 1024]
+      train:
+        batch_size: 1
+        steps: 2000
+        gradient_accumulation_steps: 1
+        train_unet: true
+        train_text_encoder: false
+        gradient_checkpointing: true
+        noise_scheduler: 'flowmatch'
+        optimizer: 'adamw8bit'
+        lr: 1e-4
+        cache_text_embeddings: true
+        dtype: bf16
+      model:
+        name_or_path: 'black-forest-labs/FLUX.2-klein-base-4B'
+        arch: 'flux2_klein_4b'
+        quantize: true
+        quantize_te: true
+        low_vram: true
+      sample:
+        sampler: 'flowmatch'
+        sample_every: 500
+        width: 768
+        height: 1152
+        prompts:
+          - 'panthflat, a character card, a jackal-headed god in profile with a black head, gold collar and a navy headdress, flat olive gold background with a broad diagonal red band behind the figure, two small white circle icons in the top left corner, an Eye of Horus and a male symbol, rounded corners'
+          - 'panthflat, a violet power card with a soft purple gradient, a white line icon of an hourglass at the centre, the rest of the card empty, rounded corners on a white margin'
+          - 'panthflat, a player board on a deep navy background, a row of six empty card-sized slots outlined in white, one larger empty slot outlined in vermilion, a footer of four white circle icons: an Om symbol, an Ionic column, an Eye of Horus, a triskelion'
+        neg: ''
+        seed: 42
+        walk_seed: false
+        guidance_scale: 4
+        sample_steps: 25
+meta:
+  name: 'panthflat_klein4b_v1'
+  version: '1.0'
