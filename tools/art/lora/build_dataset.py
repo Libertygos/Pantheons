@@ -12,8 +12,8 @@ def save(a,name,cap):
 pan={'grec':'pale chartreuse yellow','egyptien':'olive gold','hindou':'warm ochre gold','nordique':'silver grey'}
 ico={'grec':'an Ionic column','egyptien':'an Eye of Horus','hindou':'an Om symbol','nordique':'a triskelion'}
 eye={'bleus':'turquoise','verts':'green','rouges':'red'}
-exec(open('build.py').read().split('gods={')[1].join(['gods={','']).split('def save')[0]) if False else None
-src=open('build.py').read(); gods=eval(src.split('gods=')[1].split('\n}')[0]+'\n}')
+exec(open('gods_captions.py').read().split('gods={')[1].join(['gods={','']).split('def save')[0]) if False else None
+src=open('gods_captions.py').read(); gods=eval(src.split('gods=')[1].split('\n}')[0]+'\n}')
 for g,(p,s,e,d) in gods.items():
     a=L(f'personnages_{g}'); a=diffuse(a,dilate(rectmask(a,(.06,.07,(.55 if g=='athena' else .8),.215),lambda x:white(x,232)),2))
     save(a,f'god_{g}',f'a character card, {d}, flat {pan[p]} background with a broad diagonal {eye[e]} band behind the figure, two small white circle icons in the top left corner, {ico[p]} and a {"female" if s=="f" else "male"} symbol, rounded corners')
