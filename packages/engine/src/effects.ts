@@ -87,7 +87,13 @@ export function swapPowers(state: GameState, a: UserId, b: UserId): void {
 export function unlinkClonageCopying(state: GameState, keys: string[]): void {
   for (const uid of state.seatOrder) {
     const pl = state.players[uid];
-    if (pl?.clonedPowerKey && keys.includes(pl.clonedPowerKey)) pl.clonedPowerKey = null;
+    if (!pl?.clonedPowerKey || !keys.includes(pl.clonedPowerKey)) continue;
+    // #1836: a key can exist twice (Âmes sœurs) — the copy lives while another player in play still holds it.
+    const key = pl.clonedPowerKey;
+    const stillHeld = state.seatOrder.some(
+      (u) => u !== uid && state.players[u]?.alive && state.players[u]!.powers.some((id) => powerKeyOfCardId(id) === key),
+    );
+    if (!stillHeld) pl.clonedPowerKey = null;
   }
 }
 

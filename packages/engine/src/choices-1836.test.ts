@@ -144,3 +144,15 @@ test('#1836 « aucun oui au tour précédent » reads the previous turn, also in
   assert.equal(noOuiLastTurn(state, 'u1'), false);
   assert.equal(noOuiLastTurn(state, 'u2'), true);
 });
+
+test('#1836 Clonage of Âmes sœurs survives the discard of one copy, dies with the last holder', () => {
+  const state = game(5);
+  give(state, 'u1', 'clonage');
+  give(state, 'u2', 'ames_soeurs_1');
+  give(state, 'u3', 'ames_soeurs_1');
+  state.players['u1']!.clonedPowerKey = 'ames_soeurs_1';
+  discardPowers(state, 'u2');
+  assert.equal(state.players['u1']!.clonedPowerKey, 'ames_soeurs_1');
+  discardPowers(state, 'u3');
+  assert.equal(state.players['u1']!.clonedPowerKey, null);
+});
