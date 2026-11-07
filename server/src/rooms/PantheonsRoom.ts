@@ -25,6 +25,7 @@ import {
   type SeatInput,
 } from '@pantheons/engine';
 import { MatchController, type PhaseEvent } from './barrier.js';
+import { redactEvent } from './events.js';
 import { generateRoomCode, normalizeRoomCode } from './room-code.js';
 import { isCodeTaken, registerRoom, unregisterRoom, type RoomPhase } from './room-registry.js';
 import { type SessionEnder } from './session-directory.js';
@@ -570,7 +571,8 @@ export class PantheonsRoom extends Room implements SessionEnder {
   }
 
   private onPhaseEvent(e: PhaseEvent): void {
-    this.broadcast('event', e);
+    // #1839 (P12): never broadcast the raw event; each seat gets its own redacted copy.
+    for (const [uid, client] of this.clientByUser) client.send('event', redactEvent(e, uid));
     this.broadcastProjections();
     if (e.type === 'gameOver') {
       this.broadcast('gameOver', { winner: e.winner });

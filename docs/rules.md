@@ -38,14 +38,18 @@ déduction — toute question se résout contre eux :
 ## 3. Mise en place
 
 - On mélange les **12 cartes Personnage**, chaque joueur en reçoit **1 face cachée** :
-  c'est son dieu secret. Les cartes non distribuées restent hors jeu, face cachée.
+  c'est son dieu secret. Les cartes non distribuées restent hors jeu, face cachée : personne
+  ne les voit, sauf **Déduction** (un dieu tiré au hasard, au détenteur seul).
+- Chaque joueur pose **face visible** le premier Pouvoir de la pioche Pouvoir. **Pas de main
+  de départ** : la première phase Pioche la donne.
 - Chaque joueur reçoit un **plateau** : 6 emplacements de question numérotés (adversaires
   1–7) + un **emplacement spécial**. Ce plateau physique est l'origine du plafond à
   **7 joueurs**.
 - Chaque joueur reçoit un **pense-bête** (grille de déduction). Le pense-bête est un outil
   **strictement personnel et client-only** — il n'est jamais envoyé au serveur ni dans la
   projection (voir `game-state-model.md`).
-- On désigne le premier **meneur**. Le meneur tourne dans le sens horaire à chaque tour.
+- Le premier **meneur** est **tiré au sort**. Le meneur passe au joueur suivant en jeu, dans le
+  sens horaire, à chaque tour.
 
 ## 4. Types de cartes
 
@@ -114,9 +118,10 @@ Le meneur fixe **l'ordre** de la phase Réponse, il **ne sérialise pas** le jeu
   d'attribut — card-catalog.md §3.1).
 - Une carte jouée comme question est posée **FACE CACHÉE** dans l'emplacement numéroté
   correspondant au joueur ciblé sur le plateau du questionneur : le contenu n'est visible
-  que du poseur (et de la cible une fois sa réponse résolue) ; le public voit l'occupation,
-  la catégorie (verso) et le résultat oui/non. Établi par les faces Espionnage et
-  Spéciales 1/4 (« vous pouvez la regarder ») — card-catalog.md §3.3.
+  que du poseur (ou du joueur qui l'a reprise par Spéciale 4), de la cible quand elle
+  répond, et de qui l'espionne (Espionnage) ; le public voit l'occupation, la catégorie
+  (verso) et le résultat oui/non — voir « Qui voit quoi » ci-dessous. Établi par les faces
+  Espionnage et Spéciales 1/4 (« vous pouvez la regarder ») — card-catalog.md §3.3.
 
 #### Fenêtre de Sabotage (#1834)
 
@@ -166,10 +171,9 @@ condition ; un détenteur déconnecté passe aussitôt.
   **appartient** à cet ensemble.
 - **Action Non** : résolue comme une question ; son effet additionnel se déclenche
   seulement sur « non ».
-- Les réponses sont **véridiques** et **contraignantes** — le serveur ne connaît pas le
-  pense-bête mais connaît le dieu secret de chaque joueur et **valide** chaque réponse
-  contre la vérité (une réponse mensongère est rejetée). Voir la propriété d'intégrité dans
-  `game-state-model.md`.
+- Les réponses sont **véridiques** : le serveur connaît le dieu secret de chaque joueur et
+  **calcule** lui-même chaque réponse (le joueur ne la déclare pas). Voir la propriété
+  d'intégrité dans `game-state-model.md`.
 
 ## 7. Fin de partie — la déclaration « Panthéons »
 
@@ -178,10 +182,14 @@ partie **en pause**.
 
 1. Le déclarant place une **carte-miniature Personnage face cachée devant chaque adversaire**
    — sa supposition du dieu de chacun.
-2. Chaque adversaire **révèle** si la miniature posée devant lui **correspond** à son dieu.
-3. **Toutes correctes ⇒ le déclarant gagne.** La partie se termine.
-4. **Première erreur ⇒ le déclarant est éliminé** ; sa carte reste **cachée** et les autres
-   joueurs **n'ont plus besoin de le deviner**.
+2. Le jeu compare chaque supposition au vrai dieu. **Les suppositions ne sont jamais
+   montrées** : seul le résultat est public (victoire ou élimination). En ligne, le serveur
+   n'envoie à aucun siège, déclarant compris, le détail des suppositions justes ou fausses
+   (#1839).
+3. **Toutes correctes ⇒ le déclarant gagne.** La partie se termine ; **tous les dieux sont
+   alors révélés**, y compris ceux des éliminés (#1837).
+4. **Première erreur ⇒ le déclarant est éliminé** ; sa carte reste **cachée** jusqu'à la fin
+   de la partie et les autres joueurs **n'ont plus besoin de le deviner**.
 5. **Dernier joueur en jeu ⇒ il gagne automatiquement** (#1833), y compris quand les autres
    déclarants de la même fenêtre sont tous éliminés dans cette résolution.
 
@@ -197,16 +205,37 @@ dont le propriétaire ou la cible est éliminé n'a aucun effet.
   partir du meneur**.
 - Si **aucun** déclarant ne réussit, **le jeu reprend**.
 
+## 7 bis. Qui voit quoi (#1839)
+
+Le serveur n'envoie à chaque siège que ce qu'il a le droit de voir (projection par siège
+pour l'état, copie filtrée par siège pour les événements) :
+
+| Information | Qui la connaît |
+|---|---|
+| Son dieu | Soi seul, jusqu'à la fin de la partie ; tous les dieux sont révélés à la fin |
+| Les dieux non distribués | Personne, sauf Déduction (un dieu tiré au hasard, au détenteur) |
+| Une main | Son propriétaire ; les autres voient le nombre de cartes Attribut et Action |
+| Un pouvoir | Tout le monde (copie de Clonage comprise) |
+| Une question posée | Son poseur (ou le joueur qui l'a reprise par Spéciale 4), l'interrogé quand il répond, qui l'espionne ; les autres : emplacement occupé, famille (dos) et résultat oui/non. L'auteur d'origine d'une question reprise apprend la réponse |
+| Une Spéciale posée | Son propriétaire ; **montrée à tous** quand elle se déclenche |
+| Les suppositions d'un déclarant | Personne ; le résultat (victoire / élimination) est public |
+| Qui a validé la phase | Tout le monde |
+| Le pense-bête, les graines de mélange | Soi seul (pense-bête) ; jamais envoyées (graines) |
+
 ## 8. Contraintes de comptage (invariants)
 
 - Joueurs : **min 4 pour démarrer, max 7** (plafond physique du plateau).
 - Un joueur en régime établi détient **exactement 1 pouvoir** au sortir de la Pioche.
+- **Une seule validation par joueur et par phase** : le serveur refuse la seconde, quel que
+  soit le type de soumission ; une carte ne se pose qu'une fois et seulement depuis la main
+  (le serveur relit la carte par son identifiant, jamais depuis le contenu envoyé par le
+  client) (#1839).
 - Au plus **2 questions par joueur et par tour**, **≤ 1 par cible** — sauf modulation par
   pouvoir/Spéciale (§5 Phase 2) ; jamais plus de **2 par cible** dans tous les cas.
 - L'**emplacement spécial** contient au plus **1 carte Spéciale** à la fois.
 
 ## 9. Déconnexion / barrière (défère à WoG)
 
-Le comportement quand un joueur vivant cale ou se déconnecte pendant une phase **défère au
-modèle barrière de WoG** (à coller par Jules). Voir `game-state-model.md` §Barrière et le
-`⟨INPUT: WoG room model⟩`.
+Un joueur déconnecté n'est pas attendu par la barrière (ses choix en attente sont pris
+automatiquement). La reconnexion suit la règle commune à tous les jeux gosgames, la même que
+War of Guilds. Voir `game-state-model.md` §Barrière.

@@ -14,7 +14,9 @@ single climactic **« Panthéons »** reveal.
 packages/engine   Pure rules/state — no I/O (Decision 2). Gods, cards, phase rules,
                   per-player never-send projection, "Panthéons" resolution. Fully tested.
 server            Colyseus rooms + Express. Handoff verify (aud=pantheons), session S-JWT,
-                  deletion endpoint, simultaneous-phase barrier, lobby (min4/max7). Drizzle/PG.
+                  deletion endpoint, simultaneous-phase barrier (one validation per player
+                  per phase, atomic question submission, 30 s declaration + Sabotage windows),
+                  per-seat redaction of state and events, lobby (min4/max7). Drizzle/PG.
 client            Vite/React. Static-PNG display (cards, board, pense-bête), FR chrome.
 docs              rules.md · glossary.md · game-state-model.md · roadmap.md · card-catalog.md
 ```
@@ -29,14 +31,19 @@ pnpm dev:server                         # needs .env (see .env.example)
 pnpm dev:client
 ```
 
-## Status & missing inputs
+## Rules in one paragraph
 
-Phase 1 structure is complete and tested. The card catalog is authored in
-[`docs/card-catalog.md`](./docs/card-catalog.md) (source of truth, versions.md 1.0.0):
-the 12-god table is fully transcribed from the pense-bête, deck composition and every
-card identity are fixed. Remaining inputs:
+Each player holds a secret god among 12 (the undealt ones stay out of the game); powers are
+public. A turn has three simultaneous phases: Pioche, Question (up to 2 questions, face down;
+one Spéciale), Réponse (the server answers each question truthfully; whoever asked draws an
+Action on a « oui »). After the answers a shared 30 s window lets players declare
+« Panthéons » (a guess per opponent): all right wins, a first mistake eliminates, last player
+in play wins. Gods are revealed to all only when the game ends. Full text:
+[`docs/rules.md`](./docs/rules.md); who sees what: rules.md « Qui voit quoi ».
 
-- **Card-face effect text** (powers, actions Non/Multiple/Spéciale) — the faces in
-  `conversion_cartes/cartes_webp/` are plain git files (restored 2026-07-07); the texts
-  are marked `⟨À_TRANSCRIRE⟩` in card-catalog.md until transcribed from the faces.
-- **WoG room model** — landing/room/refresh port per `wog-room.md` (in progress).
+## Status
+
+Phase 1 is implemented and tested, with the rules of the 2026-11-07 review in. The card
+catalog is authored in [`docs/card-catalog.md`](./docs/card-catalog.md) (source of truth).
+Remaining: card-face effect text still marked `⟨À_TRANSCRIRE⟩` there, and the WoG room
+model port (`wog-room.md`).

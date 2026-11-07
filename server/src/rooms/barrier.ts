@@ -76,9 +76,26 @@ export interface DeclarationDecision {
   guesses?: Record<string, string>;
 }
 
+/**
+ * An answer with everything the server knows. INTERNAL: it carries the card id, so it must go
+ * through redactEvent (events.ts) per seat before reaching any socket (#1839 P12).
+ */
+export interface AnswerEvent extends AnswerResult {
+  /** Who placed the card (the original asker, even when Spéciale 4 appropriated it). */
+  placer: UserId;
+  /** Spéciale 4: the player the question was appropriated by. */
+  owner?: UserId;
+  /** Which deck's back the card shows (public: physical versos differ). */
+  cardKind: 'attribut' | 'action';
+}
+
+/**
+ * Server-internal phase event. NEVER send it as is: PantheonsRoom sends each seat
+ * redactEvent(e, seat) — see events.ts for who may see what.
+ */
 export interface PhaseEvent {
   type: 'reponseResolved' | 'declarationResolved' | 'phaseAdvanced' | 'gameOver' | 'powerActivated';
-  answers?: AnswerResult[];
+  answers?: AnswerEvent[];
   declaration?: ResolveResult;
   phase?: GameState['phase'];
   winner?: UserId | null;
@@ -138,6 +155,17 @@ export class MatchController {
     }
   }
 
+  /**
+   * #1839 (P29): one validation per player per phase, enforced here for EVERY submit kind
+   * (never trusting the client to disable its button). A second pioche would draw twice; a
+   * second question set or declaration would overwrite a committed choice.
+   */
+  private assertNotSubmitted(userId: UserId): void {
+    if (this.state.barrier.submitted.includes(userId)) {
+      throw new Error('Vous avez déjà validé cette phase.');
+    }
+  }
+
   private allSubmitted(): boolean {
     const live = this.liveConnected();
     return live.length > 0 && live.every((uid) => this.state.barrier.submitted.includes(uid));
@@ -156,6 +184,7 @@ export class MatchController {
   submitPioche(userId: UserId, intent: PiocheIntent): void {
     this.assertPhase('pioche');
     if (this.state.specialePending) throw new Error('Une Spéciale attend un choix avant la pioche');
+    this.assertNotSubmitted(userId);
     applyPioche(this.state, userId, intent);
     this.markSubmitted(userId);
     this.tryAdvance();
@@ -164,20 +193,53 @@ export class MatchController {
   submitQuestion(userId: UserId, intent: QuestionIntent, specialePlays: SpecialePlay[] = []): void {
     this.assertPhase('question');
     if (this.state.sabotageWindow) throw new Error('Fenêtre de Sabotage ouverte : les questions sont validées');
-    // #1835 (P35): validate the WHOLE submission (questions and Spéciales) before applying anything.
+    this.assertNotSubmitted(userId);
+    // #1839 (P34): NEVER trust card content sent by the client. Each play is rebuilt from the
+    // card id alone, looked up in the match's own card index, and only if that id is in the
+    // submitting player's hand. The client-sent `card` field is ignored (a forged "this
+    // Attribut is Zeus" cannot change what the server resolves or what it later reveals).
+    const self = this.state.players[userId];
+    if (!self) throw new Error('Joueur inconnu.');
+    const seen = new Set<string>();
+    const useId = (id: unknown): string => {
+      if (typeof id !== 'string') throw new Error('Identifiant de carte invalide.');
+      if (seen.has(id)) throw new Error('Une même carte ne peut être posée deux fois.');
+      seen.add(id);
+      return id;
+    };
+    const trusted: QuestionIntent = {
+      plays: (intent?.plays ?? []).map((play) => {
+        const cardId = useId(play.cardId);
+        if (!Number.isInteger(play.targetSeat)) throw new Error('Siège cible invalide.');
+        const card = self.hand.attributs.includes(cardId)
+          ? this.index.attributs.get(cardId)
+          : self.hand.actions.includes(cardId)
+            ? this.index.actions.get(cardId)
+            : undefined;
+        if (!card) throw new Error('Carte absente de la main.');
+        return { cardId, card, targetSeat: play.targetSeat };
+      }),
+    };
+    // #1835 (P35): validate the WHOLE submission (questions and Spéciales) before applying
+    // anything. An unknown / non-Spéciale card in the Spéciale list refuses the set too
+    // (it used to be skipped silently).
     const placements: { card: ActionCardLike; payload: SpecialePayload }[] = [];
     for (const play of specialePlays) {
-      const card = this.index.actions.get(play.cardId);
-      if (card && card.subtype === 'speciale') {
-        const { cardId: _cid, ...payload } = play;
-        placements.push({ card, payload });
+      const card = this.index.actions.get(useId(play.cardId));
+      if (!card || card.subtype !== 'speciale') throw new Error('Carte Spéciale invalide.');
+      // Only the placement choice is taken from the client, field by field.
+      const payload: SpecialePayload = {};
+      if (play.targetSeat !== undefined) {
+        if (!Number.isInteger(play.targetSeat)) throw new Error('Siège cible invalide.');
+        payload.targetSeat = play.targetSeat;
       }
+      placements.push({ card, payload });
     }
     if (placements.length > 1) throw new Error('Une seule Spéciale par tour (emplacement spécial occupé).');
-    validateQuestions(this.state, userId, intent);
+    validateQuestions(this.state, userId, trusted);
     for (const { card, payload } of placements) validateSpeciale(this.state, userId, card, payload);
     for (const { card, payload } of placements) placeSpeciale(this.state, userId, card, payload);
-    applyQuestions(this.state, userId, intent);
+    applyQuestions(this.state, userId, trusted);
     this.markSubmitted(userId);
     this.tryAdvance();
   }
@@ -209,6 +271,7 @@ export class MatchController {
   submitSabotagePass(userId: UserId): void {
     const win = this.state.sabotageWindow;
     if (!win || !win.holders.includes(userId)) throw new Error('Aucune fenêtre de Sabotage pour vous.');
+    if (win.decided.includes(userId)) throw new Error('Vous avez déjà décidé dans la fenêtre de Sabotage.');
     this.decideSabotage(userId);
   }
 
@@ -253,8 +316,15 @@ export class MatchController {
     this.assertPhase('reponse');
     if (this.state.specialePending) throw new Error('Une Spéciale attend un choix');
     if (this.state.reponseProgress?.pending) throw new Error('Réponse en attente d’un choix (Exécution / don de cartes)');
-    if (decision.guesses && Object.keys(decision.guesses).length > 0) {
-      this.state.declarations.push({ declarer: userId, guesses: decision.guesses as Record<string, never> });
+    if (!this.state.players[userId]?.alive) throw new Error('Joueur éliminé.');
+    this.assertNotSubmitted(userId);
+    if (decision.guesses && typeof decision.guesses === 'object' && Object.keys(decision.guesses).length > 0) {
+      // Keep only string guesses about other live players (nothing else the client sent).
+      const guesses: Record<string, string> = {};
+      for (const [opp, god] of Object.entries(decision.guesses)) {
+        if (typeof god === 'string' && opp !== userId && this.state.players[opp]?.alive) guesses[opp] = god;
+      }
+      this.state.declarations.push({ declarer: userId, guesses: guesses as Record<string, never> });
     }
     this.markSubmitted(userId);
     this.tryAdvance();
@@ -371,7 +441,7 @@ export class MatchController {
   /** Emit the Réponse once resolved and open the declaration window; a pending Exécution choice pauses it. */
   private finishReponse(res: ReturnType<typeof resolveReponsePhase>): void {
     if (res.pending) return; // paused: the asker's executionChoice resumes it
-    this.emit({ type: 'reponseResolved', answers: res.answers });
+    this.emit({ type: 'reponseResolved', answers: res.answers.map((a) => this.toAnswerEvent(a)) });
     for (const reveal of res.reveals) this.emitPrivate(reveal.to, reveal);
     // Open the declaration window: players now submit declare/pass.
     // #1834: ONE shared 30 s deadline for every player in play.
@@ -381,6 +451,25 @@ export class MatchController {
       this.onDeclarationDeadline();
       this.opts.onTimer?.();
     }, WINDOW_MS);
+  }
+
+  private toAnswerEvent(a: AnswerResult): AnswerEvent {
+    // The placed card is still on its board here (questions are discarded at the next tour).
+    for (const [placer, board] of Object.entries(this.state.boardBySeat)) {
+      for (const stack of board.questionSlots) {
+        const placed = (stack ?? []).find((p) => p.card.id === a.cardId);
+        if (placed) {
+          return {
+            ...a,
+            placer,
+            ...(placed.owner ? { owner: placed.owner } : {}),
+            cardKind: placed.card.type === 'attribut' ? 'attribut' : 'action',
+          };
+        }
+      }
+    }
+    // Unreachable in practice (answers come from placed cards); fail closed on the id's origin.
+    return { ...a, placer: this.state.seatOrder[a.placerSeat] ?? '', cardKind: this.index.attributs.has(a.cardId) ? 'attribut' : 'action' };
   }
 
   /**
