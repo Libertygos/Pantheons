@@ -144,3 +144,48 @@ test('#1839 P35: a refused question set leaves the Spéciale (and the questions)
   assert.ok(c.state.boardBySeat['u1']!.specialSlot);
   assert.ok(!p.hand.actions.includes('act_action_special_3'));
 });
+
+test('#1839 P34: malformed plays / specialePlays fail with a clean rule error, nothing placed', () => {
+  const { c } = fresh();
+  toQuestionPhase(c);
+  const bad = (x: unknown) => x as never;
+  assert.throws(() => c.submitQuestion('u1', bad({ plays: 'nope' })), /invalides/);
+  assert.throws(() => c.submitQuestion('u1', bad({ plays: { length: 1 } })), /invalides/);
+  assert.throws(() => c.submitQuestion('u1', { plays: [] }, bad('x')), /invalides/);
+  assert.ok(!c.state.barrier.submitted.includes('u1'));
+});
+
+test('#1839 P12 room level: each client\'s `event` message is its own redacted copy', async () => {
+  const { PantheonsRoom } = await import('./PantheonsRoom.js');
+  const { c, index, events } = fresh();
+  const ids = playRound(c, index);
+  const ev = events.find((e) => e.type === 'reponseResolved')!;
+  const room = new PantheonsRoom() as unknown as {
+    clientByUser: Map<string, { send(t: string, m: unknown): void }>;
+    controller: MatchController | null;
+    onPhaseEvent(e: PhaseEvent): void;
+    broadcastProjections(): void;
+    setPatchRate(ms: number | null): void;
+    clock: { stop(): void };
+  };
+  const sent: Record<string, { type: string; msg: unknown }[]> = {};
+  for (const u of ['u1', 'u2', 'u3', 'u4']) {
+    sent[u] = [];
+    room.clientByUser.set(u, { send: (type, msg) => sent[u]!.push({ type, msg }) });
+  }
+  room.setPatchRate(null); // the Room constructor starts a patch interval that would keep node alive
+  room.clock.stop();
+  room.controller = c;
+  room.broadcastProjections = () => {}; // projections are covered by the engine tests
+  room.onPhaseEvent(ev);
+  for (const u of ['u1', 'u2', 'u3', 'u4']) {
+    const got = sent[u]!.filter((m) => m.type === 'event');
+    assert.equal(got.length, 1);
+    assert.deepEqual(got[0]!.msg, redactEvent(ev, u));
+  }
+  // u4 may see neither card id; u1 only his own.
+  const raw4 = JSON.stringify(sent['u4']);
+  assert.ok(!raw4.includes(ids.u1) && !raw4.includes(ids.u3));
+  const raw1 = JSON.stringify(sent['u1']);
+  assert.ok(raw1.includes(ids.u1) && !raw1.includes(ids.u3));
+});

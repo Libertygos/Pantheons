@@ -49,6 +49,8 @@ export function redactEvent(e: PhaseEvent, viewer: UserId): PublicEvent {
   if (e.effectKey !== undefined) out.effectKey = e.effectKey;
   if (e.answers) {
     out.answers = e.answers.map((a) => {
+      // An Espionnage user is deliberately absent: he gets the card through his private
+      // `reveal` message at activation time, so this event need not carry the id to him.
       const sees = viewer === a.placer || viewer === a.owner || viewer === a.targetUser;
       return {
         placerSeat: a.placerSeat,

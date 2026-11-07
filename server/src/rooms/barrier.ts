@@ -33,6 +33,7 @@ import {
   activatePower,
   resolveDeclarations,
   type AnswerResult,
+  RuleError,
   type CardIndex,
   type GameState,
   type PiocheIntent,
@@ -207,8 +208,12 @@ export class MatchController {
       seen.add(id);
       return id;
     };
+    // Malformed payloads from a client fail cleanly (not with a TypeError).
+    const rawPlays: unknown = intent?.plays ?? [];
+    if (!Array.isArray(rawPlays)) throw new RuleError('BAD_PAYLOAD', 'Questions invalides.');
+    if (!Array.isArray(specialePlays)) throw new RuleError('BAD_PAYLOAD', 'Spéciales invalides.');
     const trusted: QuestionIntent = {
-      plays: (intent?.plays ?? []).map((play) => {
+      plays: (rawPlays as QuestionIntent['plays']).map((play) => {
         const cardId = useId(play.cardId);
         if (!Number.isInteger(play.targetSeat)) throw new Error('Siège cible invalide.');
         const card = self.hand.attributs.includes(cardId)
