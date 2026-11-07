@@ -62,7 +62,20 @@ déduction — toute question se résout contre eux :
 - **Multiple** — question portant sur **4 dieux** à la fois.
 - **Spéciale** — **seule carte non-question**. Occupe l'**emplacement spécial** dédié du
   plateau ; se déclenche **au début de la phase déclarée** sur la carte, puis est
-  défaussée.
+  défaussée. Les Spéciales simultanées se déclenchent **à partir du meneur, dans le sens
+  horaire**, et chacune est **montrée à tous les joueurs** à son déclenchement (#1835).
+  Les choix se font **au déclenchement** (jamais au placement, jamais au hasard) :
+  **2** : le joueur choisit 2 questions posées à défausser, **jamais les siennes** ;
+  **3** : autant de questions que d'adversaires encore en jeu ; **4** : le joueur choisit une
+  question posée par un autre joueur à un autre joueur (ni par lui, ni à lui) — la cible ne
+  change pas, la question devient la sienne : il la voit et touche tous les effets de la
+  réponse (pioche d'Action au « oui » avec son éventuelle Exécution, malus du Non, « aucun
+  oui », surveillance de la Spéciale 1) ; l'auteur d'origine apprend la réponse ; elle se
+  résout à sa place d'origine dans l'ordre du plateau ; **7** : un pouvoir de la pile Pouvoir
+  au choix ; **8** : 2 attributs de la pile au choix. Ordinateur, joueur absent ou délai
+  dépassé : choix automatique déterministe (premières cartes possibles / haut de la pile).
+  En ligne, la soumission de la phase de question est validée en entier (Spéciale comprise)
+  avant que rien ne soit appliqué.
 
 > Le texte d'effet exact de chaque Pouvoir / Non / Multiple / Spéciale est **défini par la
 > face de la carte** ; il est transcrit dans `docs/card-catalog.md` puis dans les fichiers
@@ -93,7 +106,7 @@ Le meneur fixe **l'ordre** de la phase Réponse, il **ne sérialise pas** le jeu
 ### Phase 2 — Question
 
 - Jouer **jusqu'à 2 questions** (pouvoirs/Spéciales modulent : Connaissance → 3,
-  Spéciale 3 → autant que de joueurs, Refus royal → 0 pour sa cible).
+  Spéciale 3 → autant que d'adversaires encore en jeu, Refus royal → 0 pour sa cible).
 - **Jamais deux questions au même joueur** dans le même tour (exception : Concentration et
   Spéciale 9 autorisent **2** au même joueur — l'emplacement s'empile).
 - Une question est une **carte Attribut** ou une **carte Action** (sauf **Spéciale**, qui

@@ -11,14 +11,7 @@
  *   `apply` ctx: `other` = resolved placement target, `payload` = placement choices.
  */
 import type { Axe, AxeValeur, GameState, GodId, Phase, SpecialePayload, UserId } from '../types.js';
-import {
-  discardPlacedQuestion,
-  discardPowers,
-  livePlayers,
-  swapPowers,
-  takeAttributsFromPile,
-  takePowerFromPile,
-} from '../effects.js';
+import { discardPowers, livePlayers, swapPowers } from '../effects.js';
 
 export interface ActionDef {
   effectKey: string;
@@ -38,6 +31,8 @@ export interface ActionDef {
   needsTarget?: boolean;
   /** Non 1-2 (#1836): the answerer CHOOSES this many cards to give the asker (a pending choice, not an `apply`). */
   gives?: number;
+  /** Spéciale 2/4/7/8 (#1835): the owner CHOOSES at the trigger (a pending choice, see answerSpeciale), no `apply`. */
+  choice?: boolean;
   /** Effect body. Non: actor = asker, other = answerer. Spéciale: actor = owner. */
   apply?: (state: GameState, actor: UserId, ctx?: { other?: UserId; payload?: SpecialePayload }) => void;
 }
@@ -67,7 +62,10 @@ function multiple(n: number, gods: GodId[]): [string, ActionDef] {
 function speciale(n: number, triggerPhase: Phase, texte: string,
   apply: ActionDef['apply'], needsTarget = false): [string, ActionDef] {
   const key = `action_special_${n}`;
-  return [key, { effectKey: key, subtype: 'speciale', label: `Spéciale ${n}`, texte, triggerPhase, needsTarget, apply }];
+  return [key, {
+    effectKey: key, subtype: 'speciale', label: `Spéciale ${n}`, texte, triggerPhase, needsTarget, apply,
+    ...(apply === undefined ? { choice: true } : {}),
+  }];
 }
 
 const EFFET_DONNEZ = '« Si vous répondez non, donnez deux de vos cartes au joueur qui vous a posé la question. »';
@@ -106,47 +104,15 @@ export const ACTIONS: Record<string, ActionDef> = Object.fromEntries([
     }, true),
   speciale(2, 'reponse',
     '« Choisissez deux cartes questions posées et défaussez les. »',
-    // v1 (consigné) : priorité aux questions qui CIBLENT le propriétaire, puis les autres.
-    (state, owner) => {
-      const ownerSeat = state.seatOrder.indexOf(owner);
-      let remaining = 2;
-      for (const pass of [true, false]) {
-        if (remaining === 0) break;
-        for (const placer of state.seatOrder) {
-          const board = state.boardBySeat[placer];
-          if (!board) continue;
-          for (let seat = 0; seat < board.questionSlots.length && remaining > 0; seat++) {
-            if (pass !== (seat === ownerSeat)) continue;
-            while (remaining > 0 && board.questionSlots[seat]!.length > 0) {
-              if (discardPlacedQuestion(state, placer, seat, 0)) remaining--;
-            }
-          }
-        }
-      }
-    }),
+    undefined), // #1835: the owner picks 2 questions posed by OTHER players (answerSpeciale)
   speciale(3, 'question',
     '« Vous pouvez poser autant de questions qu’il y’a de joueurs pendant la prochaine phase de question. »',
     (state, owner) => {
-      state.effets.questionsMaxOverride[owner] = { max: livePlayers(state).length, tour: state.tour };
+      state.effets.questionsMaxOverride[owner] = { max: livePlayers(state).length - 1, tour: state.tour };
     }),
   speciale(4, 'reponse',
     '« Prenez une question posée et mettez la dans votre case question (vous pouvez la regarder). »',
-    // v1 (consigné) : prend la première question posée CONTRE le propriétaire et la met
-    // dans sa main (approximation de « votre case question » — à raffiner si besoin).
-    (state, owner) => {
-      const ownerSeat = state.seatOrder.indexOf(owner);
-      const me = state.players[owner];
-      if (!me) return;
-      for (const placer of state.seatOrder) {
-        const stack = state.boardBySeat[placer]?.questionSlots[ownerSeat];
-        const placed = stack?.[0];
-        if (!stack || !placed) continue;
-        stack.splice(0, 1);
-        if (placed.card.type === 'attribut') me.hand.attributs.push(placed.card.id);
-        else me.hand.actions.push(placed.card.id);
-        return;
-      }
-    }),
+    undefined), // #1835: a question by another to another becomes the owner's (answerSpeciale)
   speciale(5, 'pioche',
     '« Le joueur de votre choix se défausse de son pouvoir. »',
     (state, _owner, ctx) => {
@@ -159,10 +125,10 @@ export const ACTIONS: Record<string, ActionDef> = Object.fromEntries([
     }, true),
   speciale(7, 'pioche',
     '« Prenez le pouvoir de votre choix dans la pile pouvoir. »',
-    (state, owner, ctx) => takePowerFromPile(state, owner, ctx?.payload?.pouvoirChoisi)),
+    undefined), // #1835: chosen at the trigger (answerSpeciale)
   speciale(8, 'pioche',
     '« Prenez deux cartes attributs de votre choix dans la pile attribut. »',
-    (state, owner, ctx) => takeAttributsFromPile(state, owner, ctx?.payload?.attributsChoisis)),
+    undefined), // #1835: chosen at the trigger (answerSpeciale)
   speciale(9, 'pioche',
     '« Jusqu’au prochain tour vous pouvez poser deux questions au même joueur. »',
     (state, owner) => {

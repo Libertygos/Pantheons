@@ -22,6 +22,9 @@ import {
   resolveReponsePhase,
   answerExecution,
   answerDonnez,
+  answerSpeciale,
+  validateQuestions,
+  validateSpeciale,
   advanceTurn,
   activatePower,
   resolveDeclarations,
@@ -33,6 +36,7 @@ import {
   type PrivateReveal,
   type QuestionIntent,
   type ResolveResult,
+  type SpecialeChoice,
   type SpecialePayload,
   type UserId,
 } from '@pantheons/engine';
@@ -57,6 +61,8 @@ export interface PhaseEvent {
 export interface SpecialePlay extends SpecialePayload {
   cardId: string;
 }
+
+type ActionCardLike = NonNullable<ReturnType<CardIndex['actions']['get']>>;
 
 export class MatchController {
   constructor(
@@ -94,6 +100,7 @@ export class MatchController {
 
   submitPioche(userId: UserId, intent: PiocheIntent): void {
     this.assertPhase('pioche');
+    if (this.state.specialePending) throw new Error('Une Spéciale attend un choix avant la pioche');
     applyPioche(this.state, userId, intent);
     this.markSubmitted(userId);
     this.tryAdvance();
@@ -101,14 +108,19 @@ export class MatchController {
 
   submitQuestion(userId: UserId, intent: QuestionIntent, specialePlays: SpecialePlay[] = []): void {
     this.assertPhase('question');
-    // Place any Spéciales first (they occupy the special slot, not question slots).
+    // #1835 (P35): validate the WHOLE submission (questions and Spéciales) before applying anything.
+    const placements: { card: ActionCardLike; payload: SpecialePayload }[] = [];
     for (const play of specialePlays) {
       const card = this.index.actions.get(play.cardId);
       if (card && card.subtype === 'speciale') {
         const { cardId: _cid, ...payload } = play;
-        placeSpeciale(this.state, userId, card, payload);
+        placements.push({ card, payload });
       }
     }
+    if (placements.length > 1) throw new Error('Une seule Spéciale par tour (emplacement spécial occupé).');
+    validateQuestions(this.state, userId, intent);
+    for (const { card, payload } of placements) validateSpeciale(this.state, userId, card, payload);
+    for (const { card, payload } of placements) placeSpeciale(this.state, userId, card, payload);
     applyQuestions(this.state, userId, intent);
     this.markSubmitted(userId);
     this.tryAdvance();
@@ -131,6 +143,7 @@ export class MatchController {
 
   submitDeclaration(userId: UserId, decision: DeclarationDecision): void {
     this.assertPhase('reponse');
+    if (this.state.specialePending) throw new Error('Une Spéciale attend un choix');
     if (this.state.reponseProgress?.pending) throw new Error('Réponse en attente d’un choix (Exécution / don de cartes)');
     if (decision.guesses && Object.keys(decision.guesses).length > 0) {
       this.state.declarations.push({ declarer: userId, guesses: decision.guesses as Record<string, never> });
@@ -142,6 +155,7 @@ export class MatchController {
   /** ⟨INPUT WoG⟩ hook: force-resolve the phase for players who missed the deadline. */
   onDeadline(): void {
     this.autoDeclineExecution(true);
+    this.autoSpeciale(true);
     // Nominal policy: treat non-submitters as auto-submitted (auto-pass). WoG policy plugs here.
     for (const uid of this.liveConnected()) this.markSubmitted(uid);
     this.tryAdvance();
@@ -153,6 +167,7 @@ export class MatchController {
    * complete — the room calls this after flipping any player's `connected` flag.
    */
   onConnectivityChange(): void {
+    this.autoSpeciale(false);
     this.autoDeclineExecution(false);
     this.tryAdvance();
   }
@@ -161,6 +176,7 @@ export class MatchController {
 
   private tryAdvance(): void {
     if (this.state.reponseProgress?.pending) return; // paused on an Exécution choice
+    if (this.state.specialePending) return; // paused on a Spéciale's choice (#1835)
     if (!this.allSubmitted()) return;
 
     switch (this.state.phase) {
@@ -174,8 +190,8 @@ export class MatchController {
         // Réponse is server-resolved (Intégrité: truth is computed, not declared).
         this.state.phase = 'reponse';
         fireSpecialesAtPhaseStart(this.state, 'reponse');
-        this.finishReponse(resolveReponsePhase(this.state));
-        this.autoDeclineExecution(false); // a pending choice of an absent player resolves at once
+        this.autoSpeciale(false);
+        this.resumeReponse();
         break;
       }
       case 'reponse': {
@@ -192,9 +208,38 @@ export class MatchController {
         advanceTurn(this.state);
         this.resetBarrier('pioche');
         fireSpecialesAtPhaseStart(this.state, 'pioche');
+        this.autoSpeciale(false);
         this.emit({ type: 'phaseAdvanced', phase: 'pioche' });
         break;
       }
+    }
+  }
+
+  /** Resolve the Réponse unless a Spéciale (2, 4) still waits for its owner's choice. */
+  private resumeReponse(): void {
+    if (this.state.specialePending || this.state.reponseProgress || this.state.barrier.phase === 'reponse') return;
+    this.finishReponse(resolveReponsePhase(this.state));
+    this.autoDeclineExecution(false); // a pending choice of an absent player resolves at once
+  }
+
+  /**
+   * A Spéciale's choice (#1835: 2, 4, 7, 8): the owner picks when it triggers; null = auto-pick.
+   * Resumes the phase that waited for it.
+   */
+  submitSpeciale(userId: UserId, choice: SpecialeChoice | null): void {
+    const phase = answerSpeciale(this.state, userId, choice);
+    this.autoSpeciale(false);
+    if (phase === 'reponse') this.resumeReponse();
+  }
+
+  /** Auto-pick the Spéciale choices of computers / absent players (all of them when `force`). */
+  private autoSpeciale(force: boolean): void {
+    let guard = 0;
+    while (this.state.specialePending && guard++ < 100) {
+      const { owner, phase } = this.state.specialePending;
+      if (!force && this.state.players[owner]?.connected) return;
+      answerSpeciale(this.state, owner, null);
+      if (!this.state.specialePending && phase === 'reponse') this.resumeReponse();
     }
   }
 

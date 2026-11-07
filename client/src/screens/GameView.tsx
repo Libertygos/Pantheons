@@ -23,6 +23,7 @@ import { GameCard } from '../components/GameCard.js';
 import { PenseBeteGrid } from '../components/PenseBeteGrid.js';
 import { CardInspectLayer } from '../components/CardInspectLayer.js';
 import { AideZone } from '../components/AideZone.js';
+import { SpecialeChoix, SpecialesMontrees } from '../components/SpecialeChoix.js';
 import { hideInspect, showInspect, useCardInspect } from '../components/card-inspect.js';
 import {
   describeQuestionCard,
@@ -1151,6 +1152,10 @@ export function GameView({
           </div>
         </div>
       )}
+
+      {/* Spéciales (#1835) : choix du propriétaire (2, 4, 7, 8) et carte déclenchée montrée à tous */}
+      {!over && alive && <SpecialeChoix proj={proj} nameOf={nameOf} send={send} />}
+      <SpecialesMontrees proj={proj} nameOf={nameOf} />
 
       {/* modale : Non 1-2 (#1836) — le joueur interrogé choisit les 2 cartes qu'il donne */}
       {!over && alive && proj.donnezChoice && (

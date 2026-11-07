@@ -25,7 +25,18 @@ import type {
   UserId,
 } from './types.js';
 import type { CardIndex } from './setup.js';
-import { GIFT_COUNT, executionTargets, isAskBlocked, questionCap, sameTargetAllowed } from './rules.js';
+import {
+  GIFT_COUNT,
+  executionTargets,
+  isAskBlocked,
+  questionCap,
+  sameTargetAllowed,
+  speciale2Candidates,
+  speciale4Candidates,
+  speciale7Options,
+  speciale8Options,
+} from './rules.js';
+import type { PlacedRef, SpecialeShown } from './types.js';
 
 /** Public view of another player — no secret fields. */
 export interface OpponentView {
@@ -80,7 +91,16 @@ export interface PlacedCardView {
   cardKind: 'attribut' | 'action';
   targetSeat: number;
   answeredOui?: boolean;
+  /** #1835: set once Spéciale 4 appropriated the question (public: the card moved). */
+  owner?: UserId;
 }
+
+/** #1835: the choice a triggered Spéciale waits for, for its OWNER only. */
+export type SpecialeChoiceView =
+  | { effectKey: 'action_special_2'; candidates: PlacedRef[]; count: number }
+  | { effectKey: 'action_special_4'; candidates: PlacedRef[] }
+  | { effectKey: 'action_special_7'; options: string[]; cards?: PouvoirCard[] }
+  | { effectKey: 'action_special_8'; options: Record<string, number> };
 
 export interface BoardView {
   questionSlots: PlacedCardView[][];
@@ -106,6 +126,10 @@ export interface PlayerProjection {
   executionChoice: { answerer: UserId; targets: UserId[] } | null;
   /** Non 1-2 (#1836): set for the questioned player while he must pick the cards he gives. */
   donnezChoice: { asker: UserId; count: number } | null;
+  /** #1835: Spéciale paused on the viewer's choice (2, 4, 7, 8); null otherwise. */
+  specialeChoice: SpecialeChoiceView | null;
+  /** #1835: the Spéciales triggered this tour, shown to every seat (they are discarded). */
+  specialesShown: SpecialeShown[];
   winner: UserId | null;
   eliminated: UserId[];
   /** The viewer's question rules this turn (powers/Spéciales woven in). */
@@ -184,6 +208,8 @@ export function project(state: GameState, viewer: UserId, index?: CardIndex): Pl
       state.reponseProgress?.pending?.kind === 'donnez' && state.reponseProgress.pending.answerer === viewer
         ? { asker: state.reponseProgress.pending.asker, count: GIFT_COUNT }
         : null,
+    specialeChoice: projectSpecialeChoice(state, viewer, index),
+    specialesShown: (state.specialesShown ?? []).map((x) => ({ ...x })),
     winner: state.winner,
     eliminated: [...state.eliminated],
     questionRules: {
@@ -192,6 +218,29 @@ export function project(state: GameState, viewer: UserId, index?: CardIndex): Pl
       askBlocked: isAskBlocked(state, viewer),
     },
   };
+}
+
+function projectSpecialeChoice(state: GameState, viewer: UserId, index?: CardIndex): SpecialeChoiceView | null {
+  const pend = state.specialePending;
+  if (!pend || pend.owner !== viewer) return null;
+  switch (pend.effectKey) {
+    case 'action_special_2': {
+      const candidates = speciale2Candidates(state, viewer);
+      return { effectKey: 'action_special_2', candidates, count: Math.min(2, candidates.length) };
+    }
+    case 'action_special_4':
+      return { effectKey: 'action_special_4', candidates: speciale4Candidates(state, viewer) };
+    case 'action_special_7': {
+      const options = speciale7Options(state);
+      const cards = index
+        ? options.map((k) => index.pouvoirs.get(`pow_${k}`)).filter((c): c is PouvoirCard => !!c)
+        : undefined;
+      return { effectKey: 'action_special_7', options, ...(cards ? { cards } : {}) };
+    }
+    case 'action_special_8':
+      return { effectKey: 'action_special_8', options: speciale8Options(state) };
+  }
+  return null;
 }
 
 /**
@@ -223,12 +272,13 @@ function projectBoards(state: GameState, viewer: UserId): Record<UserId, BoardVi
 function projectPlaced(state: GameState, p: PlacedCard, placer: UserId, viewer: UserId): PlacedCardView {
   const targetUser = state.seatOrder[p.targetSeat];
   const visible =
-    viewer === placer || (viewer === targetUser && p.answeredOui !== undefined);
+    viewer === placer || viewer === p.owner || (viewer === targetUser && p.answeredOui !== undefined);
   return {
     card: visible ? p.card : null,
     cardKind: p.card.type === 'attribut' ? 'attribut' : 'action',
     targetSeat: p.targetSeat,
     answeredOui: p.answeredOui,
+    ...(p.owner ? { owner: p.owner } : {}),
   };
 }
 

@@ -94,10 +94,40 @@ export type AnyCard = AttributCard | ActionCard | PouvoirCard;
 export interface SpecialePayload {
   /** speciale 1 / 5 / 6: the chosen player's seat. */
   targetSeat?: number;
-  /** speciale 7: the coveted power's effectKey (fallback: top of pile). */
+  /** @deprecated #1835: Spéciales 7/8 choose when they trigger (SpecialeChoice), never at placement. */
   pouvoirChoisi?: string;
-  /** speciale 8: up to two coveted attribute values (fallback: top of pile). */
+  /** @deprecated #1835: see pouvoirChoisi. */
   attributsChoisis?: AxeValeur[];
+}
+
+/** A placed question designated by its board position (Spéciales 2 and 4). */
+export interface PlacedRef {
+  placer: UserId;
+  seat: number;
+  stackIndex: number;
+}
+
+/** The owner's choice when a Spéciale triggers (#1835); `null` = deterministic auto-pick. */
+export type SpecialeChoice =
+  | { kind: 'discard'; refs: PlacedRef[] } // Spéciale 2: exactly 2 (or all there are) others' questions
+  | { kind: 'take'; ref: PlacedRef } // Spéciale 4: a question by another to another
+  | { kind: 'pouvoir'; effectKey: string } // Spéciale 7
+  | { kind: 'attributs'; valeurs: AxeValeur[] }; // Spéciale 8: 2 values
+
+/** A Spéciale paused on its owner's choice (#1835). */
+export interface SpecialePending {
+  phase: Phase;
+  owner: UserId;
+  effectKey: string;
+}
+
+/** A Spéciale that triggered this tour — shown to every seat, then discarded (#1835). */
+export interface SpecialeShown {
+  owner: UserId;
+  cardId: CardId;
+  effectKey: string;
+  /** Owner or target eliminated: discarded with no effect. */
+  noEffect: boolean;
 }
 
 export interface PlacedCard {
@@ -107,6 +137,8 @@ export interface PlacedCard {
   answeredOui?: boolean; // set during réponse resolution (public result)
   /** Spéciale placement choices. */
   payload?: SpecialePayload;
+  /** Spéciale 4 (#1835): the player the question now belongs to (reaps every effect of the answer). */
+  owner?: UserId;
 }
 
 export interface Board {
@@ -212,6 +244,10 @@ export interface GameState {
   lastTurn: LastTurnStats;
   /** #1836: the stats of the tour before `lastTurn`'s, read while `lastTurn` is the current tour's (declaration window). */
   priorTurn?: LastTurnStats | null;
+  /** #1835: a Spéciale paused on its owner's choice (2, 4, 7, 8); the phase waits. */
+  specialePending?: SpecialePending | null;
+  /** #1835: the Spéciales triggered this tour, public. */
+  specialesShown?: SpecialeShown[];
   /** Réponse resolution in progress (paused on an asker's Exécution choice); null otherwise. */
   reponseProgress?: ReponseProgress | null;
 }

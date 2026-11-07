@@ -15,6 +15,7 @@ import {
   resolveReponsePhase,
   RuleError,
   answerExecution,
+  answerSpeciale,
 } from './rules.js';
 import { resolveDeclarations } from './declaration.js';
 import { GODS } from './data/gods.js';
@@ -276,31 +277,33 @@ test('Spéciale 1: placement without a target is rejected', () => {
   );
 });
 
-test('Spéciale 3 (question): question cap becomes the live player count for that tour', () => {
+test('Spéciale 3 (question): question cap becomes the live opponent count for that tour', () => {
   const state = game(25);
   state.players['u1']!.hand.actions.push('act_action_special_3');
   placeSpeciale(state, 'u1', specialeCard(3));
   fireSpecialesAtPhaseStart(state, 'question');
-  assert.equal(questionCap(state, 'u1'), seats.length);
+  assert.equal(questionCap(state, 'u1'), seats.length - 1); // #1835: as many as opponents in play
 });
 
-test('Spéciale 7 (pioche): takes the coveted power from the pile', () => {
+test('Spéciale 7 (pioche): takes the chosen power from the pile', () => {
   const state = game(27);
   state.players['u1']!.hand.actions.push('act_action_special_7');
-  const coveted = state.drawPiles.pouvoirs.find((id) => id.startsWith('pow_'));
-  assert.ok(coveted);
-  const key = coveted!.replace(/^pow_/, '');
-  placeSpeciale(state, 'u1', specialeCard(7), { pouvoirChoisi: key });
+  const coveted = state.drawPiles.pouvoirs[0]!; // not the top: a real choice
+  const key = coveted.replace(/^pow_/, '');
+  placeSpeciale(state, 'u1', specialeCard(7));
   fireSpecialesAtPhaseStart(state, 'pioche');
-  assert.ok(state.players['u1']!.powers.includes(coveted!));
-  assert.ok(!state.drawPiles.pouvoirs.includes(coveted!));
+  assert.equal(state.specialePending?.owner, 'u1');
+  answerSpeciale(state, 'u1', { kind: 'pouvoir', effectKey: key });
+  assert.ok(state.players['u1']!.powers.includes(coveted));
+  assert.ok(!state.drawPiles.pouvoirs.includes(coveted));
 });
 
 test('Spéciale 8 (pioche): takes two chosen attributs from the pile', () => {
   const state = game(29);
   state.players['u1']!.hand.actions.push('act_action_special_8');
-  placeSpeciale(state, 'u1', specialeCard(8), { attributsChoisis: ['rouges', 'nordique'] });
+  placeSpeciale(state, 'u1', specialeCard(8));
   fireSpecialesAtPhaseStart(state, 'pioche');
+  answerSpeciale(state, 'u1', { kind: 'attributs', valeurs: ['rouges', 'nordique'] });
   const hand = state.players['u1']!.hand.attributs;
   assert.ok(hand.some((id) => id.startsWith('attr_rouges_')));
   assert.ok(hand.some((id) => id.startsWith('attr_nordique_')));
@@ -320,22 +323,6 @@ test('Spéciale 9 (pioche): may stack two questions on the same target this tour
     ],
   });
   assert.equal(state.boardBySeat['u1']!.questionSlots[1]!.length, 2);
-});
-
-test('Spéciale 2 (réponse): discards two posed questions, those aiming its owner first', () => {
-  const state = game(33);
-  // u2 and u3 each pose one question against u1 (seat 0).
-  for (const [asker, cid] of [['u2', 'y1'], ['u3', 'y2']] as const) {
-    state.players[asker]!.hand.attributs.push(cid);
-    applyQuestions(state, asker, { plays: [{ cardId: cid, card: attributCard(cid), targetSeat: 0 }] });
-  }
-  state.players['u1']!.hand.actions.push('act_action_special_2');
-  placeSpeciale(state, 'u1', specialeCard(2));
-  fireSpecialesAtPhaseStart(state, 'reponse');
-  assert.equal(state.boardBySeat['u2']!.questionSlots[0]!.length, 0);
-  assert.equal(state.boardBySeat['u3']!.questionSlots[0]!.length, 0);
-  const { answers } = resolveReponsePhase(state);
-  assert.equal(answers.length, 0);
 });
 
 // ---- activations ------------------------------------------------------------

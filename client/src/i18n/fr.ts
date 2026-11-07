@@ -117,6 +117,28 @@ export const fr = {
   pass: 'Passer',
   submit: 'Valider',
 
+  /** Spéciales 2, 3, 4, 7, 8 (#1835) : choix du propriétaire et carte montrée à tous. */
+  speciale: {
+    titre: 'Spéciale',
+    titre2: 'Spéciale 2 : défausser des questions',
+    texte2: (n: number) =>
+      `Choisissez ${n} question${n > 1 ? 's' : ''} posée${n > 1 ? 's' : ''} par les autres joueurs à défausser (jamais les vôtres).`,
+    titre4: 'Spéciale 4 : prendre une question',
+    texte4:
+      'Choisissez une question posée par un autre joueur à un autre joueur : elle devient la vôtre (vous la voyez et touchez tous les effets de la réponse).',
+    titre7: 'Spéciale 7 : prendre un pouvoir',
+    texte7: 'Choisissez le pouvoir que vous prenez dans la pile pouvoir.',
+    titre8: 'Spéciale 8 : prendre deux attributs',
+    texte8: 'Choisissez deux cartes attributs à prendre dans la pile attribut.',
+    defausser: 'Défausser ces questions',
+    prendre: 'Prendre cette question',
+    prendreAttributs: 'Prendre ces attributs',
+    kindAction: 'carte Action',
+    kindAttribut: 'carte Attribut',
+    questionDe: (de: string, a: string, kind: string) => `De ${de} à ${a} (${kind})`,
+    declenchee: (nom: string) => `Spéciale de ${nom} :`,
+    sansEffet: '(sans effet : joueur éliminé)',
+  },
   jeu: {
     emplacementSpecial: 'Spéciale',
     attributs: 'Attributs',

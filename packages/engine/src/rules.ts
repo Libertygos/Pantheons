@@ -21,6 +21,9 @@ import {
   defaultGift,
   discardPowers,
   drawFromPile,
+  refillIfEmpty,
+  takeAttributsFromPile,
+  takePowerFromPile,
   hasEffectivePower,
   livePlayers,
   noOuiLastTurn,
@@ -33,11 +36,14 @@ import type {
   ActionCard,
   CardId,
   AttributCard,
+  AxeValeur,
   GameState,
   GodId,
   PlacedCard,
+  PlacedRef,
   PlayerState,
   QuestionCard,
+  SpecialeChoice,
   SpecialePayload,
   UserId,
 } from './types.js';
@@ -180,6 +186,12 @@ export function isAskBlocked(state: GameState, userId: UserId): boolean {
  * a live opponent, card owned in hand, Refus royal block.
  */
 export function applyQuestions(state: GameState, userId: UserId, intent: QuestionIntent): void {
+  validateQuestions(state, userId, intent);
+  commitQuestions(state, userId, intent);
+}
+
+/** Checks of a question submission, with no mutation (#1835: run before any Spéciale is placed). */
+export function validateQuestions(state: GameState, userId: UserId, intent: QuestionIntent): void {
   const p = requireLivePlayer(state, userId);
   const board = state.boardBySeat[userId];
   if (!board) throw new RuleError('NO_BOARD', 'Plateau introuvable.');
@@ -214,6 +226,11 @@ export function applyQuestions(state: GameState, userId: UserId, intent: Questio
     perTarget.set(play.targetSeat, count);
   }
 
+}
+
+function commitQuestions(state: GameState, userId: UserId, intent: QuestionIntent): void {
+  const p = state.players[userId]!;
+  const board = state.boardBySeat[userId]!;
   // Commit: remove from hand, stack on board.
   for (const play of intent.plays) {
     removeFromHand(p, play.cardId, play.card);
@@ -235,6 +252,19 @@ export function placeSpeciale(
   card: ActionCard,
   payload: SpecialePayload = {},
 ): void {
+  validateSpeciale(state, userId, card, payload);
+  const board = state.boardBySeat[userId]!;
+  removeFromHand(state.players[userId]!, card.id, card);
+  board.specialSlot = { card, targetSeat: payload.targetSeat ?? -1, payload };
+}
+
+/** Checks of a Spéciale placement, with no mutation (#1835). */
+export function validateSpeciale(
+  state: GameState,
+  userId: UserId,
+  card: ActionCard,
+  payload: SpecialePayload = {},
+): void {
   if (card.subtype !== 'speciale') throw new RuleError('NOT_SPECIALE', 'Carte non Spéciale.');
   const board = state.boardBySeat[userId];
   if (!board) throw new RuleError('NO_BOARD', 'Plateau introuvable.');
@@ -247,8 +277,7 @@ export function placeSpeciale(
       throw new RuleError('SPECIALE_TARGET_REQUIRED', 'Cette Spéciale exige un adversaire vivant pour cible.');
     }
   }
-  removeFromHand(p, card.id, card);
-  board.specialSlot = { card, targetSeat: payload.targetSeat ?? -1, payload };
+  if (!p.hand.actions.includes(card.id)) throw new RuleError('CARD_NOT_OWNED', 'Carte absente de la main.');
 }
 
 // ---- Réponse ---------------------------------------------------------------
@@ -374,7 +403,9 @@ function continueReponse(state: GameState): ReponseResolution {
   }
 
   while (prog.next < flat.length) {
-    const { placerId, placed } = flat[prog.next]!;
+    const { placerId: originalPlacer, placed } = flat[prog.next]!;
+    // #1835: a question appropriated by Spéciale 4 belongs to its new owner — who reaps every effect.
+    const placerId = placed.owner ?? originalPlacer;
     prog.next++;
     const targetUser = state.seatOrder[placed.targetSeat];
     if (!targetUser) continue;
@@ -384,7 +415,7 @@ function continueReponse(state: GameState): ReponseResolution {
     const oui = evaluateQuestion(target.god, placed.card);
     placed.answeredOui = oui;
     prog.answers.push({
-      placerSeat: state.seatOrder.indexOf(placerId),
+      placerSeat: state.seatOrder.indexOf(originalPlacer),
       targetUser,
       cardId: placed.card.id,
       oui,
@@ -428,28 +459,209 @@ function continueReponse(state: GameState): ReponseResolution {
   return result;
 }
 
-/** Fire Spéciale cards whose declared trigger phase == the phase now starting. */
-export function fireSpecialesAtPhaseStart(state: GameState, phase: GameState['phase']): void {
-  for (const userId of state.seatOrder) {
-    const board = state.boardBySeat[userId];
-    const slot = board?.specialSlot;
-    if (!slot || slot.card.type !== 'action') continue;
-    const def = getAction(slot.card.effectKey);
-    if (def?.triggerPhase === phase) {
-      const other =
-        slot.payload?.targetSeat !== undefined ? state.seatOrder[slot.payload.targetSeat] : undefined;
-      // #1833: owner or target eliminated before the trigger = no effect (still shown, discarded).
-      const dead = !state.players[userId]?.alive || (other !== undefined && !state.players[other]?.alive);
-      if (!dead) def.apply?.(state, userId, { other, payload: slot.payload });
-      // then discard the Spéciale
-      state.discard.actions.push(slot.card.id);
-      board!.specialSlot = null;
+// ---- Spéciales (#1835) ------------------------------------------------------
+
+/** Every placed question as a ref, in board order (meneur first), with its effective owner. */
+function placedRefs(state: GameState): (PlacedRef & { placed: PlacedCard; by: UserId; to: UserId | undefined })[] {
+  const out: (PlacedRef & { placed: PlacedCard; by: UserId; to: UserId | undefined })[] = [];
+  for (const placer of seatOrderFromMeneur(state)) {
+    const board = state.boardBySeat[placer];
+    board?.questionSlots.forEach((stack, seat) =>
+      (stack ?? []).forEach((placed, stackIndex) =>
+        out.push({ placer, seat, stackIndex, placed, by: placed.owner ?? placer, to: state.seatOrder[seat] }),
+      ),
+    );
+  }
+  return out;
+}
+
+/** Spéciale 2: the questions the owner may discard — any posed by OTHER players, never his own. */
+export function speciale2Candidates(state: GameState, owner: UserId): PlacedRef[] {
+  return placedRefs(state)
+    .filter((r) => r.by !== owner)
+    .map(({ placer, seat, stackIndex }) => ({ placer, seat, stackIndex }));
+}
+
+/** Spéciale 4: a question posed by another player to another player (neither by nor to the owner). */
+export function speciale4Candidates(state: GameState, owner: UserId): PlacedRef[] {
+  return placedRefs(state)
+    .filter((r) => r.by !== owner && r.to !== undefined && r.to !== owner && state.players[r.to]?.alive)
+    .map(({ placer, seat, stackIndex }) => ({ placer, seat, stackIndex }));
+}
+
+/** Spéciale 7: the distinct powers (effectKeys) in the Pouvoir pile. */
+export function speciale7Options(state: GameState): string[] {
+  refillIfEmpty(state, 'pouvoirs');
+  return [...new Set(state.drawPiles.pouvoirs.map(powerKeyOfCardId))];
+}
+
+/** Spéciale 8: the attribute values available in the Attribut pile, with their counts. */
+export function speciale8Options(state: GameState): Record<string, number> {
+  refillIfEmpty(state, 'attributs');
+  const out: Record<string, number> = {};
+  for (const id of state.drawPiles.attributs) out[attrValeurOfCardId(id)] = (out[attrValeurOfCardId(id)] ?? 0) + 1;
+  return out;
+}
+
+/** The deterministic pick for a computer / absent owner / timeout (and a hand with no real choice). */
+export function autoSpecialeChoice(state: GameState, owner: UserId, effectKey: string): SpecialeChoice | null {
+  switch (effectKey) {
+    case 'action_special_2':
+      return { kind: 'discard', refs: speciale2Candidates(state, owner).slice(0, 2) };
+    case 'action_special_4': {
+      const c = speciale4Candidates(state, owner)[0];
+      return c ? { kind: 'take', ref: c } : null;
+    }
+    case 'action_special_7': {
+      const pile = state.drawPiles.pouvoirs;
+      const top = pile[pile.length - 1];
+      return { kind: 'pouvoir', effectKey: top ? powerKeyOfCardId(top) : '' };
+    }
+    case 'action_special_8': {
+      const pile = state.drawPiles.attributs;
+      const top = pile.slice(-2).reverse().map((id) => attrValeurOfCardId(id) as AxeValeur);
+      return { kind: 'attributs', valeurs: top };
+    }
+  }
+  return null;
+}
+
+/** Is there anything to choose from? (An empty option set means the Spéciale just has no effect.) */
+function hasSpecialeChoice(state: GameState, owner: UserId, effectKey: string): boolean {
+  switch (effectKey) {
+    case 'action_special_2':
+      return speciale2Candidates(state, owner).length > 0;
+    case 'action_special_4':
+      return speciale4Candidates(state, owner).length > 0;
+    case 'action_special_7':
+      return speciale7Options(state).length > 0;
+    case 'action_special_8':
+      return state.drawPiles.attributs.length + state.discard.attributs.length > 0;
+  }
+  return false;
+}
+
+function applySpecialeChoice(state: GameState, owner: UserId, choice: SpecialeChoice): void {
+  switch (choice.kind) {
+    case 'discard': {
+      // Highest stackIndex first inside one stack keeps the other refs valid.
+      const refs = [...choice.refs].sort((a, b) => b.stackIndex - a.stackIndex);
+      for (const r of refs) discardPlacedQuestion(state, r.placer, r.seat, r.stackIndex);
+      break;
+    }
+    case 'take': {
+      const placed = state.boardBySeat[choice.ref.placer]?.questionSlots[choice.ref.seat]?.[choice.ref.stackIndex];
+      if (placed) placed.owner = owner; // stays at its place in the board order and on the same target
+      break;
+    }
+    case 'pouvoir':
+      takePowerFromPile(state, owner, choice.effectKey);
+      break;
+    case 'attributs':
+      takeAttributsFromPile(state, owner, choice.valeurs);
+      break;
+  }
+}
+
+function validateSpecialeChoice(state: GameState, owner: UserId, effectKey: string, choice: SpecialeChoice): void {
+  const bad = (m: string): never => {
+    throw new RuleError('BAD_CHOICE', m);
+  };
+  const same = (a: PlacedRef, b: PlacedRef) => a.placer === b.placer && a.seat === b.seat && a.stackIndex === b.stackIndex;
+  switch (effectKey) {
+    case 'action_special_2': {
+      if (choice.kind !== 'discard') return bad('Spéciale 2 : choisissez des questions à défausser.');
+      const cands = speciale2Candidates(state, owner);
+      const want = Math.min(2, cands.length);
+      if (choice.refs.length !== want) bad(`Spéciale 2 : choisissez exactement ${want} question(s).`);
+      choice.refs.forEach((r, i) => {
+        if (!cands.some((c) => same(c, r))) bad('Spéciale 2 : question invalide (jamais la vôtre).');
+        if (choice.refs.findIndex((o) => same(o, r)) !== i) bad('Spéciale 2 : deux fois la même question.');
+      });
+      return;
+    }
+    case 'action_special_4':
+      if (choice.kind !== 'take') return bad('Spéciale 4 : choisissez une question.');
+      if (!speciale4Candidates(state, owner).some((c) => same(c, choice.ref))) {
+        bad('Spéciale 4 : une question posée par un autre joueur à un autre joueur.');
+      }
+      return;
+    case 'action_special_7':
+      if (choice.kind !== 'pouvoir') return bad('Spéciale 7 : choisissez un pouvoir.');
+      if (!speciale7Options(state).includes(choice.effectKey)) bad('Spéciale 7 : pouvoir absent de la pile.');
+      return;
+    case 'action_special_8': {
+      if (choice.kind !== 'attributs') return bad('Spéciale 8 : choisissez deux attributs.');
+      const avail = speciale8Options(state);
+      const total = Object.values(avail).reduce((a, b) => a + b, 0);
+      if (choice.valeurs.length !== Math.min(2, total)) bad('Spéciale 8 : choisissez deux attributs.');
+      const used: Record<string, number> = {};
+      for (const v of choice.valeurs) {
+        used[v] = (used[v] ?? 0) + 1;
+        if (used[v]! > (avail[v] ?? 0)) bad('Spéciale 8 : attribut absent de la pile.');
+      }
+      return;
     }
   }
 }
 
+/**
+ * Fire the Spéciale cards whose declared trigger phase == the phase now starting. They trigger
+ * one after the other FROM THE MENEUR, clockwise (#1835), each shown to all (`specialesShown`)
+ * then discarded. A Spéciale whose owner or target is eliminated has no effect. Those that
+ * need a choice (2, 4, 7, 8) pause on `state.specialePending` until `answerSpeciale`;
+ * the caller must not go on with the phase while it is set.
+ */
+export function fireSpecialesAtPhaseStart(state: GameState, phase: GameState['phase']): void {
+  state.specialePending = null;
+  for (const userId of seatOrderFromMeneur(state)) {
+    const board = state.boardBySeat[userId];
+    const slot = board?.specialSlot;
+    if (!slot || slot.card.type !== 'action') continue;
+    const def = getAction(slot.card.effectKey);
+    if (def?.triggerPhase !== phase) continue;
+    const other =
+      slot.payload?.targetSeat !== undefined ? state.seatOrder[slot.payload.targetSeat] : undefined;
+    // #1833: owner or target eliminated before the trigger = no effect (still shown, discarded).
+    const dead = !state.players[userId]?.alive || (other !== undefined && !state.players[other]?.alive);
+    if (!dead && def.choice && hasSpecialeChoice(state, userId, def.effectKey)) {
+      state.specialePending = { phase, owner: userId, effectKey: def.effectKey };
+      return;
+    }
+    if (!dead) def.apply?.(state, userId, { other, payload: slot.payload });
+    closeSpeciale(state, userId, dead || (def.choice === true && !def.apply));
+  }
+}
+
+/** Show the triggered Spéciale to all, then discard it. */
+function closeSpeciale(state: GameState, owner: UserId, noEffect: boolean): void {
+  const board = state.boardBySeat[owner]!;
+  const card = board.specialSlot!.card;
+  (state.specialesShown ??= []).push({ owner, cardId: card.id, effectKey: (card as ActionCard).effectKey, noEffect });
+  state.discard.actions.push(card.id);
+  board.specialSlot = null;
+}
+
+/**
+ * The owner's choice for the Spéciale paused on `state.specialePending` (#1835); `null` = the
+ * deterministic auto-pick (computer, absent, timeout). Applies it, discards the card and goes
+ * on with the Spéciales that follow (may pause again). Returns the phase that was waiting.
+ */
+export function answerSpeciale(state: GameState, userId: UserId, choice: SpecialeChoice | null): GameState['phase'] {
+  const pend = state.specialePending;
+  if (!pend || pend.owner !== userId) throw new RuleError('PHASE', 'Spéciale : aucun choix en attente pour vous.');
+  const picked = choice ?? autoSpecialeChoice(state, userId, pend.effectKey);
+  if (!picked) throw new RuleError('BAD_CHOICE', 'Spéciale : rien à choisir.');
+  validateSpecialeChoice(state, userId, pend.effectKey, picked);
+  applySpecialeChoice(state, userId, picked);
+  closeSpeciale(state, userId, false);
+  fireSpecialesAtPhaseStart(state, pend.phase);
+  return pend.phase;
+}
+
 /** End-of-turn cleanup: discard placed question cards, prune stale flags, rotate meneur. */
 export function advanceTurn(state: GameState): void {
+  state.specialesShown = []; // #1835: the tour's triggered Spéciales are shown until the turn ends
   for (const userId of state.seatOrder) {
     const board = state.boardBySeat[userId];
     if (!board) continue;

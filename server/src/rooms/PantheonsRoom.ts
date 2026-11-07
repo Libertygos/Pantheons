@@ -167,6 +167,13 @@ export class PantheonsRoom extends Room implements SessionEnder {
         this.broadcastProjections();
       }),
     );
+    // Spéciales 2, 4, 7, 8 (#1835): the owner's choice when it triggers (msg.choice, null = auto-pick).
+    this.onMessage('speciale', (client, msg) =>
+      this.guard(client, (uid) => {
+        this.controller?.submitSpeciale(uid, msg?.choice && typeof msg.choice === 'object' ? msg.choice : null);
+        this.broadcastProjections();
+      }),
+    );
     // Non 1-2 (#1836): the questioned player's choice of the 2 cards he gives (msg.cardIds).
     this.onMessage('donnez', (client, msg) =>
       this.guard(client, (uid) => {

@@ -159,6 +159,16 @@ réponse » / « Phase de question » / « Phase de pioche »).
 | `action_special_8` | pioche | « Prenez deux cartes attributs de votre choix dans la pile attribut. » | `card_actions_special_8.webp` |
 | `action_special_9` | pioche | « Jusqu'au prochain tour vous pouvez poser deux questions au même joueur. » | `card_actions_special_9.webp` |
 
+> **Spéciales 2, 3, 4, 7, 8 (#1835)** : lues selon le texte de la carte. 2 : le joueur choisit
+> 2 questions posées par d'autres joueurs (jamais les siennes). 3 : autant de questions que
+> d'adversaires en jeu. 4 : il choisit une question posée par un autre à un autre ; elle lui
+> appartient (il la voit, touche tous les effets de la réponse), la cible reste, elle se
+> résout à sa place d'origine ; l'ancien comportement « la mettre dans sa main » est supprimé.
+> 7 / 8 : choix dans la pile au déclenchement, plus de hasard ni de choix au placement.
+> Déclenchement simultané : du meneur dans le sens horaire ; chaque Spéciale est montrée à
+> tous, sans effet si son propriétaire ou sa cible est éliminé. Moteur : `answerSpeciale`,
+> `state.specialePending`, `state.specialesShown`.
+
 > Les faces 1, 4 et l'Espionnage (§4) prouvent que **les questions posées sont face
 > cachée** pour les autres joueurs (« vous pouvez la regarder » n'aurait aucun sens
 > sinon) : seuls le poseur — et la cible au moment de répondre — voient le contenu ;
