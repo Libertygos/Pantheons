@@ -115,6 +115,17 @@ export function RoomLobby({
                         : 'siege__etat--attente'
                 }`}
               >
+                {/* #1838 : l'hôte ajoute un ordinateur sur un siège libre, ou le retire */}
+                {isHost && !seat.occupied && (
+                  <button className="btn btn--petit" onClick={() => room.send('ADD_COMPUTER', { seatId: seat.seatId })}>
+                    {fr.lobby.addComputer}
+                  </button>
+                )}
+                {isHost && seat.computer && (
+                  <button className="btn btn--petit" onClick={() => room.send('REMOVE_COMPUTER', { seatId: seat.seatId })}>
+                    {fr.lobby.removeComputer}
+                  </button>
+                )}
                 {seat.occupied
                   ? seat.conn === 'DISCONNECTED'
                     ? fr.lobby.disconnectedSeat

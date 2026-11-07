@@ -1,8 +1,10 @@
 /**
  * PantheonsRoom — thin Colyseus transport adapter over MatchController, carrying the WoG
  * room model (wog-room.md): room codes, a host/ready lobby with configurable seat slots
- * (min 4 / max 7), reconnection grace windows, duplicate-account rejection, and the
- * ≥2-concurrent-drops abort that rebuilds a fresh lobby from the survivors.
+ * (min 4 / max 7), computers on free seats (#1838), reconnection grace windows, duplicate-account
+ * rejection. In a match, disconnection follows the common gosgames system (game-kit.md §3.3,
+ * implemented in match-runner.ts): 60 s grace, then a computer takes the seat and finishes the game
+ * (match flagged), and the match is abandoned when no person is left.
  *
  * CRITICAL: we do NOT use Colyseus automatic schema state sync (which broadcasts one shared
  * state to everyone). Hidden-information games must never do that. Instead the server holds
@@ -24,7 +26,8 @@ import {
   type GameState,
   type SeatInput,
 } from '@pantheons/engine';
-import { MatchController, type PhaseEvent } from './barrier.js';
+import { type MatchController, type PhaseEvent } from './barrier.js';
+import { MatchRunner, MATCH_GRACE_MS } from './match-runner.js';
 import { redactEvent } from './events.js';
 import { generateRoomCode, normalizeRoomCode } from './room-code.js';
 import { isCodeTaken, registerRoom, unregisterRoom, type RoomPhase } from './room-registry.js';
@@ -52,6 +55,8 @@ interface SeatSlot {
   displayName: string;
   ready: boolean;
   conn: ConnStatus;
+  /** #1838: a computer the host put on this seat (userId is synthetic, never a platform account). */
+  computer?: boolean;
 }
 
 export interface SeatInfo {
@@ -60,11 +65,13 @@ export interface SeatInfo {
   displayName: string;
   ready: boolean;
   conn: ConnStatus;
+  computer: boolean;
 }
 
-// WoG grace windows (wog-room.md §5.1 / §5.2): 60 s in lobby and in match.
+// Grace windows (wog-room.md §5.1, game-kit.md §3.3): 60 s in lobby and in match.
 export const LOBBY_RECONNECT_GRACE_S = 60;
-export const MATCH_RECONNECT_GRACE_S = 60;
+export const MATCH_RECONNECT_GRACE_S = MATCH_GRACE_MS / 1000;
+export const COMPUTER_NAME = 'Ordinateur';
 const DEFAULT_SEATS = MIN_PLAYERS;
 
 /**
@@ -80,7 +87,7 @@ const ADMIN_USER_IDS = new Set(
 );
 
 function emptySlot(): SeatSlot {
-  return { userId: null, displayName: '', ready: false, conn: 'CONNECTED' };
+  return { userId: null, displayName: '', ready: false, conn: 'CONNECTED', computer: false };
 }
 
 export class PantheonsRoom extends Room implements SessionEnder {
@@ -108,6 +115,9 @@ export class PantheonsRoom extends Room implements SessionEnder {
   );
 
   private controller: MatchController | null = null;
+  private runner: MatchRunner | null = null;
+  private abandoned = false;
+  private computerCounter = 0;
   private index: CardIndex | null = null;
   private started = false;
   private sessionSecret = process.env.SESSION_JWT_SECRET ?? '';
@@ -132,6 +142,13 @@ export class PantheonsRoom extends Room implements SessionEnder {
     );
     this.onMessage('ADD_SEAT', (client) => this.guard(client, (uid) => this.addSeat(uid)));
     this.onMessage('REMOVE_SEAT', (client) => this.guard(client, (uid) => this.removeSeat(uid)));
+    // #1838: the host puts a computer on a free seat / removes it (lobby only).
+    this.onMessage('ADD_COMPUTER', (client, msg: { seatId?: number }) =>
+      this.guard(client, (uid) => this.addComputer(uid, msg?.seatId)),
+    );
+    this.onMessage('REMOVE_COMPUTER', (client, msg: { seatId?: number }) =>
+      this.guard(client, (uid) => this.removeComputer(uid, msg?.seatId)),
+    );
     this.onMessage('START_MATCH', (client) => this.guard(client, (uid) => this.startMatch(uid)));
     this.onMessage('LEAVE_ROOM', (client) => this.guard(client, (uid) => this.consentedLeave(uid)));
     this.onMessage('REQUEST_LOBBY_STATE', (client) => client.send('LOBBY_STATE', this.lobbyState()));
@@ -205,6 +222,7 @@ export class PantheonsRoom extends Room implements SessionEnder {
     recordRoomClosed();
     for (const grace of this.graceByUser.values()) grace.reject();
     this.graceByUser.clear();
+    this.runner?.dispose();
     // Release any leases still held (login_all_games.md §A): the room is gone.
     for (const userId of this.presenceMgr.liveUsers()) {
       this.presenceMgr.release(userId, 'server_shutdown');
@@ -214,6 +232,7 @@ export class PantheonsRoom extends Room implements SessionEnder {
 
   private registryPhase(): RoomPhase {
     if (!this.started) return 'LOBBY';
+    if (this.abandoned) return 'ENDED';
     return this.controller?.state.status === 'terminee' ? 'ENDED' : 'IN_PROGRESS';
   }
 
@@ -264,7 +283,7 @@ export class PantheonsRoom extends Room implements SessionEnder {
       seatId = this.slots.findIndex((s) => s.userId === null);
       if (seatId < 0) throw new ServerError(409, 'ROOM_FULL'); // defense-in-depth
     }
-    this.slots[seatId] = { userId, displayName, ready: false, conn: 'CONNECTED' };
+    this.slots[seatId] = { userId, displayName, ready: false, conn: 'CONNECTED', computer: false };
     this.accountToSeat.set(userId, seatId);
 
     // Active-game presence (login_all_games.md §A): a genuinely fresh session established
@@ -292,7 +311,7 @@ export class PantheonsRoom extends Room implements SessionEnder {
     recordPlayerDisconnected();
     this.clientByUser.delete(userId);
 
-    if (this.started && this.controller) {
+    if (this.started && this.runner) {
       await this.handleInMatchDisconnect(client, userId, consented);
       return;
     }
@@ -328,41 +347,39 @@ export class PantheonsRoom extends Room implements SessionEnder {
     }
   }
 
-  /** §5.2/§5.5: single drop → hold the seat + auto-pass; two concurrent drops → abort. */
+  /**
+   * game-kit.md §3.3: a dropped person gets the grace (the barrier stops waiting for the seat and
+   * its pending choices are auto-picked, #1834); not back in 60 s, a computer takes the seat and
+   * finishes the game (the runner flags the match); a consented leave skips the grace.
+   */
   private async handleInMatchDisconnect(client: Client, userId: string, consented: boolean): Promise<void> {
-    const state = this.controller!.state;
-    const p = state.players[userId];
-    if (!p) return;
-    p.connected = false;
+    const runner = this.runner!;
+    const state = runner.controller.state;
+    if (!state.players[userId]) return;
     const seatId = this.accountToSeat.get(userId);
     if (seatId !== undefined) this.slots[seatId]!.conn = 'DISCONNECTED';
     this.broadcast('CONN_STATUS', { userId, conn: 'DISCONNECTED' });
 
-    const dropped = state.seatOrder.filter((uid) => {
-      const pl = state.players[uid];
-      return pl?.alive && !pl.connected;
-    });
-    if (dropped.length >= 2 && state.status !== 'terminee') {
-      this.abortMatch();
-      return;
-    }
-
-    // The match continues: the barrier no longer counts this seat, so if it was the last
-    // holdout the phase advances now (auto-pass — play never blocks).
-    this.controller!.onConnectivityChange();
-    this.broadcastProjections();
-
-    if (consented || state.status === 'terminee') {
-      // A consented in-match leave gives up the seat for good → release the lease. On a
-      // terminated match the player has finished; the lease is released here too.
+    if (state.status === 'terminee' || this.abandoned) {
       this.presenceMgr.release(userId, consented ? 'left' : 'timeout');
       return;
     }
+    if (consented) {
+      // The seat is given up for good: no grace, a computer takes it now.
+      this.presenceMgr.release(userId, 'left');
+      runner.left(userId);
+      this.broadcastProjections();
+      return;
+    }
+    runner.drop(userId); // grace timer (fake-clock testable) + auto-pick while absent
+    this.broadcastProjections();
     try {
-      await this.openGrace(client, userId, MATCH_RECONNECT_GRACE_S);
+      // The runner's own 60 s timer decides; Colyseus' window is only a little longer so the
+      // reconnection token stays valid until then, and runner.onSeatTaken closes it.
+      await this.openGrace(client, userId, MATCH_RECONNECT_GRACE_S + 5);
+      if (!runner.returned(userId)) throw new Error('seat taken');
       recordPlayerConnected();
       this.clientByUser.set(userId, client);
-      p.connected = true;
       if (seatId !== undefined) this.slots[seatId]!.conn = 'CONNECTED';
       // Never-send guarantee on resume: a fresh, fully-filtered projection for that seat
       // ONLY — the client must seed from this payload alone (§5.3).
@@ -370,15 +387,13 @@ export class PantheonsRoom extends Room implements SessionEnder {
         roomCode: this.roomCode,
         seatId,
         hostSeat: this.hostSeat,
-        state: project(this.controller!.state, userId, this.index ?? undefined),
+        state: this.projectionFor(userId),
       });
       this.broadcast('CONN_STATUS', { userId, conn: 'CONNECTED' });
       this.broadcastProjections();
     } catch {
-      // Grace expired mid-match: the seat is gone for re-entry; the barrier keeps
-      // auto-passing it so play never blocks. The lease is released — the player is gone.
+      // Grace over: the seat is a computer's now (or the match was abandoned); the lease goes.
       this.presenceMgr.release(userId, 'timeout');
-      this.controller?.onConnectivityChange();
     }
   }
 
@@ -392,36 +407,14 @@ export class PantheonsRoom extends Room implements SessionEnder {
     }
   }
 
-  /** §5.5: cancel graces, rebuild a fresh lobby from the surviving connected seats. */
-  private abortMatch(): void {
-    const state = this.controller?.state;
+  /** No person is left (game-kit.md §3.3): the match is abandoned, nothing is reported. */
+  private abandonMatch(): void {
+    this.abandoned = true;
     for (const grace of this.graceByUser.values()) grace.reject();
     this.graceByUser.clear();
-
-    // Preserve configured seat count and survivors' seat indices; free dropped seats.
-    for (const slot of this.slots) {
-      if (!slot.userId) continue;
-      const pl = state?.players[slot.userId];
-      if (pl && pl.connected) {
-        slot.ready = false;
-        slot.conn = 'CONNECTED';
-      } else {
-        // A dropped survivor is not coming back to this rebuilt lobby → release its lease.
-        this.presenceMgr.release(slot.userId, 'timeout');
-        this.accountToSeat.delete(slot.userId);
-        Object.assign(slot, emptySlot());
-      }
-    }
-    const lowestBound = this.slots.findIndex((s) => s.userId !== null);
-    this.hostSeat = lowestBound; // may be -1 if everyone dropped; next join becomes host
-    this.controller?.dispose();
-    this.controller = null;
-    this.index = null;
-    this.started = false;
-    this.unlock();
-    // No character/score reveal on abort. Everyone lands back in this room's lobby.
-    this.broadcast('MATCH_ABORTED', { message: 'Partie interrompue : plusieurs joueurs déconnectés.' });
-    this.broadcastLobby();
+    for (const userId of this.presenceMgr.liveUsers()) this.presenceMgr.release(userId, 'timeout');
+    this.broadcast('MATCH_ABANDONED', { message: 'Partie abandonnée : plus aucun joueur.' });
+    void this.disconnect();
   }
 
   private freeSeat(userId: string): void {
@@ -430,7 +423,7 @@ export class PantheonsRoom extends Room implements SessionEnder {
     this.accountToSeat.delete(userId);
     this.slots[seatId] = emptySlot();
     if (this.hostSeat === seatId) {
-      this.hostSeat = this.slots.findIndex((s) => s.userId !== null);
+      this.hostSeat = this.slots.findIndex((s) => s.userId !== null && !s.computer); // never a computer
     }
   }
 
@@ -473,6 +466,38 @@ export class PantheonsRoom extends Room implements SessionEnder {
     this.broadcastLobby();
   }
 
+  /** #1838: host only, lobby only. A computer counts as filled and ready. */
+  private addComputer(userId: string, seatId?: number): void {
+    this.assertLobby();
+    this.assertHost(userId);
+    let seat = Number.isInteger(seatId) ? (seatId as number) : this.slots.findIndex((s) => s.userId === null);
+    if (seat < 0) {
+      if (this.slots.length >= MAX_PLAYERS) throw new Error('Aucun siège libre.');
+      this.slots.push(emptySlot());
+      seat = this.slots.length - 1;
+    }
+    const slot = this.slots[seat];
+    if (!slot || slot.userId !== null) throw new Error("Ce siège n'est pas libre.");
+    this.computerCounter++;
+    this.slots[seat] = {
+      userId: `cpu-${this.computerCounter}`,
+      displayName: `${COMPUTER_NAME} ${this.computerCounter}`,
+      ready: true,
+      conn: 'CONNECTED',
+      computer: true,
+    };
+    this.broadcastLobby();
+  }
+
+  private removeComputer(userId: string, seatId?: number): void {
+    this.assertLobby();
+    this.assertHost(userId);
+    const slot = Number.isInteger(seatId) ? this.slots[seatId as number] : undefined;
+    if (!slot?.computer) throw new Error("Ce siège n'est pas un ordinateur.");
+    this.slots[seatId as number] = emptySlot();
+    this.broadcastLobby();
+  }
+
   private consentedLeave(userId: string): void {
     if (this.started) return; // in-match leave goes through onLeave(consented)
     this.freeSeat(userId);
@@ -497,18 +522,29 @@ export class PantheonsRoom extends Room implements SessionEnder {
     const seed = Math.floor(Math.random() * 0xffffffff);
     const { state, index } = createGame(this.roomId, seatInputs, seed);
     this.index = index;
-    this.controller = new MatchController(
+    this.abandoned = false;
+    this.runner = new MatchRunner(
       state,
       index,
-      (e) => this.onPhaseEvent(e),
-      // Never-send: private reveals (Déduction / Espionnage / Spéciale 1) unicast only.
-      (userId, reveal) => this.clientByUser.get(userId)?.send('reveal', reveal),
-      // #1834: a window closed on its 30 s timer -> everyone gets the new projection.
-      { onTimer: () => this.broadcastProjections() },
+      this.slots.filter((s) => s.computer).map((s) => s.userId!),
+      {
+        emit: (e) => this.onPhaseEvent(e),
+        // Never-send: private reveals (Déduction / Espionnage / Spéciale 1) unicast only.
+        emitPrivate: (userId, reveal) => this.clientByUser.get(userId)?.send('reveal', reveal),
+        // #1834: a window closed / a computer moved -> everyone gets the new projection.
+        onChange: () => this.broadcastProjections(),
+        onSeatTaken: (userId) => {
+          this.graceByUser.get(userId)?.reject(); // the person's reconnection window closes
+          this.broadcast('CONN_STATUS', { userId, conn: 'COMPUTER' });
+        },
+        onAbandon: () => this.abandonMatch(),
+      },
     );
+    this.controller = this.runner.controller;
     this.started = true;
     this.matchStartedAt = new Date();
-    this.matchPlayerIds = seatInputs.map((s) => s.userId);
+    // Only persons are platform players: a computer has no account.
+    this.matchPlayerIds = this.slots.filter((s) => !s.computer).map((s) => s.userId!);
     this.lock(); // no new joiners mid-match (reconnects still allowed)
     // The start signal is the first per-seat projection ('state'), wog-room.md §4.3.
     this.broadcastProjections();
@@ -543,6 +579,7 @@ export class PantheonsRoom extends Room implements SessionEnder {
         displayName: s.displayName,
         ready: s.ready,
         conn: s.conn,
+        computer: s.computer === true,
       })),
       canStart: this.canStart(),
       // Le minimum EFFECTIF (2 pour un hôte admin) : le client s'en sert pour borner
@@ -563,7 +600,7 @@ export class PantheonsRoom extends Room implements SessionEnder {
         roomCode: this.roomCode,
         seatId: this.accountToSeat.get(userId),
         hostSeat: this.hostSeat,
-        state: project(this.controller.state, userId, this.index ?? undefined),
+        state: this.projectionFor(userId),
       });
       return;
     }
@@ -587,6 +624,8 @@ export class PantheonsRoom extends Room implements SessionEnder {
           playerAccountIds: this.matchPlayerIds,
           startedAt: this.matchStartedAt,
           endedAt: new Date(),
+          // game-kit.md §3.3: a computer held a seat, so the stats can leave the match out.
+          ...(this.runner && this.runner.computerSeats().length > 0 ? { botReplaced: true } : {}),
           ...(winner && this.matchPlayerIds.includes(winner)
             ? { winnerAccountIds: [winner] }
             : {}),
@@ -595,11 +634,15 @@ export class PantheonsRoom extends Room implements SessionEnder {
     }
   }
 
+  private projectionFor(userId: string) {
+    return project(this.controller!.state, userId, this.index ?? undefined);
+  }
+
   private pushProjection(userId: string): void {
     const state = this.controller?.state;
     const client = this.clientByUser.get(userId);
     if (!state || !client) return;
-    client.send('state', project(state, userId, this.index ?? undefined));
+    client.send('state', this.projectionFor(userId));
   }
 
   private broadcastProjections(): void {
@@ -661,16 +704,13 @@ export class PantheonsRoom extends Room implements SessionEnder {
 
     // Detach the seat so the account is fully released locally (no ghost lease, O5).
     this.clientByUser.delete(userId);
-    if (this.started && this.controller) {
-      const p = this.controller.state.players[userId];
-      if (p) {
-        p.connected = false;
-        const seatId = this.accountToSeat.get(userId);
-        if (seatId !== undefined) this.slots[seatId]!.conn = 'DISCONNECTED';
-        this.broadcast('CONN_STATUS', { userId, conn: 'DISCONNECTED' });
-        this.controller.onConnectivityChange();
-        this.broadcastProjections();
-      }
+    if (this.started && this.runner && this.controller) {
+      // The person gave the session up (superseded / remote end): no grace, a computer takes the seat.
+      const seatId = this.accountToSeat.get(userId);
+      if (seatId !== undefined) this.slots[seatId]!.conn = 'DISCONNECTED';
+      this.broadcast('CONN_STATUS', { userId, conn: 'DISCONNECTED' });
+      this.runner.left(userId);
+      this.broadcastProjections();
     } else {
       this.freeSeat(userId);
       this.broadcastLobby();

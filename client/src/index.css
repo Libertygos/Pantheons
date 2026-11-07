@@ -3662,3 +3662,18 @@ button.pose-ev__item {
 .compte-a-rebours { font-variant-numeric: tabular-nums; font-weight: 600; margin-inline: 0.5rem; }
 .bandeau-sabotage { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; display: flex; justify-content: center; pointer-events: none; }
 .bandeau-sabotage .modale { pointer-events: auto; max-width: 28rem; }
+
+/* #1838 : boutons « Ajouter / Retirer un ordinateur » dans l'état du siège — rangée qui passe à la ligne sur téléphone */
+.siege__etat .btn--petit {
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .siege {
+    gap: 8px;
+    padding-right: 8px;
+  }
+  .siege__etat .btn--petit {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}

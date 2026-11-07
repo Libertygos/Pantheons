@@ -125,14 +125,10 @@ export function RoomScreen({
       setBanner(m.message);
       setRejectNonce((n) => n + 1);
     });
-    room.onMessage('MATCH_ABORTED', (m: { message?: string }) => {
-      // §5.5: back to the same room's fresh lobby with a notice.
-      const resume = loadResume();
-      if (resume) saveResume({ ...resume, phase: 'LOBBY' });
-      setProj(null);
-      setOver(false);
-      setBanner(m?.message ?? fr.room.aborted);
-      setView('lobby');
+    // #1838: no person left (game-kit.md §3.3): the match is abandoned, back to the portal home.
+    room.onMessage('MATCH_ABANDONED', (m: { message?: string }) => {
+      intentionalRef.current = true;
+      goHome(m?.message ?? fr.room.abandoned);
     });
     // Platform-forced session end (login_all_games.md §D): the account took over on another
     // device (409 superseded) or the platform remotely ended this session. Show the standard

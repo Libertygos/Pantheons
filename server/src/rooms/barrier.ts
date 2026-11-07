@@ -15,7 +15,8 @@
  * window (Panthéons / Passer; silence = Passer) and the Sabotage window (Saboter / Passer; silence
  * = Passer), opened between the last question validation and the answers. No other phase or
  * choice has a deadline: a human's pending choice waits for him; computers and disconnected
- * players are auto-picked (disconnection handling moves to the common system in #1838).
+ * players are auto-picked (#1838: a computer seat acts through match-runner.ts, a dropped one is
+ * auto-picked during its 60 s grace, then a computer takes it).
  */
 import {
   applyPioche,
@@ -56,7 +57,7 @@ export interface MatchTimers {
   clearTimeout(handle: unknown): void;
 }
 
-const realTimers: MatchTimers = {
+export const realTimers: MatchTimers = {
   now: () => Date.now(),
   setTimeout: (fn, ms) => {
     const h = setTimeout(fn, ms);

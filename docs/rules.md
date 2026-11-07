@@ -224,7 +224,8 @@ pour l'état, copie filtrée par siège pour les événements) :
 
 ## 8. Contraintes de comptage (invariants)
 
-- Joueurs : **min 4 pour démarrer, max 7** (plafond physique du plateau).
+- Joueurs : **min 4 pour démarrer, max 7** (plafond physique du plateau) ; un ordinateur compte
+  comme un joueur (§9).
 - Un joueur en régime établi détient **exactement 1 pouvoir** au sortir de la Pioche.
 - **Une seule validation par joueur et par phase** : le serveur refuse la seconde, quel que
   soit le type de soumission ; une carte ne se pose qu'une fois et seulement depuis la main
@@ -234,8 +235,26 @@ pour l'état, copie filtrée par siège pour les événements) :
   pouvoir/Spéciale (§5 Phase 2) ; jamais plus de **2 par cible** dans tous les cas.
 - L'**emplacement spécial** contient au plus **1 carte Spéciale** à la fois.
 
-## 9. Déconnexion / barrière (défère à WoG)
+## 9. Ordinateurs et déconnexion (système commun gosgames, #1838)
 
-Un joueur déconnecté n'est pas attendu par la barrière (ses choix en attente sont pris
-automatiquement). La reconnexion suit la règle commune à tous les jeux gosgames, la même que
-War of Guilds. Voir `game-state-model.md` §Barrière.
+**Ordinateur.** Dans le salon, l'hôte (seul, et seulement avant le lancement) peut poser un
+ordinateur sur un siège libre (« Ajouter un ordinateur ») et le retirer ; un siège d'ordinateur
+compte comme occupé et prêt (4 à 7 sièges). L'ordinateur joue par les mêmes chemins serveur
+qu'un humain (jamais de raccourci privilégié), un coup par tick (0,5 s) : pioche (régularisation
+des pouvoirs : il garde Déduction, Étude, Connaissance, Optimisme, Concentration dans cet ordre),
+questions légales (cibles, plafond, Spéciale), choix en attente (Exécution, don du Non 1-2,
+Spéciales 2/4/7/8 : choix par défaut du moteur), fenêtre de Sabotage (il passe), déclaration. Il
+ne lit que la projection de **son** siège et ses révélations privées : réponses à ses propres
+questions, Déduction, Spéciale 1, puis élimination (son propre personnage, les personnages non
+distribués, un adversaire dont le personnage est connu). Il choisit les couples (carte, cible)
+qui partagent le mieux les candidats d'une cible, et ne déclare « Panthéons » que lorsque chaque
+adversaire en jeu est réduit à un seul candidat.
+
+**Déconnexion** (`game-kit.md` §3.3). Un joueur déconnecté a **60 s de grâce** : la barrière ne
+l'attend pas et ses choix en attente sont pris automatiquement (#1834). Revenu à temps, il
+reprend son siège. Sinon (ou s'il quitte volontairement : pas de grâce) **un ordinateur prend
+son siège et finit la partie** ; le nom du siège porte « (ordinateur) » et le résultat est
+marqué `botReplaced` pour la plateforme, afin de ne pas fausser les statistiques (une partie
+avec ordinateur est marquée de même). Quand il ne reste **aucune personne** (tous les sièges
+sont des ordinateurs ou des joueurs partis), la partie est **abandonnée**, sans résultat. Il n'y
+a plus d'annulation de la partie sur deux déconnexions. Voir `game-state-model.md` §Barrière.

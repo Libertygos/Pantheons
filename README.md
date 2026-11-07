@@ -16,7 +16,11 @@ packages/engine   Pure rules/state — no I/O (Decision 2). Gods, cards, phase r
 server            Colyseus rooms + Express. Handoff verify (aud=pantheons), session S-JWT,
                   deletion endpoint, simultaneous-phase barrier (one validation per player
                   per phase, atomic question submission, 30 s declaration + Sabotage windows),
-                  per-seat redaction of state and events, lobby (min4/max7). Drizzle/PG.
+                  per-seat redaction of state and events, lobby (min4/max7) with computer
+                  seats (host adds/removes; match-runner.ts + computer.ts, one move per tick
+                  through the controller), common gosgames disconnection (60 s grace, then a
+                  computer takes the seat and the result is flagged botReplaced; abandoned when
+                  no person is left). Drizzle/PG.
 client            Vite/React. Static-PNG display (cards, board, pense-bête), FR chrome.
 docs              rules.md · glossary.md · game-state-model.md · roadmap.md · card-catalog.md
 ```

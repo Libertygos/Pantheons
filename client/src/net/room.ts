@@ -15,6 +15,8 @@ export interface SeatInfo {
   displayName: string;
   ready: boolean;
   conn: 'CONNECTED' | 'DISCONNECTED';
+  /** #1838: a computer holds this seat. */
+  computer?: boolean;
 }
 
 export interface LobbyState {

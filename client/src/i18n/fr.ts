@@ -52,8 +52,8 @@ export const fr = {
   room: {
     notFound: 'Salon introuvable.',
     inProgress: 'Partie en cours — impossible de rejoindre.',
-    sessionExpired: 'Session expirée — votre siège a été libéré.',
-    aborted: 'Partie interrompue : plusieurs joueurs déconnectés.',
+    sessionExpired: 'Session expirée — un ordinateur a pris votre siège.',
+    abandoned: 'Partie abandonnée : plus aucun joueur.',
     duplicateTitle: 'Déjà ouvert ailleurs',
     duplicateBody: 'Ce salon est déjà ouvert dans un autre onglet ou sur un autre appareil.',
     // Fin de session imposée : reprise du compte sur un autre appareil (409 superseded)
@@ -90,6 +90,9 @@ export const fr = {
     cancelReady: 'Annuler',
     addSeat: 'Ajouter un siège',
     removeSeat: 'Retirer un siège',
+    addComputer: 'Ajouter un ordinateur',
+    removeComputer: 'Retirer l’ordinateur',
+    computer: 'Ordinateur',
     host: 'Hôte',
     leave: 'Quitter le salon',
     disconnectedSeat: 'Déconnecté…',

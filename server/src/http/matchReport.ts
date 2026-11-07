@@ -15,6 +15,8 @@ export interface MatchReport {
   endedAt: Date;
   /** Platform account id(s) of the winner(s); omit when there is no winner. */
   winnerAccountIds?: string[];
+  /** #1838 (game-kit.md §3.3): a computer held a seat; the platform can leave the match out of stats. */
+  botReplaced?: boolean;
 }
 
 const GAME_SLUG = 'pantheons';
@@ -36,6 +38,7 @@ export async function reportMatch(report: MatchReport): Promise<void> {
         ...(report.winnerAccountIds && report.winnerAccountIds.length > 0
           ? { winnerAccountIds: report.winnerAccountIds }
           : {}),
+        ...(report.botReplaced ? { botReplaced: true } : {}),
       }),
     });
     if (!res.ok) {
