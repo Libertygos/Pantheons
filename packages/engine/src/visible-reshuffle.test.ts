@@ -82,3 +82,14 @@ test('#1833 an eliminated player\'s power cannot be cloned or targeted', () => {
   // blocked: the eliminated player's own power is unusable
   assert.throws(() => activatePower(state, 'u2', { effectKey: 'deduction' }), /éliminé/);
 });
+
+test('#1833 the reshuffle seed is never projected to any seat', () => {
+  const { state, index } = createGame('r', seats, 11);
+  state.reshuffleCount = 3;
+  const secret = String(state.shuffleSeed);
+  for (const s of seats) {
+    const json = JSON.stringify(project(state, s.userId, index));
+    assert.ok(!json.includes('shuffleSeed') && !json.includes('reshuffleCount'));
+    assert.ok(!json.includes(`:${secret}`));
+  }
+});

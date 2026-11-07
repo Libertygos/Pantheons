@@ -198,6 +198,10 @@ export interface GameState {
   eliminated: UserId[];
   /** SECRET — Personnage cards left undealt at setup (Déduction peeks here). Never projected. */
   undealtGods: GodId[];
+  /** SECRET (#1833) — seed for pile reshuffles, derived from the match seed. Never projected. */
+  shuffleSeed?: number;
+  /** Reshuffles done so far; mixed into the seed so two reshuffles never share one. */
+  reshuffleCount?: number;
   effets: TurnEffects;
   lastTurn: LastTurnStats;
   /** Réponse resolution in progress (paused on an asker's Exécution choice); null otherwise. */

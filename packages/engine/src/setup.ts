@@ -158,6 +158,8 @@ export function createGame(roomId: string, seats: SeatInput[], seed: number): Se
     winner: null,
     eliminated: [],
     undealtGods: godPool.slice(seats.length),
+    shuffleSeed: (Math.imul(seed >>> 0, 0x9e3779b1) ^ 0x5bd1e995) >>> 0,
+    reshuffleCount: 0,
     effets: {
       questionsMaxOverride: {},
       sameTargetOkTour: {},

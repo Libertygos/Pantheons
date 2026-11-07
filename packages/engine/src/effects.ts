@@ -109,7 +109,8 @@ export function refillIfEmpty(state: GameState, kind: PileKind): void {
   const pile = state.drawPiles[kind];
   const disc = state.discard[kind];
   if (pile.length > 0 || disc.length === 0) return;
-  const seed = (state.tour * 7919 + disc.length * 104729 + state.seatOrder.length * 31 + kind.length) >>> 0;
+  const n = (state.reshuffleCount = (state.reshuffleCount ?? 0) + 1);
+  const seed = (Math.imul(state.shuffleSeed ?? 0, 0x85ebca6b) ^ Math.imul(n, 0xc2b2ae35) ^ state.tour) >>> 0;
   pile.push(...shuffle(disc, makeRng(seed)));
   disc.length = 0;
 }
