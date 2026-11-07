@@ -157,8 +157,6 @@ export interface TurnEffects {
   sameTargetOkTour: Record<UserId, number>;
   /** Refus royal: blocked from asking during that tour. */
   askBlockedTour: Record<UserId, number>;
-  /** Exécution pre-declared for that tour: on answering "oui", skip the action draw and discard target's power. */
-  executionIntent: Record<UserId, { target: UserId; tour: number }>;
   /** speciale 1: if `target` answers "oui" to owner's question that tour, owner sees target's god. */
   watchPersonnage: Record<UserId, { target: UserId; tour: number }>;
   /** Once-per-tour activation stamps: user -> effectKey -> tour it was last used. */
@@ -170,6 +168,16 @@ export interface LastTurnStats {
   /** asker -> at least one of their questions was answered "oui". */
   ouiFor: Record<UserId, boolean>;
   /** asker -> users who answered "non" to at least one of their questions. */
+  nonAnswerers: Record<UserId, UserId[]>;
+}
+
+/** Resumable Réponse resolution (#1832). */
+export interface ReponseProgress {
+  next: number;
+  pending: { asker: UserId; answerer: UserId } | null;
+  answers: { placerSeat: number; targetUser: UserId; cardId: CardId; oui: boolean }[];
+  reveals: { to: UserId; kind: 'personnage' | 'question'; aboutUser?: UserId; god?: GodId; card?: QuestionCard }[];
+  ouiFor: Record<UserId, boolean>;
   nonAnswerers: Record<UserId, UserId[]>;
 }
 
@@ -192,6 +200,8 @@ export interface GameState {
   undealtGods: GodId[];
   effets: TurnEffects;
   lastTurn: LastTurnStats;
+  /** Réponse resolution in progress (paused on an asker's Exécution choice); null otherwise. */
+  reponseProgress?: ReponseProgress | null;
 }
 
 export const MIN_PLAYERS = 4;

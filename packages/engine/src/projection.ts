@@ -24,7 +24,7 @@ import type {
   UserId,
 } from './types.js';
 import type { CardIndex } from './setup.js';
-import { isAskBlocked, questionCap, sameTargetAllowed } from './rules.js';
+import { executionTargets, isAskBlocked, questionCap, sameTargetAllowed } from './rules.js';
 
 /** Public view of another player — no secret fields. */
 export interface OpponentView {
@@ -93,6 +93,8 @@ export interface PlayerProjection {
   drawCounts: { attributs: number; actions: number; pouvoirs: number };
   barrier: { phase: Phase; submitted: UserId[]; youSubmitted: boolean };
   declarationWindowOpen: boolean;
+  /** Exécution (#1832): set for the ASKER only while the Réponse is paused on their « oui » choice. */
+  executionChoice: { answerer: UserId; targets: UserId[] } | null;
   winner: UserId | null;
   eliminated: UserId[];
   /** The viewer's question rules this turn (powers/Spéciales woven in). */
@@ -158,6 +160,10 @@ export function project(state: GameState, viewer: UserId, index?: CardIndex): Pl
       youSubmitted: state.barrier.submitted.includes(viewer),
     },
     declarationWindowOpen: state.status === 'resolutionDeclaration',
+    executionChoice:
+      state.reponseProgress?.pending?.asker === viewer
+        ? { answerer: state.reponseProgress.pending.answerer, targets: executionTargets(state, viewer) }
+        : null,
     winner: state.winner,
     eliminated: [...state.eliminated],
     questionRules: {

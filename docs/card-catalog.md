@@ -235,7 +235,7 @@ Assets non-cartes : `Pense_Bête.webp` (pense-bête), 4 versos (`card_*_verso.we
 | E2 | `card_actions_multiple_1.webp` | Pictos de Rê et Zeus **intervertis** (Rê→colonne, Zeus→œil d'Horus) | Les **noms** font foi ; set = {Brahma, Rê, Zeus, Loki} |
 | E3 | `card_actions_multiple_5.webp` | Isis porte le picto **hindou** (ॐ) | Les **noms** font foi ; set = {Sarasvati, Zeus, Isis, Loki} |
 | E4 | `card_pouvoirs_optimisse.webp` | Fichier `optimisse` vs titre imprimé **OPTIMISME** | Libellé **Optimisme** ; `effectKey` reste `optimisse` (clé technique figée) |
-| E5 | `card_pouvoirs_execution.webp` | « Quand on vous répond oui » contredit rules.md §5 (le tirage action du « oui » appartient à l'interrogé) | Lu « quand vous répondez oui » — le pouvoir s'exerce en répondant |
+| E5 | `card_pouvoirs_execution.webp` | Résolu (revue 2026-11-07, #1832) : le tirage action du « oui » appartient à l'interrogateur | Exécution = texte de la carte : au « oui » à VOTRE question, choix à ce moment, sans armement |
 
 Orthographe des faces (conservée verbatim avec [sic], jamais corrigée à l'affichage des
 images) : « Êtes vous », « Avez vous », « Faites vous », « défaussez la », « mettez la »,

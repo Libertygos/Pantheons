@@ -154,6 +154,11 @@ export const fr = {
     faceCachee: 'Face cachée',
     utiliser: 'Utiliser',
     annulerPouvoir: 'Annuler',
+    executionTitre: 'Exécution',
+    executionTexte: (nom: string) =>
+      `${nom} a répondu oui à votre question. Piochez votre carte Action, ou renoncez-y pour défausser le pouvoir d’un joueur.`,
+    executionDefausser: (nom: string) => `Défausser le pouvoir de ${nom}`,
+    executionRefuser: 'Ne pas utiliser (piocher)',
     defausserCeluiCi: 'Défausser celui-ci',
     choisirCiblePouvoir: (pouvoir: string) => `${pouvoir} — choisissez un adversaire.`,
     choisirCartePosee: (pouvoir: string) =>
@@ -183,7 +188,7 @@ export const fr = {
     question:
       'Une question est une carte Attribut ou Action posée face cachée sur un adversaire : la table ne voit que la catégorie de la carte, puis la réponse. Jusqu’à 2 questions par tour, jamais deux au même joueur.',
     reponse:
-      'En commençant par le meneur, chacun répond « oui » ou « non » d’après les attributs de son propre dieu — les réponses sont toujours véridiques. Chaque « oui » fait piocher une carte Action au joueur interrogé.',
+      'En commençant par le meneur, chacun répond « oui » ou « non » d’après les attributs de son propre dieu — les réponses sont toujours véridiques. Chaque « oui » fait piocher une carte Action à celui qui a posé la question.',
   },
 
   consignes: {
@@ -249,7 +254,7 @@ export const fr = {
     corps: [
       'Chaque joueur incarne en secret l’un des 12 dieux, défini par trois attributs : genre, couleur des yeux, panthéon.',
       'Un tour = trois phases simultanées. Pioche : exactement un pouvoir, puis 2 attributs. Question : jusqu’à 2 cartes posées sur des adversaires différents. Réponse : chacun répond oui/non, sans mentir.',
-      'Tout « oui » fait piocher une carte Action au joueur interrogé. Les effets « Non » se déclenchent sur un non.',
+      'Tout « oui » fait piocher une carte Action à celui qui a posé la question. Les effets « Non » se déclenchent sur un non.',
       'Après une phase Réponse, déclarez « Panthéons » : nommez le dieu de chacun. Tout juste, vous gagnez ; une erreur, vous êtes éliminé.',
     ],
   },
@@ -264,7 +269,7 @@ export const fr = {
           'Chaque plaque est un adversaire : son nom, le badge Meneur, sa coche « prêt » et le nombre de dieux encore possibles d’après votre pense-bête.',
           'Sous la plaque : les questions qu’il a reçues ce tour — de tous les joueurs — avec la réponse publique (✓ oui / ✗ non) une fois donnée.',
           'Phase Question : choisissez une carte en main puis cliquez un siège pour la lui poser — jusqu’à 2 questions, jamais deux au même joueur (certains pouvoirs changent ces limites).',
-          'Chaque « oui » fait piocher une carte Action au joueur interrogé. Un éliminé garde son dieu caché jusqu’au bout.',
+          'Chaque « oui » fait piocher une carte Action à celui qui a posé la question. Un éliminé garde son dieu caché jusqu’au bout.',
         ],
       },
       table: {

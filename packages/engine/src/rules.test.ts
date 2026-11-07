@@ -74,7 +74,7 @@ test('question: Spéciale cannot be played as a question', () => {
   );
 });
 
-test('réponse: a "oui" earns the asked player an action draw', () => {
+test('réponse: a "oui" earns the ASKER an action draw (#1832)', () => {
   const { state } = createGame('r', seats, 11);
   // Force u2's god to a known pantheon and ask a matching question from u1.
   state.players['u2']!.god = 'zeus';
@@ -83,11 +83,13 @@ test('réponse: a "oui" earns the asked player an action draw', () => {
   state.players['u1']!.hand.attributs.push('q1');
   applyQuestions(state, 'u1', { plays: [{ cardId: 'q1', card, targetSeat: 1 }] });
 
-  const actionsBefore = state.players['u2']!.hand.actions.length;
+  const actionsBefore = state.players['u1']!.hand.actions.length;
+  const questionedBefore = state.players['u2']!.hand.actions.length;
   const { answers } = resolveReponsePhase(state);
   const r = answers.find((x) => x.cardId === 'q1')!;
   assert.equal(r.oui, true);
-  assert.equal(state.players['u2']!.hand.actions.length, actionsBefore + 1);
+  assert.equal(state.players['u1']!.hand.actions.length, actionsBefore + 1);
+  assert.equal(state.players['u2']!.hand.actions.length, questionedBefore);
 });
 
 test('advanceTurn: rotates meneur clockwise and bumps tour', () => {

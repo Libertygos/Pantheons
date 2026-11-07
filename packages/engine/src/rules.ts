@@ -28,6 +28,7 @@ import type {
   AttributCard,
   GameState,
   GodId,
+  PlacedCard,
   PlayerState,
   QuestionCard,
   SpecialePayload,
@@ -262,78 +263,121 @@ export interface PrivateReveal {
 export interface ReponseResolution {
   answers: AnswerResult[];
   reveals: PrivateReveal[];
+  /** Set while the resolution is paused on an asker's Exécution choice (answerExecution resumes). */
+  pending: { asker: UserId; answerer: UserId } | null;
 }
 
 /**
  * Resolve the réponse phase across all boards. Order = seatOrder starting at the meneur.
- * Rules woven in: any « oui » makes the ANSWERER draw an action card (Exécution may redirect
- * that draw into discarding a chosen player's power); « non » fires the Non card's effect;
+ * Rules woven in: any « oui » makes the ASKER draw an action card (#1832; Exécution lets the
+ * asker, at that « oui », skip the draw and discard a chosen player's power — the resolution
+ * pauses on `pending` until answerExecution); « non » fires the Non card's effect;
  * Spéciale 1's watch privately reveals the watched god on a « oui » to its owner.
  * Also records the per-asker « aucun oui » stats the next turn's powers read.
  */
 export function resolveReponsePhase(state: GameState): ReponseResolution {
-  const answers: AnswerResult[] = [];
-  const reveals: PrivateReveal[] = [];
-  const order = seatOrderFromMeneur(state);
-  const ouiFor: Record<UserId, boolean> = {};
-  const nonAnswerers: Record<UserId, UserId[]> = {};
+  state.reponseProgress = { next: 0, pending: null, answers: [], reveals: [], ouiFor: {}, nonAnswerers: {} };
+  return continueReponse(state);
+}
 
+/**
+ * The asker's Exécution choice at a « oui » (#1832): `target` = a player whose power(s) to
+ * discard instead of drawing the Action, `null` = decline (draw). Resumes the resolution.
+ */
+export function answerExecution(state: GameState, userId: UserId, target: UserId | null): ReponseResolution {
+  const prog = state.reponseProgress;
+  if (!prog?.pending || prog.pending.asker !== userId) {
+    throw new RuleError('PHASE', 'Exécution : aucun choix en attente pour vous.');
+  }
+  const { asker } = prog.pending;
+  if (target !== null) {
+    if (!executionTargets(state, asker).includes(target)) {
+      throw new RuleError('BAD_TARGET', 'Exécution : cible invalide.');
+    }
+    discardPowers(state, target);
+    (state.effets.powerUsedTour[asker] ??= {})['execution'] = state.tour;
+  } else {
+    drawAction(state, asker);
+  }
+  prog.pending = null;
+  return continueReponse(state);
+}
+
+/** Alive opponents holding at least one power — the Exécution targets for `asker`. */
+export function executionTargets(state: GameState, asker: UserId): UserId[] {
+  return state.seatOrder.filter(
+    (u) => u !== asker && state.players[u]?.alive && (state.players[u]?.powers.length ?? 0) > 0,
+  );
+}
+
+function canOfferExecution(state: GameState, asker: UserId): boolean {
+  return (
+    hasEffectivePower(state, asker, 'execution') &&
+    state.effets.powerUsedTour[asker]?.['execution'] !== state.tour &&
+    executionTargets(state, asker).length > 0
+  );
+}
+
+function drawAction(state: GameState, userId: UserId): void {
+  const drawn = state.drawPiles.actions.pop();
+  if (drawn) state.players[userId]!.hand.actions.push(drawn);
+}
+
+function continueReponse(state: GameState): ReponseResolution {
+  const prog = state.reponseProgress!;
+  const order = seatOrderFromMeneur(state);
+  const flat: { placerId: UserId; placed: PlacedCard }[] = [];
   for (const placerId of order) {
     const board = state.boardBySeat[placerId];
     if (!board) continue;
     for (let seat = 0; seat < board.questionSlots.length; seat++) {
-      for (const placed of board.questionSlots[seat] ?? []) {
-        const targetUser = state.seatOrder[placed.targetSeat];
-        if (!targetUser) continue;
-        const target = state.players[targetUser];
-        if (!target || !target.alive) continue;
+      for (const placed of board.questionSlots[seat] ?? []) flat.push({ placerId, placed });
+    }
+  }
 
-        const oui = evaluateQuestion(target.god, placed.card);
-        placed.answeredOui = oui;
-        answers.push({
-          placerSeat: state.seatOrder.indexOf(placerId),
-          targetUser,
-          cardId: placed.card.id,
-          oui,
-        });
+  while (prog.next < flat.length) {
+    const { placerId, placed } = flat[prog.next]!;
+    prog.next++;
+    const targetUser = state.seatOrder[placed.targetSeat];
+    if (!targetUser) continue;
+    const target = state.players[targetUser];
+    if (!target || !target.alive) continue;
 
-        if (oui) {
-          ouiFor[placerId] = true;
-          resolveOuiDraw(state, targetUser);
-          const watch = state.effets.watchPersonnage[placerId];
-          if (watch && watch.tour === state.tour && watch.target === targetUser) {
-            reveals.push({ to: placerId, kind: 'personnage', aboutUser: targetUser, god: target.god });
-            delete state.effets.watchPersonnage[placerId];
-          }
-        } else {
-          (nonAnswerers[placerId] ??= []).push(targetUser);
-          if (placed.card.type === 'action' && placed.card.subtype === 'non') {
-            getAction(placed.card.effectKey)?.apply?.(state, placerId, { other: targetUser });
-          }
-        }
+    const oui = evaluateQuestion(target.god, placed.card);
+    placed.answeredOui = oui;
+    prog.answers.push({
+      placerSeat: state.seatOrder.indexOf(placerId),
+      targetUser,
+      cardId: placed.card.id,
+      oui,
+    });
+
+    if (oui) {
+      prog.ouiFor[placerId] = true;
+      const watch = state.effets.watchPersonnage[placerId];
+      if (watch && watch.tour === state.tour && watch.target === targetUser) {
+        prog.reveals.push({ to: placerId, kind: 'personnage', aboutUser: targetUser, god: target.god });
+        delete state.effets.watchPersonnage[placerId];
+      }
+      // The ASKER draws the Action (#1832). Spéciale 4 appropriation (#1835): the owner
+      // of the question must be passed here as `placerId` — the asker is the owner.
+      if (canOfferExecution(state, placerId)) {
+        prog.pending = { asker: placerId, answerer: targetUser };
+        return { answers: prog.answers, reveals: prog.reveals, pending: prog.pending };
+      }
+      drawAction(state, placerId);
+    } else {
+      (prog.nonAnswerers[placerId] ??= []).push(targetUser);
+      if (placed.card.type === 'action' && placed.card.subtype === 'non') {
+        getAction(placed.card.effectKey)?.apply?.(state, placerId, { other: targetUser });
       }
     }
   }
 
-  state.lastTurn = { ouiFor, nonAnswerers };
-  return { answers, reveals };
-}
-
-/** The « oui » action draw — redirected by a pre-declared Exécution (once per tour). */
-function resolveOuiDraw(state: GameState, answerer: UserId): void {
-  const intent = state.effets.executionIntent[answerer];
-  if (
-    intent &&
-    intent.tour === state.tour &&
-    hasEffectivePower(state, answerer, 'execution') &&
-    (state.players[intent.target]?.powers.length ?? 0) > 0
-  ) {
-    delete state.effets.executionIntent[answerer];
-    discardPowers(state, intent.target);
-    return;
-  }
-  const drawn = state.drawPiles.actions.pop();
-  if (drawn) state.players[answerer]!.hand.actions.push(drawn);
+  state.lastTurn = { ouiFor: prog.ouiFor, nonAnswerers: prog.nonAnswerers };
+  const result = { answers: prog.answers, reveals: prog.reveals, pending: null };
+  state.reponseProgress = null;
+  return result;
 }
 
 /** Fire Spéciale cards whose declared trigger phase == the phase now starting. */
@@ -380,9 +424,6 @@ function pruneStaleEffects(state: GameState): void {
   for (const map of [effets.sameTargetOkTour, effets.askBlockedTour] as const) {
     for (const [uid, t] of Object.entries(map)) if (t <= tour) delete map[uid];
   }
-  for (const [uid, v] of Object.entries(effets.executionIntent)) {
-    if (v.tour <= tour) delete effets.executionIntent[uid];
-  }
   for (const [uid, v] of Object.entries(effets.watchPersonnage)) {
     if (v.tour <= tour) delete effets.watchPersonnage[uid];
   }
@@ -395,8 +436,7 @@ export type PowerActivation =
   | { effectKey: 'refus_royal'; target: UserId }
   | { effectKey: 'clonage'; target: UserId }
   | { effectKey: 'deduction' }
-  | { effectKey: 'espionnage'; placer: UserId; targetSeat: number; stackIndex?: number }
-  | { effectKey: 'execution'; target: UserId };
+  | { effectKey: 'espionnage'; placer: UserId; targetSeat: number; stackIndex?: number };
 
 export interface PowerActivationResult {
   effectKey: string;
@@ -419,6 +459,9 @@ export function activatePower(
   const key = activation.effectKey;
   const def = getPower(key);
   if (!def) throw new RuleError('UNKNOWN_POWER', `Pouvoir inconnu : ${key}.`);
+  if ((key as string) === 'execution') {
+    throw new RuleError('POWER_PASSIVE', 'Exécution se choisit au « oui » (answerExecution), pas à l’avance.');
+  }
   if (def.kind !== 'active') throw new RuleError('POWER_PASSIVE', `${def.label} est passif.`);
   if (!hasEffectivePower(state, userId, key) && !(key === 'clonage' && holdsClonage(state, userId))) {
     throw new RuleError('POWER_NOT_HELD', `Vous ne détenez pas ${def.label}.`);
@@ -485,14 +528,6 @@ export function activatePower(
       ];
       if (!placed) throw new RuleError('BAD_TARGET', 'Espionnage : question posée introuvable.');
       reveal = { to: userId, kind: 'question', aboutUser: activation.placer, card: placed.card };
-      break;
-    }
-    case 'execution': {
-      const target = state.players[activation.target];
-      if (!target || activation.target === userId || !target.alive) {
-        throw new RuleError('BAD_TARGET', 'Exécution : cible invalide.');
-      }
-      state.effets.executionIntent[userId] = { target: activation.target, tour: state.tour };
       break;
     }
   }

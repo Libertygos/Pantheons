@@ -162,7 +162,6 @@ export function createGame(roomId: string, seats: SeatInput[], seed: number): Se
       questionsMaxOverride: {},
       sameTargetOkTour: {},
       askBlockedTour: {},
-      executionIntent: {},
       watchPersonnage: {},
       powerUsedTour: {},
     },

@@ -104,9 +104,10 @@ Le meneur fixe **l'ordre** de la phase Réponse, il **ne sérialise pas** le jeu
 
 - En commençant par le **meneur** puis dans l'ordre, chaque joueur **répond oui/non** en
   comparant **chaque carte jouée contre lui** aux attributs de **son** dieu.
-- **Toute réponse « oui » fait piocher au joueur interrogé une carte Action** (Exécution
-  permet à l'interrogé d'y renoncer pour défausser le pouvoir d'un joueur — arbitrage
-  card-catalog.md §7 E5).
+- **Toute réponse « oui » fait piocher au joueur qui a posé la question (l'interrogateur) une
+  carte Action** — l'interrogé ne pioche rien. Exécution : quand un adversaire répond « oui » à
+  VOTRE question, vous pouvez renoncer à piocher et défausser à la place le(s) pouvoir(s) d'un
+  joueur de votre choix, choisi à ce moment (pas d'armement préalable ; une fois par tour).
 - Les effets **Non** se déclenchent sur les réponses « non ». Les cartes **Spéciale**
   posées se déclenchent **au début de leur phase déclarée**.
 

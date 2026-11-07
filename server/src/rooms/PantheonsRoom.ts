@@ -160,6 +160,13 @@ export class PantheonsRoom extends Room implements SessionEnder {
         this.broadcastProjections();
       }),
     );
+    // Exécution (#1832): the asker's choice at a « oui » (msg.target = userId, or null = decline).
+    this.onMessage('execution', (client, msg) =>
+      this.guard(client, (uid) => {
+        this.controller?.submitExecution(uid, typeof msg?.target === 'string' ? msg.target : null);
+        this.broadcastProjections();
+      }),
+    );
     // Explicit power activations (Sabotage / Refus royal / Clonage / Déduction /
     // Espionnage / Exécution). Public event via onPhaseEvent; private payloads unicast.
     this.onMessage('power', (client, msg) =>

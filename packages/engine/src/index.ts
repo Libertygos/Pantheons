@@ -10,6 +10,8 @@ export {
   applyQuestions,
   placeSpeciale,
   resolveReponsePhase,
+  answerExecution,
+  executionTargets,
   fireSpecialesAtPhaseStart,
   advanceTurn,
   activatePower,

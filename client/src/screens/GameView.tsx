@@ -56,7 +56,7 @@ const seatTint = (seat: number): string => SEAT_TINTS[seat % SEAT_TINTS.length]!
 /** Spéciales dont la face exige une cible (« Choisissez un joueur » / « d'un autre joueur »). */
 const SPECIALES_A_CIBLE = new Set(['action_special_1', 'action_special_5', 'action_special_6']);
 /** Pouvoirs actifs dont le choix est un adversaire. */
-const POUVOIRS_CIBLE_JOUEUR = new Set(['clonage', 'refus_royal', 'execution']);
+const POUVOIRS_CIBLE_JOUEUR = new Set(['clonage', 'refus_royal']);
 /** Pouvoirs actifs dont le choix est une carte posée sur un plateau. */
 const POUVOIRS_CIBLE_CARTE = new Set(['sabotage', 'espionnage']);
 
@@ -1059,7 +1059,7 @@ export function GameView({
             </span>
             {powerCards.map((pow) => {
               const def = data.POWERS[pow.effectKey];
-              const activable = def?.kind === 'active' && alive && !over && proj.status === 'enCours';
+              const activable = def?.kind === 'active' && pow.effectKey !== 'execution' && alive && !over && proj.status === 'enCours';
               const arme = powerMode === pow.effectKey;
               return (
                 <div key={pow.id} className={`pouvoir-slot ${arme ? 'pouvoir-slot--arme' : ''}`}>
@@ -1097,6 +1097,26 @@ export function GameView({
           </div>
         </div>
       </div>
+
+      {/* modale : Exécution (#1832) — choix de l'asker au « oui » : cible ou « Ne pas utiliser » (pioche) */}
+      {!over && alive && proj.executionChoice && (
+        <div className="voile">
+          <div className="modale" role="dialog" aria-modal="true">
+            <h2 className="titre-affiche modale__titre">{fr.jeu.executionTitre}</h2>
+            <p className="modale__texte">{fr.jeu.executionTexte(nameOf(proj.executionChoice.answerer))}</p>
+            <div className="modale__pied">
+              {proj.executionChoice.targets.map((uid) => (
+                <button key={uid} className="btn btn--givre" onClick={() => send('execution', { target: uid })}>
+                  {fr.jeu.executionDefausser(nameOf(uid))}
+                </button>
+              ))}
+              <button className="btn btn--nu" onClick={() => send('execution', { target: null })}>
+                {fr.jeu.executionRefuser}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* modale : défausse de pouvoir (pioche, 2 pouvoirs) */}
       {!over && alive && proj.phase === 'pioche' && !youSubmitted && powerCards.length > 1 && (

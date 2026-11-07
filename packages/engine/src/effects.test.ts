@@ -14,6 +14,7 @@ import {
   questionCap,
   resolveReponsePhase,
   RuleError,
+  answerExecution,
 } from './rules.js';
 import { resolveDeclarations } from './declaration.js';
 import { GODS } from './data/gods.js';
@@ -183,20 +184,61 @@ test('Non 1 (féminin): on « non », the answerer gives 2 cards to the asker', 
 
 // ---- Exécution --------------------------------------------------------------
 
-test('Exécution: on answering « oui », skip the action draw and discard the chosen power', () => {
-  const state = game(17);
+function ouiSetup(seed: number) {
+  const state = game(seed);
   state.players['u2']!.god = 'zeus';
-  givePower(state, 'u2', 'execution');
-  givePower(state, 'u3', 'sabotage');
-  activatePower(state, 'u2', { effectKey: 'execution', target: 'u3' });
-
-  const card = attributCard('q1'); // grec → u2 répond oui
+  const card = attributCard('q1'); // grec -> u2 répond oui
   state.players['u1']!.hand.attributs.push('q1');
   applyQuestions(state, 'u1', { plays: [{ cardId: 'q1', card, targetSeat: 1 }] });
-  const actBefore = state.players['u2']!.hand.actions.length;
+  return state;
+}
+
+test('#1832 a « oui » gives the asker 1 Action and the questioned none', () => {
+  const state = ouiSetup(17);
+  const askerBefore = state.players['u1']!.hand.actions.length;
+  const askedBefore = state.players['u2']!.hand.actions.length;
+  const res = resolveReponsePhase(state);
+  assert.equal(res.pending, null);
+  assert.equal(state.players['u1']!.hand.actions.length, askerBefore + 1);
+  assert.equal(state.players['u2']!.hand.actions.length, askedBefore);
+});
+
+test('#1832 Exécution is offered to the asker at the « oui » and accepted: target loses power, no draw', () => {
+  const state = ouiSetup(17);
+  givePower(state, 'u1', 'execution');
+  givePower(state, 'u3', 'sabotage');
+  const before = state.players['u1']!.hand.actions.length;
+  const res = resolveReponsePhase(state);
+  assert.deepEqual(res.pending, { asker: 'u1', answerer: 'u2' });
+  assert.equal(state.players['u1']!.hand.actions.length, before); // paused, nothing drawn yet
+  assert.throws(() => answerExecution(state, 'u2', 'u3')); // only the asker chooses
+  const done = answerExecution(state, 'u1', 'u3');
+  assert.equal(done.pending, null);
+  assert.equal(state.players['u3']!.powers.length, 0);
+  assert.equal(state.players['u1']!.hand.actions.length, before);
+  assert.equal(state.effets.powerUsedTour['u1']!['execution'], state.tour);
+});
+
+test('#1832 Exécution declined: the asker draws the Action', () => {
+  const state = ouiSetup(17);
+  givePower(state, 'u1', 'execution');
+  givePower(state, 'u3', 'sabotage');
+  const before = state.players['u1']!.hand.actions.length;
   resolveReponsePhase(state);
-  assert.equal(state.players['u2']!.hand.actions.length, actBefore); // draw skipped
-  assert.equal(state.players['u3']!.powers.length, 0); // power executed
+  const done = answerExecution(state, 'u1', null);
+  assert.equal(done.pending, null);
+  assert.equal(state.players['u1']!.hand.actions.length, before + 1);
+  assert.equal(state.players['u3']!.powers.length, 1);
+});
+
+test('#1832 Exécution held by the questioned player is never offered (no arming path)', () => {
+  const state = ouiSetup(17);
+  givePower(state, 'u2', 'execution');
+  givePower(state, 'u3', 'sabotage');
+  const res = resolveReponsePhase(state);
+  assert.equal(res.pending, null);
+  assert.equal(state.players['u3']!.powers.length, 1);
+  assert.throws(() => activatePower(state, 'u2', { effectKey: 'execution', target: 'u3' } as never));
 });
 
 // ---- Spéciales --------------------------------------------------------------

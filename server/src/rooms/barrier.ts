@@ -20,6 +20,7 @@ import {
   fireSpecialesAtPhaseStart,
   placeSpeciale,
   resolveReponsePhase,
+  answerExecution,
   advanceTurn,
   activatePower,
   resolveDeclarations,
@@ -129,6 +130,7 @@ export class MatchController {
 
   submitDeclaration(userId: UserId, decision: DeclarationDecision): void {
     this.assertPhase('reponse');
+    if (this.state.reponseProgress?.pending) throw new Error('Réponse en attente du choix Exécution');
     if (decision.guesses && Object.keys(decision.guesses).length > 0) {
       this.state.declarations.push({ declarer: userId, guesses: decision.guesses as Record<string, never> });
     }
@@ -138,6 +140,7 @@ export class MatchController {
 
   /** ⟨INPUT WoG⟩ hook: force-resolve the phase for players who missed the deadline. */
   onDeadline(): void {
+    this.autoDeclineExecution(true);
     // Nominal policy: treat non-submitters as auto-submitted (auto-pass). WoG policy plugs here.
     for (const uid of this.liveConnected()) this.markSubmitted(uid);
     this.tryAdvance();
@@ -149,12 +152,14 @@ export class MatchController {
    * complete — the room calls this after flipping any player's `connected` flag.
    */
   onConnectivityChange(): void {
+    this.autoDeclineExecution(false);
     this.tryAdvance();
   }
 
   // ---- transitions ----
 
   private tryAdvance(): void {
+    if (this.state.reponseProgress?.pending) return; // paused on an Exécution choice
     if (!this.allSubmitted()) return;
 
     switch (this.state.phase) {
@@ -168,11 +173,7 @@ export class MatchController {
         // Réponse is server-resolved (Intégrité: truth is computed, not declared).
         this.state.phase = 'reponse';
         fireSpecialesAtPhaseStart(this.state, 'reponse');
-        const { answers, reveals } = resolveReponsePhase(this.state);
-        this.emit({ type: 'reponseResolved', answers });
-        for (const reveal of reveals) this.emitPrivate(reveal.to, reveal);
-        // Open the declaration window: players now submit declare/pass.
-        this.state.barrier = { phase: 'reponse', submitted: [], deadline: null };
+        this.finishReponse(resolveReponsePhase(this.state));
         break;
       }
       case 'reponse': {
@@ -192,6 +193,35 @@ export class MatchController {
         this.emit({ type: 'phaseAdvanced', phase: 'pioche' });
         break;
       }
+    }
+  }
+
+  /** Emit the Réponse once resolved and open the declaration window; a pending Exécution choice pauses it. */
+  private finishReponse(res: ReturnType<typeof resolveReponsePhase>): void {
+    if (res.pending) return; // paused: the asker's executionChoice resumes it
+    this.emit({ type: 'reponseResolved', answers: res.answers });
+    for (const reveal of res.reveals) this.emitPrivate(reveal.to, reveal);
+    // Open the declaration window: players now submit declare/pass.
+    this.state.barrier = { phase: 'reponse', submitted: [], deadline: null };
+  }
+
+  /**
+   * Exécution (#1832): the asker's choice at a « oui » — a target whose power(s) to discard
+   * instead of drawing, or null to decline (draw). Resumes the paused Réponse resolution.
+   * A pending choice from an absent asker is auto-declined by the deadline / disconnect hooks.
+   */
+  submitExecution(userId: UserId, target: UserId | null): void {
+    this.assertPhase('reponse');
+    this.finishReponse(answerExecution(this.state, userId, target));
+  }
+
+  /** Auto-decline a paused Exécution choice (bot, timeout, disconnected asker). */
+  private autoDeclineExecution(force: boolean): void {
+    let guard = 0;
+    while (this.state.reponseProgress?.pending && guard++ < 100) {
+      const asker = this.state.reponseProgress.pending.asker;
+      if (!force && this.state.players[asker]?.connected) return;
+      this.finishReponse(answerExecution(this.state, asker, null));
     }
   }
 
