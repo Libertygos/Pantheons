@@ -183,6 +183,13 @@ export class PantheonsRoom extends Room implements SessionEnder {
         this.broadcastProjections();
       }),
     );
+    // #1834: a Sabotage holder passes in the Sabotage window.
+    this.onMessage('sabotagePass', (client) =>
+      this.guard(client, (uid) => {
+        this.controller?.submitSabotagePass(uid);
+        this.broadcastProjections();
+      }),
+    );
     // Explicit power activations (Sabotage / Refus royal / Clonage / Déduction /
     // Espionnage / Exécution). Public event via onPhaseEvent; private payloads unicast.
     this.onMessage('power', (client, msg) =>
@@ -406,6 +413,7 @@ export class PantheonsRoom extends Room implements SessionEnder {
     }
     const lowestBound = this.slots.findIndex((s) => s.userId !== null);
     this.hostSeat = lowestBound; // may be -1 if everyone dropped; next join becomes host
+    this.controller?.dispose();
     this.controller = null;
     this.index = null;
     this.started = false;
@@ -494,6 +502,8 @@ export class PantheonsRoom extends Room implements SessionEnder {
       (e) => this.onPhaseEvent(e),
       // Never-send: private reveals (Déduction / Espionnage / Spéciale 1) unicast only.
       (userId, reveal) => this.clientByUser.get(userId)?.send('reveal', reveal),
+      // #1834: a window closed on its 30 s timer -> everyone gets the new projection.
+      { onTimer: () => this.broadcastProjections() },
     );
     this.started = true;
     this.matchStartedAt = new Date();

@@ -168,7 +168,19 @@ export type RoomStatus = 'lobby' | 'enCours' | 'resolutionDeclaration' | 'termin
 export interface BarrierState {
   phase: Phase;
   submitted: UserId[];
-  /** ⟨INPUT WoG⟩ phase timeout; null = wait indefinitely for all live+connected. */
+  /**
+   * #1834: the shared 30 s declaration window's deadline (epoch ms), set only while the window
+   * is open (phase 'reponse'); null on every other phase — no other phase or choice has a timer.
+   */
+  deadline: number | null;
+}
+
+export interface SabotageWindow {
+  /** Sabotage holders (Clonage copy included) whose condition holds when the window opens. */
+  holders: UserId[];
+  /** Holders who used Sabotage or passed (or were passed: disconnected, silent at 30 s). */
+  decided: UserId[];
+  /** Shared deadline, epoch ms. */
   deadline: number | null;
 }
 
@@ -246,6 +258,8 @@ export interface GameState {
   priorTurn?: LastTurnStats | null;
   /** #1835: a Spéciale paused on its owner's choice (2, 4, 7, 8); the phase waits. */
   specialePending?: SpecialePending | null;
+  /** #1834: the Sabotage window (between the last question validation and the answers); null = closed. */
+  sabotageWindow?: SabotageWindow | null;
   /** #1835: the Spéciales triggered this tour, public. */
   specialesShown?: SpecialeShown[];
   /** Réponse resolution in progress (paused on an asker's Exécution choice); null otherwise. */

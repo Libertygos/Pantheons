@@ -831,6 +831,23 @@ export function questionsAgainst(state: GameState, targetUser: UserId): number {
   return allPlacedQuestions(state).filter((q) => q.seat === seat).length;
 }
 
+/**
+ * #1834: the Sabotage holders (a Clonage copying Sabotage counts) who may open the Sabotage
+ * window: alive, power not yet used this tour, and a player received 3 or more questions.
+ */
+export function sabotageHolders(state: GameState): UserId[] {
+  const someoneOverwhelmed = state.seatOrder.some(
+    (uid) => questionsAgainst(state, uid) >= 3 && state.players[uid]?.alive,
+  );
+  if (!someoneOverwhelmed) return [];
+  return state.seatOrder.filter(
+    (uid) =>
+      state.players[uid]?.alive &&
+      hasEffectivePower(state, uid, 'sabotage') &&
+      state.effets.powerUsedTour[uid]?.['sabotage'] !== state.tour,
+  );
+}
+
 // ---- helpers ---------------------------------------------------------------
 
 export function seatOrderFromMeneur(state: GameState): UserId[] {

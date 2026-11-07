@@ -11,8 +11,11 @@
  *   reponse -- submitDeclaration  --> (all in) resolve declarations; win => terminee,
  *                                     else advanceTurn -> pioche (fire specials@pioche)
  *
- * ⟨INPUT WoG⟩: the stall/disconnect timeout policy plugs into `deadline` + `onDeadline()`.
- * The nominal path here waits indefinitely for all live+connected players.
+ * #1834: only TWO timers exist, both 30 s and shared by every player concerned: the declaration
+ * window (Panthéons / Passer; silence = Passer) and the Sabotage window (Saboter / Passer; silence
+ * = Passer), opened between the last question validation and the answers. No other phase or
+ * choice has a deadline: a human's pending choice waits for him; computers and disconnected
+ * players are auto-picked (disconnection handling moves to the common system in #1838).
  */
 import {
   applyPioche,
@@ -24,6 +27,7 @@ import {
   answerDonnez,
   answerSpeciale,
   validateQuestions,
+  sabotageHolders,
   validateSpeciale,
   advanceTurn,
   activatePower,
@@ -40,6 +44,32 @@ import {
   type SpecialePayload,
   type UserId,
 } from '@pantheons/engine';
+
+/** Length of the two shared windows (declaration, Sabotage). */
+export const WINDOW_MS = 30_000;
+
+/** Injectable clock + timers so tests never sleep 30 s. */
+export interface MatchTimers {
+  now(): number;
+  setTimeout(fn: () => void, ms: number): unknown;
+  clearTimeout(handle: unknown): void;
+}
+
+const realTimers: MatchTimers = {
+  now: () => Date.now(),
+  setTimeout: (fn, ms) => {
+    const h = setTimeout(fn, ms);
+    (h as { unref?: () => void }).unref?.();
+    return h;
+  },
+  clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+};
+
+export interface MatchOptions {
+  timers?: MatchTimers;
+  /** Called after a window closes on its timer (the room broadcasts the new projections). */
+  onTimer?: () => void;
+}
 
 export interface DeclarationDecision {
   /** If declaring "Panthéons": opponentUserId -> guessed GodId. Omit/undefined = pass. */
@@ -71,7 +101,29 @@ export class MatchController {
     private emit: (e: PhaseEvent) => void = () => {},
     /** Private-information channel (Déduction/Espionnage/Spéciale 1) — unicast only. */
     private emitPrivate: (userId: UserId, reveal: PrivateReveal) => void = () => {},
+    private opts: MatchOptions = {},
   ) {}
+
+  private declTimer: unknown = null;
+  private sabotageTimer: unknown = null;
+  /** The Sabotage window of this tour was already offered (or had no holder). */
+  private sabotageHandled = false;
+
+  private get timers(): MatchTimers {
+    return this.opts.timers ?? realTimers;
+  }
+
+  private clearTimers(): void {
+    if (this.declTimer !== null) this.timers.clearTimeout(this.declTimer);
+    if (this.sabotageTimer !== null) this.timers.clearTimeout(this.sabotageTimer);
+    this.declTimer = null;
+    this.sabotageTimer = null;
+  }
+
+  /** Stop every timer (room disposal). */
+  dispose(): void {
+    this.clearTimers();
+  }
 
   private liveConnected(): UserId[] {
     return this.state.seatOrder.filter((uid) => {
@@ -92,6 +144,9 @@ export class MatchController {
   }
 
   private resetBarrier(phase: GameState['phase']): void {
+    this.clearTimers();
+    this.sabotageHandled = false;
+    this.state.sabotageWindow = null;
     this.state.phase = phase;
     this.state.barrier = { phase, submitted: [], deadline: null };
   }
@@ -108,6 +163,7 @@ export class MatchController {
 
   submitQuestion(userId: UserId, intent: QuestionIntent, specialePlays: SpecialePlay[] = []): void {
     this.assertPhase('question');
+    if (this.state.sabotageWindow) throw new Error('Fenêtre de Sabotage ouverte : les questions sont validées');
     // #1835 (P35): validate the WHOLE submission (questions and Spéciales) before applying anything.
     const placements: { card: ActionCardLike; payload: SpecialePayload }[] = [];
     for (const play of specialePlays) {
@@ -136,9 +192,61 @@ export class MatchController {
     if (this.state.status !== 'enCours') {
       throw new Error(`Match not in progress (status=${this.state.status})`);
     }
+    const win = this.state.sabotageWindow;
+    if (activation.effectKey === 'sabotage') {
+      // #1834: Sabotage is usable only inside its window, by a holder who has not decided yet.
+      if (!win || !win.holders.includes(userId) || win.decided.includes(userId)) {
+        throw new Error('Sabotage : utilisable seulement dans la fenêtre de Sabotage.');
+      }
+    }
     const result = activatePower(this.state, userId, activation);
     this.emit({ type: 'powerActivated', by: userId, effectKey: result.effectKey });
     if (result.reveal) this.emitPrivate(userId, result.reveal);
+    if (activation.effectKey === 'sabotage') this.decideSabotage(userId);
+  }
+
+  /** #1834: a holder passes in the Sabotage window. */
+  submitSabotagePass(userId: UserId): void {
+    const win = this.state.sabotageWindow;
+    if (!win || !win.holders.includes(userId)) throw new Error('Aucune fenêtre de Sabotage pour vous.');
+    this.decideSabotage(userId);
+  }
+
+  private decideSabotage(userId: UserId): void {
+    const win = this.state.sabotageWindow;
+    if (!win) return;
+    if (!win.decided.includes(userId)) win.decided.push(userId);
+    if (win.holders.every((h) => win.decided.includes(h))) this.closeSabotageWindow();
+  }
+
+  private openSabotageWindow(holders: UserId[]): void {
+    const deadline = this.timers.now() + WINDOW_MS;
+    this.state.sabotageWindow = { holders, decided: [], deadline };
+    this.sabotageTimer = this.timers.setTimeout(() => {
+      this.sabotageTimer = null;
+      this.closeSabotageWindow();
+      this.opts.onTimer?.();
+    }, WINDOW_MS);
+    this.autoSabotage();
+  }
+
+  /** Disconnected holders pass at once (the window must not wait for an absent player). */
+  private autoSabotage(): void {
+    const win = this.state.sabotageWindow;
+    if (!win) return;
+    for (const h of win.holders) {
+      if (!this.state.players[h]?.connected && !win.decided.includes(h)) win.decided.push(h);
+    }
+    if (win.holders.every((h) => win.decided.includes(h))) this.closeSabotageWindow();
+  }
+
+  private closeSabotageWindow(): void {
+    if (!this.state.sabotageWindow) return;
+    if (this.sabotageTimer !== null) this.timers.clearTimeout(this.sabotageTimer);
+    this.sabotageTimer = null;
+    this.state.sabotageWindow = null;
+    this.sabotageHandled = true;
+    this.tryAdvance();
   }
 
   submitDeclaration(userId: UserId, decision: DeclarationDecision): void {
@@ -152,12 +260,16 @@ export class MatchController {
     this.tryAdvance();
   }
 
-  /** ⟨INPUT WoG⟩ hook: force-resolve the phase for players who missed the deadline. */
-  onDeadline(): void {
-    this.autoDeclineExecution(true);
-    this.autoSpeciale(true);
-    // Nominal policy: treat non-submitters as auto-submitted (auto-pass). WoG policy plugs here.
-    for (const uid of this.liveConnected()) this.markSubmitted(uid);
+  /**
+   * #1834: the shared 30 s declaration window ran out — every player who has not chosen counts
+   * as « Passer ». (The only phase deadline; no other phase or choice has one.)
+   */
+  onDeclarationDeadline(): void {
+    if (this.state.phase !== 'reponse' || this.state.barrier.deadline === null) return;
+    this.declTimer = null;
+    for (const uid of this.state.seatOrder) {
+      if (this.state.players[uid]?.alive) this.markSubmitted(uid);
+    }
     this.tryAdvance();
   }
 
@@ -167,8 +279,9 @@ export class MatchController {
    * complete — the room calls this after flipping any player's `connected` flag.
    */
   onConnectivityChange(): void {
-    this.autoSpeciale(false);
-    this.autoDeclineExecution(false);
+    this.autoSpeciale();
+    this.autoDeclineExecution();
+    this.autoSabotage();
     this.tryAdvance();
   }
 
@@ -177,6 +290,7 @@ export class MatchController {
   private tryAdvance(): void {
     if (this.state.reponseProgress?.pending) return; // paused on an Exécution choice
     if (this.state.specialePending) return; // paused on a Spéciale's choice (#1835)
+    if (this.state.sabotageWindow) return; // paused on the Sabotage window (#1834)
     if (!this.allSubmitted()) return;
 
     switch (this.state.phase) {
@@ -187,14 +301,25 @@ export class MatchController {
         break;
       }
       case 'question': {
+        // #1834: the Sabotage window, before the answers, only when a holder meets its condition.
+        if (!this.sabotageHandled) {
+          const holders = sabotageHolders(this.state);
+          if (holders.length > 0) {
+            this.openSabotageWindow(holders);
+            return;
+          }
+          this.sabotageHandled = true;
+        }
         // Réponse is server-resolved (Intégrité: truth is computed, not declared).
         this.state.phase = 'reponse';
         fireSpecialesAtPhaseStart(this.state, 'reponse');
-        this.autoSpeciale(false);
+        this.autoSpeciale();
         this.resumeReponse();
         break;
       }
       case 'reponse': {
+        this.clearTimers();
+        this.state.barrier.deadline = null;
         if (this.state.declarations.length > 0) {
           this.state.status = 'resolutionDeclaration';
           const result = resolveDeclarations(this.state);
@@ -208,7 +333,7 @@ export class MatchController {
         advanceTurn(this.state);
         this.resetBarrier('pioche');
         fireSpecialesAtPhaseStart(this.state, 'pioche');
-        this.autoSpeciale(false);
+        this.autoSpeciale();
         this.emit({ type: 'phaseAdvanced', phase: 'pioche' });
         break;
       }
@@ -219,7 +344,7 @@ export class MatchController {
   private resumeReponse(): void {
     if (this.state.specialePending || this.state.reponseProgress || this.state.barrier.phase === 'reponse') return;
     this.finishReponse(resolveReponsePhase(this.state));
-    this.autoDeclineExecution(false); // a pending choice of an absent player resolves at once
+    this.autoDeclineExecution(); // a pending choice of an absent player resolves at once
   }
 
   /**
@@ -228,16 +353,16 @@ export class MatchController {
    */
   submitSpeciale(userId: UserId, choice: SpecialeChoice | null): void {
     const phase = answerSpeciale(this.state, userId, choice);
-    this.autoSpeciale(false);
+    this.autoSpeciale();
     if (phase === 'reponse') this.resumeReponse();
   }
 
-  /** Auto-pick the Spéciale choices of computers / absent players (all of them when `force`). */
-  private autoSpeciale(force: boolean): void {
+  /** Auto-pick the Spéciale choices of computers / absent players. */
+  private autoSpeciale(): void {
     let guard = 0;
     while (this.state.specialePending && guard++ < 100) {
       const { owner, phase } = this.state.specialePending;
-      if (!force && this.state.players[owner]?.connected) return;
+      if (this.state.players[owner]?.connected) return;
       answerSpeciale(this.state, owner, null);
       if (!this.state.specialePending && phase === 'reponse') this.resumeReponse();
     }
@@ -249,13 +374,19 @@ export class MatchController {
     this.emit({ type: 'reponseResolved', answers: res.answers });
     for (const reveal of res.reveals) this.emitPrivate(reveal.to, reveal);
     // Open the declaration window: players now submit declare/pass.
-    this.state.barrier = { phase: 'reponse', submitted: [], deadline: null };
+    // #1834: ONE shared 30 s deadline for every player in play.
+    if (this.declTimer !== null) this.timers.clearTimeout(this.declTimer);
+    this.state.barrier = { phase: 'reponse', submitted: [], deadline: this.timers.now() + WINDOW_MS };
+    this.declTimer = this.timers.setTimeout(() => {
+      this.onDeclarationDeadline();
+      this.opts.onTimer?.();
+    }, WINDOW_MS);
   }
 
   /**
    * Exécution (#1832): the asker's choice at a « oui » — a target whose power(s) to discard
    * instead of drawing, or null to decline (draw). Resumes the paused Réponse resolution.
-   * A pending choice from an absent asker is auto-declined by the deadline / disconnect hooks.
+   * A pending choice from an absent asker is auto-declined by the disconnect hook.
    */
   submitExecution(userId: UserId, target: UserId | null): void {
     this.assertPhase('reponse');
@@ -271,13 +402,13 @@ export class MatchController {
     this.finishReponse(answerDonnez(this.state, userId, cardIds));
   }
 
-  /** Auto-resolve a paused choice (bot, timeout, absent player): Exécution declined, gift = default pick. */
-  private autoDeclineExecution(force: boolean): void {
+  /** Auto-resolve a paused choice (bot, absent player; never on a timer): Exécution declined, gift = default pick. */
+  private autoDeclineExecution(): void {
     let guard = 0;
     while (this.state.reponseProgress?.pending && guard++ < 100) {
       const pending = this.state.reponseProgress.pending;
       const who = pending.kind === 'donnez' ? pending.answerer : pending.asker;
-      if (!force && this.state.players[who]?.connected) return;
+      if (this.state.players[who]?.connected) return;
       this.finishReponse(
         pending.kind === 'donnez' ? answerDonnez(this.state, who, null) : answerExecution(this.state, who, null),
       );

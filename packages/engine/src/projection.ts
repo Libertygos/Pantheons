@@ -121,6 +121,10 @@ export interface PlayerProjection {
   boardBySeat: Record<UserId, BoardView>;
   drawCounts: { attributs: number; actions: number; pouvoirs: number };
   barrier: { phase: Phase; submitted: UserId[]; youSubmitted: boolean };
+  /** #1834: the shared 30 s declaration window's deadline (epoch ms); null when no countdown runs. */
+  declarationDeadline: number | null;
+  /** #1834: the Sabotage window, while open: its deadline and whether YOU hold the pop-up. */
+  sabotageWindow: { deadline: number | null; youHolder: boolean } | null;
   declarationWindowOpen: boolean;
   /** Exécution (#1832): set for the ASKER only while the Réponse is paused on their « oui » choice. */
   executionChoice: { answerer: UserId; targets: UserId[] } | null;
@@ -199,6 +203,14 @@ export function project(state: GameState, viewer: UserId, index?: CardIndex): Pl
       submitted: [...state.barrier.submitted],
       youSubmitted: state.barrier.submitted.includes(viewer),
     },
+    declarationDeadline: state.phase === 'reponse' && state.status === 'enCours' ? state.barrier.deadline : null,
+    sabotageWindow: state.sabotageWindow
+      ? {
+          deadline: state.sabotageWindow.deadline,
+          youHolder:
+            state.sabotageWindow.holders.includes(viewer) && !state.sabotageWindow.decided.includes(viewer),
+        }
+      : null,
     declarationWindowOpen: state.status === 'resolutionDeclaration',
     executionChoice:
       state.reponseProgress?.pending?.kind === 'execution' && state.reponseProgress.pending.asker === viewer

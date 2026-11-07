@@ -257,6 +257,17 @@ export const fr = {
     tableAttend: (noms: string) => `la table attend ${noms}…`,
   },
 
+  /** #1834 : les deux fenêtres de 30 s (déclaration, Sabotage) ; le silence vaut « Passer ». */
+  fenetre: {
+    restant: (s: number) => `${s} secondes restantes`,
+    declarationAide: 'Fenêtre de déclaration : à zéro, qui n’a pas choisi passe.',
+    sabotageTitre: 'Fenêtre de Sabotage',
+    sabotageTexte:
+      'Un joueur a reçu 3 questions ou plus. Saboter une question posée, ou passer — à zéro, vous passez.',
+    saboter: 'Saboter',
+    sabotageChoisir: 'Sabotage : touchez la carte posée à défausser.',
+  },
+
   declaration: {
     button: 'Déclarer « Panthéons »',
     title: 'Déclaration « Panthéons »',

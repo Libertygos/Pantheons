@@ -29,6 +29,7 @@ export {
   sameTargetAllowed,
   isAskBlocked,
   questionsAgainst,
+  sabotageHolders,
   seatOrderFromMeneur,
   hasEffectivePower,
   noOuiLastTurn,

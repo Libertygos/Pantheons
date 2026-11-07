@@ -35,6 +35,7 @@ import { usePenseBete, type Mark } from '../state/pense-bete.js';
 import { useAstuces, type AstucePhase } from '../state/onboarding.js';
 import { godCardSrc, godPortraitSrc, penseBeteSrc, pouvoirCardSrc, questionCardSrc } from '../assets.js';
 import { fr } from '../i18n/fr.js';
+import { Countdown } from '../components/Countdown.js';
 
 /**
  * Accents d'identité par siège (1..7) : la rangée du pense-bête et le badge « N possibles »
@@ -575,6 +576,7 @@ export function GameView({
         )}
         {proj.phase === 'reponse' && (
           <>
+            <Countdown deadline={proj.declarationDeadline} />
             <button
               className={`btn btn--petit ${pendingSent && sent?.kind === 'passe' ? 'btn--envoi' : ''}`}
               onClick={passReponse}
@@ -1264,6 +1266,31 @@ export function GameView({
           titre divin (chartreuse, son usage réservé), noms sous les portraits, marques du
           pense-bête en surimpression et badge « N possibles » par rangée (notes locales,
           jamais envoyées — aucune information cachée n'entre ici). */}
+      {/* #1834 : fenêtre de Sabotage (30 s partagées) — pop-up du détenteur, « Saboter » / « Passer ». */}
+      {proj.sabotageWindow?.youHolder && !declaring && (
+        <div className={powerMode === 'sabotage' ? 'bandeau-sabotage' : 'voile'} role="dialog">
+          <div className="modale">
+            <h2>{fr.fenetre.sabotageTitre}</h2>
+            <p>{powerMode === 'sabotage' ? fr.fenetre.sabotageChoisir : fr.fenetre.sabotageTexte}</p>
+            <Countdown deadline={proj.sabotageWindow.deadline} />
+            {powerMode !== 'sabotage' && (
+              <button className="btn btn--primaire btn--petit" onClick={() => setPowerMode('sabotage')}>
+                {fr.fenetre.saboter}
+              </button>
+            )}
+            <button
+              className="btn btn--petit"
+              onClick={() => {
+                setPowerMode(null);
+                send('sabotagePass', {});
+              }}
+            >
+              {fr.pass}
+            </button>
+          </div>
+        </div>
+      )}
+
       {declaring && (
         <div className="voile">
           <div className="modale modale--ceremonie">

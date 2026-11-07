@@ -72,8 +72,8 @@ déduction — toute question se résout contre eux :
   réponse (pioche d'Action au « oui » avec son éventuelle Exécution, malus du Non, « aucun
   oui », surveillance de la Spéciale 1) ; l'auteur d'origine apprend la réponse ; elle se
   résout à sa place d'origine dans l'ordre du plateau ; **7** : un pouvoir de la pile Pouvoir
-  au choix ; **8** : 2 attributs de la pile au choix. Ordinateur, joueur absent ou délai
-  dépassé : choix automatique déterministe (premières cartes possibles / haut de la pile).
+  au choix ; **8** : 2 attributs de la pile au choix. Ordinateur ou joueur absent :
+  choix automatique (jamais de délai : le choix d'un humain l'attend) déterministe (premières cartes possibles / haut de la pile).
   En ligne, la soumission de la phase de question est validée en entier (Spéciale comprise)
   avant que rien ne soit appliqué.
 
@@ -118,6 +118,15 @@ Le meneur fixe **l'ordre** de la phase Réponse, il **ne sérialise pas** le jeu
   la catégorie (verso) et le résultat oui/non. Établi par les faces Espionnage et
   Spéciales 1/4 (« vous pouvez la regarder ») — card-catalog.md §3.3.
 
+#### Fenêtre de Sabotage (#1834)
+
+Après la dernière validation de la phase de question et **avant les réponses**, si un
+détenteur de **Sabotage** (Clonage copiant Sabotage compris) remplit sa condition (un joueur
+a reçu **3 questions ou plus**), une fenêtre s'ouvre : pop-up « Saboter » / « Passer » pour
+ce détenteur, **un seul minuteur partagé de 30 s** ; à zéro = « Passer ». Sabotage ne
+s'utilise que dans cette fenêtre. Aucune fenêtre quand aucun détenteur ne remplit la
+condition ; un détenteur déconnecté passe aussitôt.
+
 ### Phase 3 — Réponse
 
 - En commençant par le **meneur** puis dans l'ordre, chaque joueur **répond oui/non** en
@@ -128,7 +137,7 @@ Le meneur fixe **l'ordre** de la phase Réponse, il **ne sérialise pas** le jeu
   joueur de votre choix, choisi à ce moment (pas d'armement préalable ; une fois par tour).
 - Les effets **Non** se déclenchent sur les réponses « non ». **Non 1-2 (#1836)** : le joueur
   interrogé **choisit lui-même les 2 cartes** qu'il donne à l'interrogateur (la résolution
-  attend son choix ; ordinateur, absent ou délai dépassé : les 2 premières cartes de sa main ;
+  attend son choix ; ordinateur ou absent : les 2 premières cartes de sa main ;
   main de 2 cartes ou moins : tout est donné).
 - **Clonage (#1836)** : on ne copie que le pouvoir d'un joueur en jeu (pas d'un éliminé) ; la
   copie, visible de tous, est annulée dès que le pouvoir copié est défaussé (le détenteur en
@@ -142,6 +151,12 @@ Le meneur fixe **l'ordre** de la phase Réponse, il **ne sérialise pas** le jeu
 - **« Aucun oui au tour précédent »** lit toujours le tour **précédent**, aussi pendant la
   fenêtre de déclaration ; faux tout le tour 1 ; vrai si aucune question n'a été posée. Les cartes **Spéciale**
   posées se déclenchent **au début de leur phase déclarée**.
+
+- **Fenêtre de déclaration (#1834)** : un **minuteur unique de 30 s**, même échéance pour tous
+  les joueurs en jeu, compte à rebours affiché (« Panthéons » / « Passer ») ; à zéro, tout
+  joueur qui n'a pas choisi compte comme « Passer ». **C'est, avec la fenêtre de Sabotage,
+  le seul minuteur du jeu** : ni la pioche, ni la question, ni aucun choix en attente
+  (Exécution, don du Non 1-2, Spéciales 2/4/7/8) n'a de délai.
 
 ## 6. Résolution des questions (véracité)
 
