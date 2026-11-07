@@ -27,6 +27,7 @@ test('barrier: does not advance until all live players submit pioche', () => {
 
 test('barrier: full turn loop advances pioche -> question -> reponse -> next pioche', () => {
   const c = fresh();
+  const meneurBefore = c.state.meneurIndex; // first meneur is drawn at random (#1837)
   for (const s of seats) c.submitPioche(s.userId, {});
   assert.equal(c.state.phase, 'question');
 
@@ -37,7 +38,7 @@ test('barrier: full turn loop advances pioche -> question -> reponse -> next pio
   for (const s of seats) c.submitDeclaration(s.userId, {}); // all pass
   assert.equal(c.state.phase, 'pioche');
   assert.equal(c.state.tour, tourBefore + 1);
-  assert.equal(c.state.meneurIndex, 1); // meneur rotated clockwise
+  assert.equal(c.state.meneurIndex, (meneurBefore + 1) % seats.length); // meneur rotated clockwise
 });
 
 test('barrier: a winning declaration ends the game', () => {
