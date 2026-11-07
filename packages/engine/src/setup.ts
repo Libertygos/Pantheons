@@ -143,7 +143,8 @@ export function createGame(roomId: string, seats: SeatInput[], seed: number): Se
     status: 'enCours',
     players,
     seatOrder,
-    meneurIndex: 0,
+    // #1837: the first meneur is drawn from the match seed (own stream: deals unchanged).
+    meneurIndex: Math.floor(makeRng((seed ^ 0x6d656e65) >>> 0)() * seats.length),
     tour: 1,
     phase: 'pioche',
     barrier: { phase: 'pioche', submitted: [], deadline: null },

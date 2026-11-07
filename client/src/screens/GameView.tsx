@@ -431,7 +431,16 @@ export function GameView({
   const liveOpponents = proj.seatOrder
     .map((uid) => proj.opponents.find((o) => o.userId === uid))
     .filter((o): o is NonNullable<typeof o> => Boolean(o?.alive));
-  const declarationComplete = liveOpponents.every((o) => guesses[o.userId]);
+  // #1837: Âmes sœurs (Clonage included) — the soul mate's slot is greyed, « juste d'office ».
+  const holdsAmes = (keys: (string | undefined | null)[]) =>
+    keys.some((k) => k === 'ames_soeurs_1' || k === 'ames_soeurs_2');
+  const meHoldsAmes = holdsAmes([
+    ...(proj.self.powerCards ?? []).map((c) => c.effectKey),
+    proj.self.clonedPowerKey,
+  ]);
+  const isSoulmate = (o: (typeof liveOpponents)[number]) =>
+    meHoldsAmes && holdsAmes([...(o.powerCards ?? []).map((c) => c.effectKey), o.clonedPowerKey]);
+  const declarationComplete = liveOpponents.every((o) => isSoulmate(o) || guesses[o.userId]);
 
   const submitDeclaration = () => {
     if (!declarationComplete || pendingSent) return;
@@ -1203,10 +1212,16 @@ export function GameView({
                       {fr.penseBete.restants(penseBete.remaining(opp.userId))}
                     </span>
                     <span className="decl-rang__choix">
-                      {guesses[opp.userId] ? GODS[guesses[opp.userId]!].label : fr.declaration.aChoisir}
+                      {isSoulmate(opp)
+                        ? fr.declaration.justeDoffice
+                        : guesses[opp.userId] ? GODS[guesses[opp.userId]!].label : fr.declaration.aChoisir}
                     </span>
                   </div>
-                  <div className="decl-dieux">
+                  <div
+                    className="decl-dieux"
+                    style={isSoulmate(opp) ? { opacity: 0.35, pointerEvents: 'none' } : undefined}
+                    aria-disabled={isSoulmate(opp) || undefined}
+                  >
                     {ALL_GODS.map((god) => (
                       <DeclDieu
                         key={god.id}

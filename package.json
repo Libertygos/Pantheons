@@ -2,7 +2,7 @@
   "name": "pantheons",
   "version": "1.0.0",
   "private": true,
-  "description": "Panthéons — Le jeu des Dieux. A hidden-identity social-deduction game, gosgames tenant.",
+  "description": "Panthéons — Le jeu des Dieux. A hidden-identity social-deduction game for 4-7 players, ages 10+, 45-60 min, gosgames tenant.",
   "type": "module",
   "engines": {
     "node": ">=22"

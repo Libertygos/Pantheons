@@ -1,6 +1,6 @@
 # Panthéons — Le jeu des Dieux
 
-Hidden-identity social-deduction game for 4–7 players, built as a **gosgames** tenant.
+Hidden-identity social-deduction game for 4–7 players, ages 10 and over, 45–60 minutes, built as a **gosgames** tenant.
 Deduce which of the 12 gods hides behind each opponent while keeping your own hidden, to a
 single climactic **« Panthéons »** reveal.
 

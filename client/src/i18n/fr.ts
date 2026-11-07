@@ -234,6 +234,7 @@ export const fr = {
     instruction:
       'Nommez le dieu de chaque adversaire vivant. Tout juste : vous gagnez. Une seule erreur : vous êtes éliminé et votre dieu reste caché.',
     aChoisir: 'à choisir',
+    justeDoffice: 'juste d’office (âme sœur)',
     confirm: 'Je déclare « Panthéons »',
     cancel: 'Annuler',
   },

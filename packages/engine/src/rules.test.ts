@@ -94,9 +94,9 @@ test('réponse: a "oui" earns the ASKER an action draw (#1832)', () => {
 
 test('advanceTurn: rotates meneur clockwise and bumps tour', () => {
   const { state } = createGame('r', seats, 13);
-  assert.equal(state.meneurIndex, 0);
+  const first = state.meneurIndex; // #1837: drawn from the seed
   assert.equal(state.tour, 1);
   advanceTurn(state);
-  assert.equal(state.meneurIndex, 1);
+  assert.equal(state.meneurIndex, (first + 1) % state.seatOrder.length);
   assert.equal(state.tour, 2);
 });

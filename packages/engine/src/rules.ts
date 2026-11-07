@@ -415,7 +415,15 @@ export function advanceTurn(state: GameState): void {
     }
   }
   pruneStaleEffects(state);
-  state.meneurIndex = (state.meneurIndex + 1) % state.seatOrder.length;
+  // #1837: the meneur passes to the next player in play, skipping the eliminated.
+  const n = state.seatOrder.length;
+  for (let i = 1; i <= n; i++) {
+    const idx = (state.meneurIndex + i) % n;
+    if (state.players[state.seatOrder[idx]!]?.alive) {
+      state.meneurIndex = idx;
+      break;
+    }
+  }
   state.tour += 1;
 }
 

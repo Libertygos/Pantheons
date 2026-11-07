@@ -199,7 +199,7 @@ export function LandingScreen({
 
       <footer className="landing__pied">
         <span className="libelle">
-          {session.displayName ?? session.userId} · {fr.landing.version(APP_VERSION)} · 4 à 7 joueurs
+          {session.displayName ?? session.userId} · {fr.landing.version(APP_VERSION)} · 4 à 7 joueurs · 10 ans et plus · 45 à 60 min
         </span>
       </footer>
     </div>

@@ -9,7 +9,7 @@
 
 ## 1. But du jeu
 
-Panthéons est un jeu de **déduction à identité cachée** pour **4 à 7 joueurs**. Chaque
+Panthéons est un jeu de **déduction à identité cachée** pour **4 à 7 joueurs**, **10 ans et plus**, **45 à 60 minutes**. Chaque
 joueur reçoit secrètement l'un des **12 dieux**. Le but : **déduire quel dieu se cache
 derrière chaque adversaire** tout en gardant le sien secret. La partie se joue jusqu'à une
 unique révélation climactique — la déclaration **« Panthéons »**.

@@ -42,6 +42,8 @@ export interface OpponentView {
   /** Clonage's visible copy (effect key), null when none. */
   clonedPowerKey: string | null;
   hasSpecialCard: boolean;
+  /** #1837: every god is revealed once the game is over (eliminated players' included); absent before. */
+  god?: GodId;
 }
 
 /** The viewer's own state — full secret detail. */
@@ -147,6 +149,7 @@ export function project(state: GameState, viewer: UserId, index?: CardIndex): Pl
         ...(index ? { powerCards: resolve(p.powers, index.pouvoirs) } : {}),
         clonedPowerKey: p.clonedPowerKey,
         hasSpecialCard: Boolean(state.boardBySeat[uid]?.specialSlot),
+        ...(state.status === 'terminee' ? { god: p.god } : {}),
       };
     });
 
