@@ -394,8 +394,9 @@ export const fr = {
     titre: 'Panthéons',
     vainqueur: (nom: string) => `${nom} a percé tous les secrets et remporte la partie.`,
     vainqueurVous: 'Vous avez percé tous les secrets — victoire !',
-    /** S4 : le miroir du perdant — la carte du vainqueur reste face cachée (projection). */
-    dieuCache: (nom: string) => `Le dieu ${d(nom)} restera secret.`,
+    /** #1837 : tous les dieux sont révélés à la fin de la partie. */
+    dieuxTable: 'Les dieux de la table',
+    vous: 'Vous',
     retour: 'Retour à l’accueil',
   },
 

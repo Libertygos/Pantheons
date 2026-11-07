@@ -1494,16 +1494,20 @@ export function GameView({
               (proj.winner === me.userId ? (
                 <WinnerGod godId={me.god} />
               ) : (
-                <div className="fin__dieu fin__dieu--secret">
-                  <GameCard size="lg" back="personnages" inspect={false} />
-                  <p className="fin__note">
-                    {fr.fin.dieuCache(
-                      proj.opponents.find((o) => o.userId === proj.winner)?.displayName ??
-                        proj.winner,
-                    )}
-                  </p>
-                </div>
+                // #1837: every god is revealed at the end of the game.
+                <WinnerGod godId={proj.opponents.find((o) => o.userId === proj.winner)?.god ?? null} />
               ))}
+            {/* #1837: every player's god, eliminated players' included, is revealed at the end. */}
+            <ul className="fin__dieux" aria-label={fr.fin.dieuxTable}>
+              <li>
+                {fr.fin.vous} : {GODS[me.god].label}
+              </li>
+              {proj.opponents.map((o) => (
+                <li key={o.userId}>
+                  {o.displayName} : {o.god ? GODS[o.god].label : '—'}
+                </li>
+              ))}
+            </ul>
             <button className="btn btn--givre fin__retour" onClick={onExit}>
               {fr.fin.retour}
             </button>

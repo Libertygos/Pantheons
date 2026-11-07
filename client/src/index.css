@@ -3677,3 +3677,14 @@ button.pose-ev__item {
     padding: 4px 8px;
   }
 }
+
+.fin__dieux {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 1rem;
+  font-size: 0.9rem;
+}
