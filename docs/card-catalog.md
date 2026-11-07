@@ -167,7 +167,7 @@ réponse » / « Phase de question » / « Phase de pioche »).
 
 ## 4. Pouvoirs — 12 cartes distinctes, 1 exemplaire chacune
 
-Un joueur détient exactement 1 pouvoir en régime établi (rules.md §5 Pioche). Verso
+Un joueur détient exactement 1 pouvoir en régime établi (rules.md §5 Pioche), **visible de tous** ; un joueur éliminé garde son pouvoir bloqué (non copiable, non ciblable ; Clonage ne peut le copier) ; une pioche vide est reformée depuis sa défausse (#1833). Verso
 commun : `card_pouvoirs_verso.webp`. Titres et effets **verbatim des faces** (titres
 imprimés en capitales).
 

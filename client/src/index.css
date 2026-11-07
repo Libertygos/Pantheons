@@ -3617,3 +3617,16 @@ button.pose-ev__item {
     animation-duration: 800ms !important;
   }
 }
+
+/* #1833 : le pouvoir d'un adversaire est visible de tous, face visible, en permanence. */
+.place__pouvoir {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.place__pouvoir-copie {
+  font-size: 0.65rem;
+  line-height: 1;
+  opacity: 0.85;
+}

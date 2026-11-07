@@ -6,6 +6,7 @@
  * Card ids are self-describing (setup.ts): `pow_<effectKey>`, `act_<effectKey>`,
  * `attr_<valeur>_<n>` — so effects can reason about identities without a CardIndex.
  */
+import { makeRng, shuffle } from './rng.js';
 import type { AxeValeur, CardId, GameState, PlayerState, UserId } from './types.js';
 
 export function powerKeyOfCardId(id: CardId): string {
@@ -20,7 +21,8 @@ export function attrValeurOfCardId(id: CardId): string {
 /** The player's effective power keys — Clonage resolves to its copied key (if chosen). */
 export function effectivePowerKeys(state: GameState, userId: UserId): string[] {
   const p = state.players[userId];
-  if (!p) return [];
+  // #1833: an eliminated player's power stays in front of him but is blocked (unusable).
+  if (!p || !p.alive) return [];
   const keys: string[] = [];
   for (const id of p.powers) {
     const key = powerKeyOfCardId(id);
@@ -51,7 +53,7 @@ export function noOuiLastTurn(state: GameState, userId: UserId): boolean {
  */
 export function discardPowers(state: GameState, userId: UserId): void {
   const p = state.players[userId];
-  if (!p || p.powers.length === 0) return;
+  if (!p || !p.alive || p.powers.length === 0) return; // #1833: eliminated = not targetable
   const keys = p.powers.map(powerKeyOfCardId);
   state.discard.pouvoirs.push(...p.powers);
   p.powers = [];
@@ -63,7 +65,7 @@ export function discardPowers(state: GameState, userId: UserId): void {
 export function swapPowers(state: GameState, a: UserId, b: UserId): void {
   const pa = state.players[a];
   const pb = state.players[b];
-  if (!pa || !pb) return;
+  if (!pa || !pb || !pa.alive || !pb.alive) return; // #1833: eliminated = not targetable
   [pa.powers, pb.powers] = [pb.powers, pa.powers];
   // A moved Clonage loses its owner-bound copy choice on both sides.
   pa.clonedPowerKey = null;
@@ -86,7 +88,8 @@ export function unlinkClonageCopying(state: GameState, keys: string[]): void {
 export function transferHandCards(state: GameState, from: UserId, to: UserId, count: number): void {
   const src = state.players[from];
   const dst = state.players[to];
-  if (!src || !dst) return;
+  if (!src || !dst || !src.alive || !dst.alive) return; // #1833
+
   for (let i = 0; i < count; i++) {
     if (src.hand.attributs.length > 0) {
       dst.hand.attributs.push(src.hand.attributs.shift()!);
@@ -96,10 +99,32 @@ export function transferHandCards(state: GameState, from: UserId, to: UserId, co
   }
 }
 
+export type PileKind = 'attributs' | 'actions' | 'pouvoirs';
+
+/**
+ * #1833: an empty draw pile is reshuffled from its discard at once (rulebook §4). The shuffle
+ * is deterministic (seeded from the match position) so the engine stays pure and replayable.
+ */
+export function refillIfEmpty(state: GameState, kind: PileKind): void {
+  const pile = state.drawPiles[kind];
+  const disc = state.discard[kind];
+  if (pile.length > 0 || disc.length === 0) return;
+  const seed = (state.tour * 7919 + disc.length * 104729 + state.seatOrder.length * 31 + kind.length) >>> 0;
+  pile.push(...shuffle(disc, makeRng(seed)));
+  disc.length = 0;
+}
+
+/** Draw the top card of a pile, reshuffling its discard first when empty (#1833). */
+export function drawFromPile(state: GameState, kind: PileKind): string | undefined {
+  refillIfEmpty(state, kind);
+  return state.drawPiles[kind].pop();
+}
+
 /** Take a specific power from the draw pile by effectKey (else the top). Spéciale 7. */
 export function takePowerFromPile(state: GameState, userId: UserId, effectKey?: string): void {
   const p = state.players[userId];
   if (!p) return;
+  refillIfEmpty(state, 'pouvoirs');
   const pile = state.drawPiles.pouvoirs;
   if (pile.length === 0) return;
   let idx = effectKey ? pile.findIndex((id) => powerKeyOfCardId(id) === effectKey) : -1;
@@ -113,6 +138,7 @@ export function takeAttributsFromPile(state: GameState, userId: UserId, valeurs:
   if (!p) return;
   const wanted = [...(valeurs ?? [])].slice(0, 2);
   for (let i = 0; i < 2; i++) {
+    refillIfEmpty(state, 'attributs');
     const pile = state.drawPiles.attributs;
     if (pile.length === 0) return;
     const want = wanted[i];

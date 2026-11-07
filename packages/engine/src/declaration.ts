@@ -77,7 +77,7 @@ export function resolveDeclarations(state: GameState): ResolveResult {
       if (!ok) allCorrect = false;
     }
 
-    if (allCorrect && opponents.length > 0) {
+    if (allCorrect) {
       state.winner = uid;
       state.status = 'terminee';
       outcomes.push({ declarer: uid, won: true, matched });
@@ -92,8 +92,18 @@ export function resolveDeclarations(state: GameState): ResolveResult {
     outcomes.push({ declarer: uid, won: false, matched });
   }
 
-  // No declarer succeeded: resume play.
   state.declarations = [];
+
+  // #1833: the last player in play wins automatically (the other declarants all eliminated).
+  const alive = state.seatOrder.filter((u) => state.players[u]?.alive);
+  if (alive.length === 1) {
+    const uid = alive[0]!;
+    state.winner = uid;
+    state.status = 'terminee';
+    return { winner: uid, outcomes, eliminated: eliminatedNow };
+  }
+
+  // No declarer succeeded: resume play.
   state.status = 'enCours';
   return { winner: null, outcomes, eliminated: eliminatedNow };
 }

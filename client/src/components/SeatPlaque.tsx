@@ -11,10 +11,11 @@
  * (règle du jeu : le dieu d'un éliminé n'est jamais révélé ; la projection ne l'envoie pas).
  */
 import type { CSSProperties, ReactNode } from 'react';
+import { data } from '@pantheons/engine';
 import type { OpponentView, PlacedCardView } from '@pantheons/engine';
 import { GameCard } from './GameCard.js';
 import { describeQuestionCard, questionCardBand } from './card-text.js';
-import { questionCardSrc } from '../assets.js';
+import { pouvoirCardSrc, questionCardSrc } from '../assets.js';
 import { fr } from '../i18n/fr.js';
 
 /** Une carte posée contre ce siège, avec sa provenance (adressage moteur du plateau du poseur). */
@@ -125,6 +126,27 @@ export function SeatPlaque({
           <span className="jeton-stat jeton-stat--pouvoir" title={fr.jeu.statLong.pouvoirs(opp.powerCount)} aria-label={fr.jeu.statLong.pouvoirs(opp.powerCount)}>
             {fr.jeu.statCourt.pouvoirs} {opp.powerCount}
           </span>
+          {(opp.powerCards ?? []).map((pow) => {
+            const def = data.POWERS[pow.effectKey];
+            const copie = pow.effectKey === 'clonage' && opp.clonedPowerKey ? data.POWERS[opp.clonedPowerKey] : null;
+            const nom = def?.label ?? pow.effectKey.replace(/_/g, ' ');
+            return (
+              <span key={pow.id} className="place__pouvoir" title={copie ? fr.jeu.copieDe(nom, copie.label) : nom}>
+                <GameCard
+                  size="xs"
+                  face={{
+                    src: pouvoirCardSrc(pow.effectKey),
+                    alt: nom,
+                    typeLabel: fr.jeu.pouvoir,
+                    bodyLabel: nom,
+                    tint: 'teinte-pouvoir',
+                  }}
+                />
+                {copie && <span className="place__pouvoir-copie">{copie.label}</span>}
+                {!opp.alive && <span className="place__pouvoir-copie">{fr.jeu.pouvoirBloque}</span>}
+              </span>
+            );
+          })}
           {opp.hasSpecialCard && (
             <span className="jeton-stat jeton-stat--speciale" title={fr.jeu.statLong.speciale} aria-label={fr.jeu.statLong.speciale}>
               {fr.jeu.statCourt.speciale} ✓

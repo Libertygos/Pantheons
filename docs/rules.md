@@ -79,6 +79,11 @@ Le meneur fixe **l'ordre** de la phase Réponse, il **ne sérialise pas** le jeu
 
 ### Phase 1 — Pioche
 
+> **Pouvoirs visibles (#1833)** : le pouvoir de chaque joueur est **face visible pour tous, en
+> permanence** (la copie de Clonage aussi). **Pioche vide ⇒ reformée aussitôt** depuis sa
+> défausse (Attribut, Action, Pouvoir). Si pioche et défausse ne suffisent pas, les premiers
+> joueurs à valider piochent en premier.
+
 1. **Régulariser les pouvoirs** : garantir d'avoir **exactement un** pouvoir.
    - 0 pouvoir → en **piocher 1**.
    - 2 pouvoirs → en **défausser 1** pour redescendre à 1.
@@ -135,6 +140,14 @@ partie **en pause**.
 3. **Toutes correctes ⇒ le déclarant gagne.** La partie se termine.
 4. **Première erreur ⇒ le déclarant est éliminé** ; sa carte reste **cachée** et les autres
    joueurs **n'ont plus besoin de le deviner**.
+5. **Dernier joueur en jeu ⇒ il gagne automatiquement** (#1833), y compris quand les autres
+   déclarants de la même fenêtre sont tous éliminés dans cette résolution.
+
+### Joueur éliminé (#1833)
+
+Sa main et son pouvoir restent devant lui, **bloqués** : visibles, inutilisables, non copiables
+par Clonage, et **jamais ciblables** (pouvoirs, Non à échange, Spéciales, Exécution). Une Spéciale
+dont le propriétaire ou la cible est éliminé n'a aucun effet.
 
 ### Déclarants multiples
 

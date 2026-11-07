@@ -142,6 +142,8 @@ export const fr = {
     aide: 'Aide',
     quitter: 'Quitter',
     elimine: 'Éliminé',
+    pouvoirBloque: 'Bloqué',
+    copieDe: (clonage: string, copie: string) => `${clonage} — copie : ${copie}`,
     /** B17 : votre propre statut de meneur — les plaques adverses portent déjà le badge. */
     meneurVous: 'Meneur : vous',
     deconnecteCourt: 'Déconnecté',

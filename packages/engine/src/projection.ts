@@ -3,7 +3,8 @@
  *
  * TOP SECURITY PROPERTY. Every serialization to a client MUST pass through project(): the
  * viewer sees the entirety of their OWN secret state and NOTHING of any other player's
- * secret (god, hand contents, power contents, un-revealed declaration guesses).
+ * secret (god, hand contents, un-revealed declaration guesses).
+ * Powers are PUBLIC (#1833): every seat sees every power card, always.
  *
  * The pense-bête is client-only and never present in GameState, so it cannot leak here.
  *
@@ -35,6 +36,11 @@ export interface OpponentView {
   /** counts only — never contents */
   handCounts: { attributs: number; actions: number };
   powerCount: number;
+  /** #1833: powers are public, always — every seat sees each opponent's power card face up. */
+  powers: string[];
+  powerCards?: PouvoirCard[];
+  /** Clonage's visible copy (effect key), null when none. */
+  clonedPowerKey: string | null;
   hasSpecialCard: boolean;
 }
 
@@ -47,6 +53,7 @@ export interface SelfView {
   god: GodId; // the viewer's own, allowed
   hand: { attributs: string[]; actions: string[] };
   powers: string[];
+  clonedPowerKey: string | null;
   /**
    * The viewer's OWN cards resolved to full card objects (present when the caller passes
    * the match CardIndex). Ids alone are opaque: without this the client can neither show
@@ -114,6 +121,7 @@ export function project(state: GameState, viewer: UserId, index?: CardIndex): Pl
     god: me.god,
     hand: { attributs: [...me.hand.attributs], actions: [...me.hand.actions] },
     powers: [...me.powers],
+    clonedPowerKey: me.clonedPowerKey,
   };
   if (index) {
     // Resolve ONLY ids already in the viewer's own secret state — never someone else's.
@@ -135,6 +143,9 @@ export function project(state: GameState, viewer: UserId, index?: CardIndex): Pl
         alive: p.alive,
         handCounts: { attributs: p.hand.attributs.length, actions: p.hand.actions.length },
         powerCount: p.powers.length,
+        powers: [...p.powers],
+        ...(index ? { powerCards: resolve(p.powers, index.pouvoirs) } : {}),
+        clonedPowerKey: p.clonedPowerKey,
         hasSpecialCard: Boolean(state.boardBySeat[uid]?.specialSlot),
       };
     });

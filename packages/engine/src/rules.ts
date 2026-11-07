@@ -18,6 +18,7 @@ import {
   attrValeurOfCardId,
   discardPlacedQuestion,
   discardPowers,
+  drawFromPile,
   hasEffectivePower,
   livePlayers,
   noOuiLastTurn,
@@ -91,8 +92,8 @@ export interface PiocheIntent {
   discardPowerId?: string;
 }
 
-function drawFrom(pile: string[]): string | undefined {
-  return pile.pop();
+function drawFrom(state: GameState, kind: 'attributs' | 'actions' | 'pouvoirs'): string | undefined {
+  return drawFromPile(state, kind);
 }
 
 /**
@@ -104,7 +105,7 @@ export function applyPioche(state: GameState, userId: UserId, intent: PiocheInte
   const p = requireLivePlayer(state, userId);
 
   if (p.powers.length < POWERS_PER_PLAYER) {
-    const drawn = drawFrom(state.drawPiles.pouvoirs);
+    const drawn = drawFrom(state, 'pouvoirs');
     if (drawn) p.powers.push(drawn);
   } else if (p.powers.length > POWERS_PER_PLAYER) {
     if (!intent.discardPowerId || !p.powers.includes(intent.discardPowerId)) {
@@ -117,9 +118,9 @@ export function applyPioche(state: GameState, userId: UserId, intent: PiocheInte
 
   if (hasEffectivePower(state, userId, 'etude')) {
     // Étude : « piochez une carte attribut et une carte action » (remplace les 2 attributs).
-    const attr = drawFrom(state.drawPiles.attributs);
+    const attr = drawFrom(state, 'attributs');
     if (attr) p.hand.attributs.push(attr);
-    const act = drawFrom(state.drawPiles.actions);
+    const act = drawFrom(state, 'actions');
     if (act) p.hand.actions.push(act);
     return;
   }
@@ -129,7 +130,7 @@ export function applyPioche(state: GameState, userId: UserId, intent: PiocheInte
     attributsToDraw = 3; // Optimisme : « trois cartes attributs au lieu de deux »
   }
   for (let i = 0; i < attributsToDraw; i++) {
-    const drawn = drawFrom(state.drawPiles.attributs);
+    const drawn = drawFrom(state, 'attributs');
     if (drawn) p.hand.attributs.push(drawn);
   }
 }
@@ -319,7 +320,7 @@ function canOfferExecution(state: GameState, asker: UserId): boolean {
 }
 
 function drawAction(state: GameState, userId: UserId): void {
-  const drawn = state.drawPiles.actions.pop();
+  const drawn = drawFromPile(state, 'actions');
   if (drawn) state.players[userId]!.hand.actions.push(drawn);
 }
 
@@ -390,7 +391,9 @@ export function fireSpecialesAtPhaseStart(state: GameState, phase: GameState['ph
     if (def?.triggerPhase === phase) {
       const other =
         slot.payload?.targetSeat !== undefined ? state.seatOrder[slot.payload.targetSeat] : undefined;
-      def.apply?.(state, userId, { other, payload: slot.payload });
+      // #1833: owner or target eliminated before the trigger = no effect (still shown, discarded).
+      const dead = !state.players[userId]?.alive || (other !== undefined && !state.players[other]?.alive);
+      if (!dead) def.apply?.(state, userId, { other, payload: slot.payload });
       // then discard the Spéciale
       state.discard.actions.push(slot.card.id);
       board!.specialSlot = null;
@@ -503,7 +506,9 @@ export function activatePower(
     }
     case 'clonage': {
       const target = state.players[activation.target];
-      if (!target || activation.target === userId) throw new RuleError('BAD_TARGET', 'Clonage : cible invalide.');
+      if (!target || activation.target === userId || !target.alive) {
+        throw new RuleError('BAD_TARGET', 'Clonage : cible invalide (joueur éliminé ou vous-même).');
+      }
       const targetKey = target.powers.map(powerKeyOfCardId).find((k) => k !== 'clonage');
       if (!targetKey) {
         throw new RuleError('POWER_CONDITION', 'Clonage : la cible n’a pas de pouvoir copiable.');
