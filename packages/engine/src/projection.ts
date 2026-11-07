@@ -25,7 +25,7 @@ import type {
   UserId,
 } from './types.js';
 import type { CardIndex } from './setup.js';
-import { executionTargets, isAskBlocked, questionCap, sameTargetAllowed } from './rules.js';
+import { GIFT_COUNT, executionTargets, isAskBlocked, questionCap, sameTargetAllowed } from './rules.js';
 
 /** Public view of another player — no secret fields. */
 export interface OpponentView {
@@ -104,6 +104,8 @@ export interface PlayerProjection {
   declarationWindowOpen: boolean;
   /** Exécution (#1832): set for the ASKER only while the Réponse is paused on their « oui » choice. */
   executionChoice: { answerer: UserId; targets: UserId[] } | null;
+  /** Non 1-2 (#1836): set for the questioned player while he must pick the cards he gives. */
+  donnezChoice: { asker: UserId; count: number } | null;
   winner: UserId | null;
   eliminated: UserId[];
   /** The viewer's question rules this turn (powers/Spéciales woven in). */
@@ -175,8 +177,12 @@ export function project(state: GameState, viewer: UserId, index?: CardIndex): Pl
     },
     declarationWindowOpen: state.status === 'resolutionDeclaration',
     executionChoice:
-      state.reponseProgress?.pending?.asker === viewer
+      state.reponseProgress?.pending?.kind === 'execution' && state.reponseProgress.pending.asker === viewer
         ? { answerer: state.reponseProgress.pending.answerer, targets: executionTargets(state, viewer) }
+        : null,
+    donnezChoice:
+      state.reponseProgress?.pending?.kind === 'donnez' && state.reponseProgress.pending.answerer === viewer
+        ? { asker: state.reponseProgress.pending.asker, count: GIFT_COUNT }
         : null,
     winner: state.winner,
     eliminated: [...state.eliminated],

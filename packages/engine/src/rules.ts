@@ -11,21 +11,27 @@
  * shared helpers (effects.ts) — docs/card-catalog.md is the source of truth.
  */
 import { GODS } from './data/gods.js';
+import { makeRng } from './rng.js';
 import { getAction } from './data/actions.js';
 import { getPower } from './data/powers.js';
 import {
   allPlacedQuestions,
   attrValeurOfCardId,
   discardPlacedQuestion,
+  defaultGift,
   discardPowers,
   drawFromPile,
   hasEffectivePower,
   livePlayers,
   noOuiLastTurn,
   powerKeyOfCardId,
+  previousTurnStats,
+  transferHandCards,
+  unlinkClonageCopying,
 } from './effects.js';
 import type {
   ActionCard,
+  CardId,
   AttributCard,
   GameState,
   GodId,
@@ -113,7 +119,9 @@ export function applyPioche(state: GameState, userId: UserId, intent: PiocheInte
     }
     p.powers = p.powers.filter((id) => id !== intent.discardPowerId);
     state.discard.pouvoirs.push(intent.discardPowerId);
-    if (powerKeyOfCardId(intent.discardPowerId) === 'clonage') p.clonedPowerKey = null;
+    const dk = powerKeyOfCardId(intent.discardPowerId);
+    if (dk === 'clonage') p.clonedPowerKey = null;
+    unlinkClonageCopying(state, [dk]); // #1836: a copy dies with the copied power
   }
 
   if (hasEffectivePower(state, userId, 'etude')) {
@@ -265,7 +273,7 @@ export interface ReponseResolution {
   answers: AnswerResult[];
   reveals: PrivateReveal[];
   /** Set while the resolution is paused on an asker's Exécution choice (answerExecution resumes). */
-  pending: { asker: UserId; answerer: UserId } | null;
+  pending: { kind: 'execution' | 'donnez'; asker: UserId; answerer: UserId } | null;
 }
 
 /**
@@ -287,7 +295,7 @@ export function resolveReponsePhase(state: GameState): ReponseResolution {
  */
 export function answerExecution(state: GameState, userId: UserId, target: UserId | null): ReponseResolution {
   const prog = state.reponseProgress;
-  if (!prog?.pending || prog.pending.asker !== userId) {
+  if (!prog?.pending || prog.pending.kind !== 'execution' || prog.pending.asker !== userId) {
     throw new RuleError('PHASE', 'Exécution : aucun choix en attente pour vous.');
   }
   const { asker } = prog.pending;
@@ -300,6 +308,35 @@ export function answerExecution(state: GameState, userId: UserId, target: UserId
   } else {
     drawAction(state, asker);
   }
+  prog.pending = null;
+  return continueReponse(state);
+}
+
+/** Cards the answerer must give after a « non » to Non 1-2 (#1836). */
+export const GIFT_COUNT = 2;
+
+function handSize(state: GameState, userId: UserId): number {
+  const h = state.players[userId]?.hand;
+  return h ? h.attributs.length + h.actions.length : 0;
+}
+
+/**
+ * Non 1-2 (#1836): the giver (the questioned player) picks the 2 cards he gives the asker.
+ * `cardIds` = null picks the default (computer, absent, timeout). Resumes the resolution.
+ */
+export function answerDonnez(state: GameState, userId: UserId, cardIds: CardId[] | null): ReponseResolution {
+  const prog = state.reponseProgress;
+  if (!prog?.pending || prog.pending.kind !== 'donnez' || prog.pending.answerer !== userId) {
+    throw new RuleError('PHASE', 'Non : aucun don en attente pour vous.');
+  }
+  const { asker } = prog.pending;
+  const chosen = cardIds ?? defaultGift(state, userId, GIFT_COUNT);
+  const hand = state.players[userId]!.hand;
+  const owned = new Set([...hand.attributs, ...hand.actions]);
+  if (chosen.length !== Math.min(GIFT_COUNT, owned.size) || new Set(chosen).size !== chosen.length || !chosen.every((c) => owned.has(c))) {
+    throw new RuleError('BAD_CARDS', `Choisissez exactement ${GIFT_COUNT} cartes de votre main.`);
+  }
+  transferHandCards(state, userId, asker, chosen);
   prog.pending = null;
   return continueReponse(state);
 }
@@ -363,19 +400,29 @@ function continueReponse(state: GameState): ReponseResolution {
       // The ASKER draws the Action (#1832). Spéciale 4 appropriation (#1835): the owner
       // of the question must be passed here as `placerId` — the asker is the owner.
       if (canOfferExecution(state, placerId)) {
-        prog.pending = { asker: placerId, answerer: targetUser };
+        prog.pending = { kind: 'execution', asker: placerId, answerer: targetUser };
         return { answers: prog.answers, reveals: prog.reveals, pending: prog.pending };
       }
       drawAction(state, placerId);
     } else {
       (prog.nonAnswerers[placerId] ??= []).push(targetUser);
       if (placed.card.type === 'action' && placed.card.subtype === 'non') {
-        getAction(placed.card.effectKey)?.apply?.(state, placerId, { other: targetUser });
+        const def = getAction(placed.card.effectKey);
+        def?.apply?.(state, placerId, { other: targetUser });
+        if (def?.gives && state.players[placerId]?.alive && handSize(state, targetUser) > 0) {
+          if (handSize(state, targetUser) <= def.gives) {
+            transferHandCards(state, targetUser, placerId, defaultGift(state, targetUser, def.gives)); // nothing to choose
+          } else {
+            prog.pending = { kind: 'donnez', asker: placerId, answerer: targetUser };
+            return { answers: prog.answers, reveals: prog.reveals, pending: prog.pending };
+          }
+        }
       }
     }
   }
 
-  state.lastTurn = { ouiFor: prog.ouiFor, nonAnswerers: prog.nonAnswerers };
+  state.priorTurn = state.lastTurn;
+  state.lastTurn = { tour: state.tour, ouiFor: prog.ouiFor, nonAnswerers: prog.nonAnswerers };
   const result = { answers: prog.answers, reveals: prog.reveals, pending: null };
   state.reponseProgress = null;
   return result;
@@ -505,7 +552,11 @@ export function activatePower(
       break;
     }
     case 'refus_royal': {
-      const nons = state.lastTurn.nonAnswerers[userId] ?? [];
+      // #1836: unusable once the target has validated its questions (this turn's are already set).
+      if (state.phase !== 'pioche' && (state.phase === 'reponse' || state.barrier.submitted.includes(activation.target))) {
+        throw new RuleError('POWER_CONDITION', 'Refus royal : ce joueur a déjà validé ses questions.');
+      }
+      const nons = previousTurnStats(state).nonAnswerers[userId] ?? [];
       if (!nons.includes(activation.target)) {
         throw new RuleError('POWER_CONDITION', 'Refus royal : ce joueur ne vous a pas répondu non au tour précédent.');
       }
@@ -528,7 +579,9 @@ export function activatePower(
       if (state.undealtGods.length === 0) {
         throw new RuleError('POWER_CONDITION', 'Déduction : aucune carte personnage non piochée.');
       }
-      const god = state.undealtGods[(state.tour - 1) % state.undealtGods.length]!;
+      // #1836: an undealt god at random (secret seeded RNG; never projected).
+      const rng = makeRng(deductionSeed(state, userId));
+      const god = state.undealtGods[Math.floor(rng() * state.undealtGods.length)]!;
       reveal = { to: userId, kind: 'personnage', god };
       break;
     }
@@ -547,6 +600,12 @@ export function activatePower(
 
   (state.effets.powerUsedTour[userId] ??= {})[key] = state.tour;
   return { effectKey: key, reveal };
+}
+
+function deductionSeed(state: GameState, userId: UserId): number {
+  let h = Math.imul(state.shuffleSeed ?? 0, 0x27d4eb2f) ^ Math.imul(state.tour, 0x165667b1);
+  for (let i = 0; i < userId.length; i++) h = Math.imul(h ^ userId.charCodeAt(i), 0x01000193);
+  return h >>> 0;
 }
 
 function holdsClonage(state: GameState, userId: UserId): boolean {

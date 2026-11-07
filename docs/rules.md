@@ -113,7 +113,21 @@ Le meneur fixe **l'ordre** de la phase Réponse, il **ne sérialise pas** le jeu
   carte Action** — l'interrogé ne pioche rien. Exécution : quand un adversaire répond « oui » à
   VOTRE question, vous pouvez renoncer à piocher et défausser à la place le(s) pouvoir(s) d'un
   joueur de votre choix, choisi à ce moment (pas d'armement préalable ; une fois par tour).
-- Les effets **Non** se déclenchent sur les réponses « non ». Les cartes **Spéciale**
+- Les effets **Non** se déclenchent sur les réponses « non ». **Non 1-2 (#1836)** : le joueur
+  interrogé **choisit lui-même les 2 cartes** qu'il donne à l'interrogateur (la résolution
+  attend son choix ; ordinateur, absent ou délai dépassé : les 2 premières cartes de sa main ;
+  main de 2 cartes ou moins : tout est donné).
+- **Clonage (#1836)** : on ne copie que le pouvoir d'un joueur en jeu (pas d'un éliminé) ; la
+  copie, visible de tous, est annulée dès que le pouvoir copié est défaussé (le détenteur en
+  choisit un autre) ; un Clonage qui change de mains perd sa copie, son nouveau détenteur en
+  choisit une. Changer la copie et utiliser la copie sont deux usages, permis le même tour.
+  Un pouvoir reste utilisable une fois par tour et par joueur ; s'il change de mains, il
+  resert à son nouveau détenteur le même tour.
+- **Déduction (#1836)** : montre une carte personnage non piochée **tirée au hasard**
+  (secret, jamais envoyé aux autres sièges).
+- **Refus royal (#1836)** : inutilisable une fois que sa cible a validé ses questions.
+- **« Aucun oui au tour précédent »** lit toujours le tour **précédent**, aussi pendant la
+  fenêtre de déclaration ; faux tout le tour 1 ; vrai si aucune question n'a été posée. Les cartes **Spéciale**
   posées se déclenchent **au début de leur phase déclarée**.
 
 ## 6. Résolution des questions (véracité)

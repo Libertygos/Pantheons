@@ -291,6 +291,12 @@ export function GameView({
   const powerPicksOpponent = powerMode !== null && POUVOIRS_CIBLE_JOUEUR.has(powerMode);
   const powerPicksPlaced = powerMode !== null && POUVOIRS_CIBLE_CARTE.has(powerMode);
 
+  // #1836 : Refus royal impossible une fois les questions de la cible validées.
+  const aValideQuestions = (uid: string) =>
+    proj.phase === 'reponse' || (proj.phase === 'question' && proj.barrier.submitted.includes(uid));
+  const refusRoyalFerme = proj.phase === 'reponse';
+  const [donnezIds, setDonnezIds] = useState<string[]>([]);
+
   const seatOf = (uid: string) => proj.seatOrder.indexOf(uid);
   const nameOf = (uid: string) =>
     uid === me.userId
@@ -305,6 +311,7 @@ export function GameView({
     const targetSeat = seatOf(oppId);
     if (targetSeat < 0) return;
     if (powerPicksOpponent) {
+      if (powerMode === 'refus_royal' && aValideQuestions(oppId)) return;
       send('power', { effectKey: powerMode, target: oppId });
       setPowerMode(null);
       return;
@@ -726,7 +733,7 @@ export function GameView({
               questions={questionsAgainst(opp.userId)}
               stagedGhosts={extras}
               zoneLegale={zoneLegale}
-              plaqueLegale={powerPicksOpponent && opp.alive}
+              plaqueLegale={powerPicksOpponent && opp.alive && !(powerMode === 'refus_royal' && aValideQuestions(opp.userId))}
               pickMode={powerPicksPlaced}
               canPick={canPickPlaced}
               onZone={() => stageOn(opp.userId)}
@@ -1092,6 +1099,8 @@ export function GameView({
                   {activable && (
                     <button
                       className="btn btn--petit pouvoir-slot__utiliser"
+                      disabled={pow.effectKey === 'refus_royal' && refusRoyalFerme}
+                      title={pow.effectKey === 'refus_royal' && refusRoyalFerme ? fr.jeu.refusRoyalTropTard : undefined}
                       onClick={() => {
                         if (pow.effectKey === 'deduction') send('power', { effectKey: 'deduction' });
                         else setPowerMode(arme ? null : pow.effectKey);
@@ -1100,6 +1109,22 @@ export function GameView({
                       {arme ? fr.jeu.annulerPouvoir : fr.jeu.utiliser}
                     </button>
                   )}
+                  {pow.effectKey === 'clonage' && activable && proj.self.clonedPowerKey &&
+                    data.POWERS[proj.self.clonedPowerKey]?.kind === 'active' &&
+                    proj.self.clonedPowerKey !== 'execution' && (
+                      <button
+                        className="btn btn--petit pouvoir-slot__utiliser"
+                        onClick={() => {
+                          const k = proj.self.clonedPowerKey!;
+                          if (k === 'deduction') send('power', { effectKey: 'deduction' });
+                          else setPowerMode(powerMode === k ? null : k);
+                        }}
+                      >
+                        {powerMode === proj.self.clonedPowerKey
+                          ? fr.jeu.annulerPouvoir
+                          : fr.jeu.utiliserCopie(data.POWERS[proj.self.clonedPowerKey]?.label ?? proj.self.clonedPowerKey)}
+                      </button>
+                    )}
                 </div>
               );
             })}
@@ -1121,6 +1146,58 @@ export function GameView({
               ))}
               <button className="btn btn--nu" onClick={() => send('execution', { target: null })}>
                 {fr.jeu.executionRefuser}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* modale : Non 1-2 (#1836) — le joueur interrogé choisit les 2 cartes qu'il donne */}
+      {!over && alive && proj.donnezChoice && (
+        <div className="voile">
+          <div className="modale" role="dialog" aria-modal="true">
+            <h2 className="titre-affiche modale__titre">{fr.jeu.donnezTitre}</h2>
+            <p className="modale__texte">{fr.jeu.donnezTexte(nameOf(proj.donnezChoice.asker), proj.donnezChoice.count)}</p>
+            <div className="choix-cartes">
+              {hand.map((card) => {
+                const choisi = donnezIds.includes(card.id);
+                return (
+                  <button
+                    key={card.id}
+                    className={`choix-carte ${choisi ? 'choix-carte--choisi' : ''}`}
+                    onClick={() =>
+                      setDonnezIds((cur) =>
+                        cur.includes(card.id)
+                          ? cur.filter((x) => x !== card.id)
+                          : cur.length < proj.donnezChoice!.count
+                            ? [...cur, card.id]
+                            : cur,
+                      )
+                    }
+                  >
+                    <GameCard size="md" face={{
+                        src: questionCardSrc(card),
+                        alt: describeQuestionCard(card),
+                        typeLabel: card.type === 'attribut' ? 'Attribut' : 'Action',
+                        bodyLabel: describeQuestionCard(card),
+                        bandColor: questionCardBand(card),
+                        tint: card.type === 'attribut' ? 'teinte-attribut' : 'teinte-action',
+                      }} />
+                    <span className="choix-carte__note">{choisi ? fr.jeu.donnezCeluiCi : ''}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="modale__pied">
+              <button
+                className="btn btn--givre"
+                disabled={donnezIds.length !== Math.min(proj.donnezChoice.count, hand.length)}
+                onClick={() => {
+                  send('donnez', { cardIds: donnezIds });
+                  setDonnezIds([]);
+                }}
+              >
+                {fr.jeu.donnezValider}
               </button>
             </div>
           </div>

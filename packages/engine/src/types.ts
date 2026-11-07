@@ -165,6 +165,8 @@ export interface TurnEffects {
 
 /** Réponse outcome of the previous tour, feeding the "aucun oui au tour précédent" powers. */
 export interface LastTurnStats {
+  /** Tour these stats describe (#1836; absent = the tour before the current one). */
+  tour?: number;
   /** asker -> at least one of their questions was answered "oui". */
   ouiFor: Record<UserId, boolean>;
   /** asker -> users who answered "non" to at least one of their questions. */
@@ -174,7 +176,11 @@ export interface LastTurnStats {
 /** Resumable Réponse resolution (#1832). */
 export interface ReponseProgress {
   next: number;
-  pending: { asker: UserId; answerer: UserId } | null;
+  /**
+   * Paused on a choice: `execution` = the asker's Exécution (#1832); `donnez` = the answerer
+   * picks the 2 cards he gives after a « non » to Non 1-2 (#1836).
+   */
+  pending: { kind: 'execution' | 'donnez'; asker: UserId; answerer: UserId } | null;
   answers: { placerSeat: number; targetUser: UserId; cardId: CardId; oui: boolean }[];
   reveals: { to: UserId; kind: 'personnage' | 'question'; aboutUser?: UserId; god?: GodId; card?: QuestionCard }[];
   ouiFor: Record<UserId, boolean>;
@@ -204,6 +210,8 @@ export interface GameState {
   reshuffleCount?: number;
   effets: TurnEffects;
   lastTurn: LastTurnStats;
+  /** #1836: the stats of the tour before `lastTurn`'s, read while `lastTurn` is the current tour's (declaration window). */
+  priorTurn?: LastTurnStats | null;
   /** Réponse resolution in progress (paused on an asker's Exécution choice); null otherwise. */
   reponseProgress?: ReponseProgress | null;
 }

@@ -21,6 +21,7 @@ import {
   placeSpeciale,
   resolveReponsePhase,
   answerExecution,
+  answerDonnez,
   advanceTurn,
   activatePower,
   resolveDeclarations,
@@ -130,7 +131,7 @@ export class MatchController {
 
   submitDeclaration(userId: UserId, decision: DeclarationDecision): void {
     this.assertPhase('reponse');
-    if (this.state.reponseProgress?.pending) throw new Error('Réponse en attente du choix Exécution');
+    if (this.state.reponseProgress?.pending) throw new Error('Réponse en attente d’un choix (Exécution / don de cartes)');
     if (decision.guesses && Object.keys(decision.guesses).length > 0) {
       this.state.declarations.push({ declarer: userId, guesses: decision.guesses as Record<string, never> });
     }
@@ -174,6 +175,7 @@ export class MatchController {
         this.state.phase = 'reponse';
         fireSpecialesAtPhaseStart(this.state, 'reponse');
         this.finishReponse(resolveReponsePhase(this.state));
+        this.autoDeclineExecution(false); // a pending choice of an absent player resolves at once
         break;
       }
       case 'reponse': {
@@ -215,13 +217,25 @@ export class MatchController {
     this.finishReponse(answerExecution(this.state, userId, target));
   }
 
-  /** Auto-decline a paused Exécution choice (bot, timeout, disconnected asker). */
+  /**
+   * Non 1-2 (#1836): the questioned player's choice of the cards he gives (null = default pick).
+   * Resumes the paused Réponse resolution.
+   */
+  submitDonnez(userId: UserId, cardIds: string[] | null): void {
+    this.assertPhase('reponse');
+    this.finishReponse(answerDonnez(this.state, userId, cardIds));
+  }
+
+  /** Auto-resolve a paused choice (bot, timeout, absent player): Exécution declined, gift = default pick. */
   private autoDeclineExecution(force: boolean): void {
     let guard = 0;
     while (this.state.reponseProgress?.pending && guard++ < 100) {
-      const asker = this.state.reponseProgress.pending.asker;
-      if (!force && this.state.players[asker]?.connected) return;
-      this.finishReponse(answerExecution(this.state, asker, null));
+      const pending = this.state.reponseProgress.pending;
+      const who = pending.kind === 'donnez' ? pending.answerer : pending.asker;
+      if (!force && this.state.players[who]?.connected) return;
+      this.finishReponse(
+        pending.kind === 'donnez' ? answerDonnez(this.state, who, null) : answerExecution(this.state, who, null),
+      );
     }
   }
 

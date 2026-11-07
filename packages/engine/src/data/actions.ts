@@ -18,7 +18,6 @@ import {
   swapPowers,
   takeAttributsFromPile,
   takePowerFromPile,
-  transferHandCards,
 } from '../effects.js';
 
 export interface ActionDef {
@@ -37,13 +36,12 @@ export interface ActionDef {
   triggerPhase?: Phase;
   /** Spéciale: placement must name a target player (spéciales 1, 5, 6). */
   needsTarget?: boolean;
+  /** Non 1-2 (#1836): the answerer CHOOSES this many cards to give the asker (a pending choice, not an `apply`). */
+  gives?: number;
   /** Effect body. Non: actor = asker, other = answerer. Spéciale: actor = owner. */
   apply?: (state: GameState, actor: UserId, ctx?: { other?: UserId; payload?: SpecialePayload }) => void;
 }
 
-const donnezDeuxCartes = (state: GameState, asker: UserId, ctx?: { other?: UserId }) => {
-  if (ctx?.other) transferHandCards(state, ctx.other, asker, 2);
-};
 const echangePouvoir = (state: GameState, asker: UserId, ctx?: { other?: UserId }) => {
   if (ctx?.other) swapPowers(state, asker, ctx.other);
 };
@@ -54,7 +52,7 @@ const defaussePouvoir = (state: GameState, _asker: UserId, ctx?: { other?: UserI
 function non(n: number, axe: Axe, valeur: AxeValeur, question: string, effet: string,
   apply: ActionDef['apply']): [string, ActionDef] {
   const key = `action_non_${n}`;
-  return [key, { effectKey: key, subtype: 'non', label: `Non ${n}`, texte: `${question} — ${effet}`, axe, valeur, apply }];
+  return [key, { effectKey: key, subtype: 'non', label: `Non ${n}`, texte: `${question} — ${effet}`, axe, valeur, apply, ...(apply === undefined ? { gives: 2 } : {}) }];
 }
 
 function multiple(n: number, gods: GodId[]): [string, ActionDef] {
@@ -79,8 +77,8 @@ const EFFET_DEFAUSSE = '« Si vous répondez non, défaussez votre pouvoir. »';
 /** The 27 real action-card identities — transcribed (docs/card-catalog.md §3). */
 export const ACTIONS: Record<string, ActionDef> = Object.fromEntries([
   // ---- Non (9) — the 9 attribute values, one question each --------------------
-  non(1, 'genre', 'feminin', '« Êtes vous un personnage féminin? »', EFFET_DONNEZ, donnezDeuxCartes),
-  non(2, 'genre', 'masculin', '« Êtes vous un personnage masculin? »', EFFET_DONNEZ, donnezDeuxCartes),
+  non(1, 'genre', 'feminin', '« Êtes vous un personnage féminin? »', EFFET_DONNEZ, undefined),
+  non(2, 'genre', 'masculin', '« Êtes vous un personnage masculin? »', EFFET_DONNEZ, undefined),
   non(3, 'pantheon', 'egyptien', '« Faites vous partie du Panthéon Egyptien? »', EFFET_ECHANGE, echangePouvoir),
   non(4, 'pantheon', 'grec', '« Faites vous partie du Panthéon Grec? »', EFFET_ECHANGE, echangePouvoir),
   non(5, 'pantheon', 'hindou', '« Faites vous partie du Panthéon Hindou? »', EFFET_ECHANGE, echangePouvoir),

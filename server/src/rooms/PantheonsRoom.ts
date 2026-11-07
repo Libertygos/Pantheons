@@ -167,6 +167,15 @@ export class PantheonsRoom extends Room implements SessionEnder {
         this.broadcastProjections();
       }),
     );
+    // Non 1-2 (#1836): the questioned player's choice of the 2 cards he gives (msg.cardIds).
+    this.onMessage('donnez', (client, msg) =>
+      this.guard(client, (uid) => {
+        const ids = Array.isArray(msg?.cardIds) && msg.cardIds.every((c: unknown) => typeof c === 'string') ? msg.cardIds : null;
+        if (!ids) throw new Error('Choisissez les cartes à donner.');
+        this.controller?.submitDonnez(uid, ids);
+        this.broadcastProjections();
+      }),
+    );
     // Explicit power activations (Sabotage / Refus royal / Clonage / Déduction /
     // Espionnage / Exécution). Public event via onPhaseEvent; private payloads unicast.
     this.onMessage('power', (client, msg) =>

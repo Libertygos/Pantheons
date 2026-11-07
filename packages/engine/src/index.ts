@@ -11,6 +11,8 @@ export {
   placeSpeciale,
   resolveReponsePhase,
   answerExecution,
+  answerDonnez,
+  GIFT_COUNT,
   executionTargets,
   fireSpecialesAtPhaseStart,
   advanceTurn,

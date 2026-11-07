@@ -104,7 +104,7 @@ répond « non ». Trois effets, un par axe :
 | id | Question portée (axe = valeur) | Effet (verbatim face) | Fichier |
 |---|---|---|---|
 | `action_non_1` | genre = feminin | « Si vous répondez non, donnez deux de vos cartes au joueur qui vous a posé la question. » | `card_actions_non_1.webp` |
-| `action_non_2` | genre = masculin | idem `action_non_1` | `card_actions_non_2.webp` |
+| `action_non_2` | genre = masculin | idem `action_non_1` (#1836 : le joueur interrogé choisit les 2 cartes qu'il donne ; ordinateur/absent/délai = les 2 premières de sa main) | `card_actions_non_2.webp` |
 | `action_non_3` | pantheon = egyptien | « Si vous répondez non, échangez votre pouvoir avec le joueur qui vous a posé la question. » | `card_actions_non_3.webp` |
 | `action_non_4` | pantheon = grec | idem `action_non_3` | `card_actions_non_4.webp` |
 | `action_non_5` | pantheon = hindou | idem `action_non_3` | `card_actions_non_5.webp` |
@@ -197,7 +197,7 @@ PANTHEONS_PROGRESS.md.
 
 Quatre pouvoirs partagent la condition « **aucun oui au tour précédent** » (Refus royal,
 Déduction, Optimisme, Espionnage) : se lit « aucune de VOS questions n'a reçu de oui au
-tour précédent » — suivi par l'engine (`lastTurn`).
+tour précédent » — suivi par l'engine (`lastTurn` + `priorTurn`) ; lit toujours le tour **précédent**, aussi pendant la fenêtre de déclaration (#1836). Déduction tire la carte au hasard (#1836) ; Refus royal est refusé une fois la cible ayant validé ses questions (#1836) ; la copie de Clonage s'annule quand le pouvoir copié est défaussé ou que le Clonage change de mains (#1836).
 
 ## 5. Récapitulatif du paquet
 

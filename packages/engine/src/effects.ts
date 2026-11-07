@@ -7,7 +7,7 @@
  * `attr_<valeur>_<n>` — so effects can reason about identities without a CardIndex.
  */
 import { makeRng, shuffle } from './rng.js';
-import type { AxeValeur, CardId, GameState, PlayerState, UserId } from './types.js';
+import type { AxeValeur, CardId, GameState, LastTurnStats, PlayerState, UserId } from './types.js';
 
 export function powerKeyOfCardId(id: CardId): string {
   return id.replace(/^pow_/, '');
@@ -43,7 +43,18 @@ export function hasEffectivePower(state: GameState, userId: UserId, key: string)
 /** "Aucun oui au tour précédent" — false on tour 1 (no previous tour to have failed in). */
 export function noOuiLastTurn(state: GameState, userId: UserId): boolean {
   if (state.tour <= 1) return false;
-  return state.lastTurn.ouiFor[userId] !== true;
+  return previousTurnStats(state).ouiFor[userId] !== true;
+}
+
+/**
+ * #1836: the stats of the PREVIOUS tour, also during the declaration window (when `lastTurn`
+ * already holds the current tour's just-resolved réponse).
+ */
+export function previousTurnStats(state: GameState): LastTurnStats {
+  const empty: LastTurnStats = { ouiFor: {}, nonAnswerers: {} };
+  if (state.tour <= 1) return empty;
+  if (state.lastTurn.tour === state.tour) return state.priorTurn ?? empty;
+  return state.lastTurn;
 }
 
 /**
@@ -57,7 +68,7 @@ export function discardPowers(state: GameState, userId: UserId): void {
   const keys = p.powers.map(powerKeyOfCardId);
   state.discard.pouvoirs.push(...p.powers);
   p.powers = [];
-  p.clonedPowerKey = null;
+  p.clonedPowerKey = null; // a discarded Clonage loses its copy
   unlinkClonageCopying(state, keys);
 }
 
@@ -80,22 +91,26 @@ export function unlinkClonageCopying(state: GameState, keys: string[]): void {
   }
 }
 
-/**
- * Transfer up to `count` cards from `from`'s hand to `to`'s hand (Non 1–2 : « donnez deux
- * de vos cartes »). v1 arbitrage (consigné) : sélection déterministe côté serveur —
- * attributs d'abord, puis actions, les plus anciennes en premier. Choix interactif = v2.
- */
-export function transferHandCards(state: GameState, from: UserId, to: UserId, count: number): void {
+/** Default pick for the Non 1-2 gift (computer, absent, timeout): attributs first, then actions, oldest first. */
+export function defaultGift(state: GameState, from: UserId, count: number): CardId[] {
+  const h = state.players[from]?.hand;
+  if (!h) return [];
+  return [...h.attributs, ...h.actions].slice(0, count);
+}
+
+/** Move the given cards from `from`'s hand to `to`'s hand (Non 1–2, #1836: the giver chose them). */
+export function transferHandCards(state: GameState, from: UserId, to: UserId, cardIds: CardId[]): void {
   const src = state.players[from];
   const dst = state.players[to];
   if (!src || !dst || !src.alive || !dst.alive) return; // #1833
-
-  for (let i = 0; i < count; i++) {
-    if (src.hand.attributs.length > 0) {
-      dst.hand.attributs.push(src.hand.attributs.shift()!);
-    } else if (src.hand.actions.length > 0) {
-      dst.hand.actions.push(src.hand.actions.shift()!);
+  for (const id of cardIds) {
+    const ia = src.hand.attributs.indexOf(id);
+    if (ia >= 0) {
+      dst.hand.attributs.push(...src.hand.attributs.splice(ia, 1));
+      continue;
     }
+    const ic = src.hand.actions.indexOf(id);
+    if (ic >= 0) dst.hand.actions.push(...src.hand.actions.splice(ic, 1));
   }
 }
 

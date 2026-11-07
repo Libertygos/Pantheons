@@ -209,7 +209,7 @@ test('#1832 Exécution is offered to the asker at the « oui » and accepted: ta
   givePower(state, 'u3', 'sabotage');
   const before = state.players['u1']!.hand.actions.length;
   const res = resolveReponsePhase(state);
-  assert.deepEqual(res.pending, { asker: 'u1', answerer: 'u2' });
+  assert.deepEqual(res.pending, { kind: 'execution', asker: 'u1', answerer: 'u2' });
   assert.equal(state.players['u1']!.hand.actions.length, before); // paused, nothing drawn yet
   assert.throws(() => answerExecution(state, 'u2', 'u3')); // only the asker chooses
   const done = answerExecution(state, 'u1', 'u3');

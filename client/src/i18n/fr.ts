@@ -156,6 +156,13 @@ export const fr = {
     faceCachee: 'Face cachée',
     utiliser: 'Utiliser',
     annulerPouvoir: 'Annuler',
+    donnezTitre: 'Donner deux cartes',
+    donnezTexte: (nom: string, n: number) =>
+      `Vous avez répondu non : choisissez les ${n} cartes de votre main que vous donnez à ${nom}.`,
+    donnezCeluiCi: 'Donner celle-ci',
+    donnezValider: 'Donner ces cartes',
+    refusRoyalTropTard: 'Les questions de ce tour sont déjà validées.',
+    utiliserCopie: (pouvoir: string) => `Utiliser la copie (${pouvoir})`,
     executionTitre: 'Exécution',
     executionTexte: (nom: string) =>
       `${nom} a répondu oui à votre question. Piochez votre carte Action, ou renoncez-y pour défausser le pouvoir d’un joueur.`,
